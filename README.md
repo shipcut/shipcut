@@ -45,28 +45,50 @@ export default async ({ page, base, shot, step }) => {
 ```
 
 `page` is a Playwright page. `step(title)` marks a chapter; its title and time
-offset are kept for captions. Type it with
+offset are kept, and `shots caption` burns them into the video.
+`step(title, { caption: false })` marks one that shows no caption. Type it with
 `import type { Scenario } from "<this repo>/src/run.ts"` if you want the types.
 
 | Flag | |
 |---|---|
 | `--base URL` | handed to the scenario, default `http://localhost:3000` |
 | `--out DIR` | default `./out/<run-id>/` |
-| `--preset` | `desktop` 1280x800 (default), `phone` 390x844 (touch, mobile), `post` 1080x1350, `story` 1080x1920 |
-| `--viewport WxH` | instead of a preset |
-| `--scale N` | device pixel ratio for the shots; the video stays at viewport size |
-| `--video` | records the run as `video.mp4` (H.264, yuv420p, faststart) |
-| `--cursor` | draws a pointer and click rings in the video; shots stay clean |
+| `--preset` | `desktop` (default), `phone`, `post`, `story`; sizes below |
+| `--viewport WxH` | CSS pixels, instead of a preset; no touch, scale 1 |
+| `--scale N` | device pixel ratio; multiplies the shots and the video alike |
+| `--video` | records the run as `video.mp4` (H.264, yuv420p, 30 fps, faststart) |
+| `--cursor` | draws a pointer and click rings in the video once the mouse moves; shots stay clean |
 | `--slow MS` | pause between browser actions, so a video can be followed |
 | `--storage-state FILE` | a Playwright storage state, to start signed in |
 | `--locale xx`, `--dark` | browser locale, dark colour scheme |
 
+| Preset | CSS viewport | Scale | Shots and video | Layout |
+|---|---|---|---|---|
+| `desktop` | 1280x800 | 1 | 1280x800 | desktop |
+| `phone` | 390x844 | 1 | 390x844 | phone: touch, mobile viewport |
+| `post` | 360x450 | 3 | 1080x1350 | phone |
+| `story` | 360x640 | 3 | 1080x1920 | phone |
+
+A site picks its layout by CSS width, so `post` and `story` are a phone 360
+wide, multiplied up to the 1080 a feed wants. For a desktop page in a tall
+frame, say `--viewport 1080x1920`. `--preset phone --scale 3` is 1170x2532.
+
 The run directory gets the files and a `run.json`. A scenario that throws
 leaves `failed.png` and exits 1.
 
-Where `heavy` is on PATH the command runs itself again under
-`heavy --name shots --no-lock --mem 1500M --need 800`, so the browser and
-ffmpeg share one memory cap. Exit 75 means the box had no memory to spare.
+The video is the page's own repaints, taken from Chromium at device pixels and
+encoded as they arrive. The frame on screen is repeated until the next one, so
+the rate is a constant 30 fps and a step's offset is its place in the video.
+It records the one page the scenario is given. A popup or a second tab is not
+in it. Headless Chromium paints in software, so a 1080x1920 page that changes
+on every frame comes out at about 18 distinct frames a second on a 4-vCPU box
+with no GPU, and 1280x800 at about 29. A run whose file holds fewer frames
+than were sent fails and says so.
+
+Where `heavy` is on PATH, `run`, `clip` and `caption` run themselves again
+under `heavy --name shots --no-lock --mem 1500M --need 800`, so the browser and
+ffmpeg share one memory cap. Exit 75 means the box had no memory to spare. A
+story run peaks near 700 MB.
 
 ### clip
 
@@ -79,6 +101,28 @@ Trims (`--from`, `--to` in seconds of the source), speeds up, scales, or makes
 a palette GIF (12 fps, 640 wide unless `--width`). Writes `<name>-clip.mp4` or
 `<name>.gif` next to the source unless `--out`. A result inside a run
 directory is added to its `run.json`, so `publish` uploads it.
+
+### caption
+
+```sh
+shots caption out/20261002-134501-booking
+```
+
+Burns each step's title into `video.mp4`, from the step's offset until the
+next step, the last one to the end. Writes `video-captioned.mp4` in the run
+directory unless `--out`, and adds it to `run.json`, so `publish` uploads it
+beside the plain video.
+
+The caption is white on an opaque black band across the frame, with a white
+rule above and below so the band shows on a black page too. Text is a 22nd of
+the frame's short side (49 px in a story). A title too long for one line
+wraps, and a single word too long for a line shrinks the text. A wide frame
+has the band on its bottom edge. A tall one has it end at 88% of the height,
+because a story's own controls cover what is below.
+
+The font is the bold sans `fc-match` returns, named on stderr; `--font FILE`
+picks another. Nothing is downloaded. Without fontconfig, ffmpeg's default
+font is used.
 
 ### publish
 

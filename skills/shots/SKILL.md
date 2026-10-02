@@ -31,7 +31,9 @@ export default async ({ page, base, shot, step }) => {
 
 - `page` is a Playwright page, `base` is `--base` with no trailing slash.
 - `shot(name)` saves `NN-name.png` of the viewport; `shot(name, { fullPage: true })` the whole page.
-- `step(title)` marks a chapter for later captions. Write it as a caption.
+- `step(title)` marks a chapter, and `shots caption` burns the title into the
+  video until the next step. Write it as a caption: a few words, no full stop.
+  `step(title, { caption: false })` marks a chapter that shows none.
 - Wait for the thing you are about to shoot (`waitFor`, `waitForLoadState`),
   not for a timeout. A fixed pause is right only to let a video breathe.
 - Node runs the file directly: plain imports only, no path aliases, no `enum`.
@@ -43,17 +45,48 @@ export default async ({ page, base, shot, step }) => {
 shots run shots/landing.ts --base http://localhost:3000 --video --cursor
 ```
 
-`--preset desktop|phone|post|story` (1280x800, 390x844, 1080x1350, 1080x1920)
-or `--viewport WxH`. `--scale 2` for sharp shots. `--slow 150` when the video
-moves too fast to follow. `--storage-state FILE` to start signed in.
-`--locale sk`, `--dark`.
+| Preset | Layout | Shots and video |
+|---|---|---|
+| `desktop` (default) | desktop, 1280x800 CSS | 1280x800 |
+| `phone` | phone, 390x844 CSS | 390x844 |
+| `post` | phone, 360x450 CSS at scale 3 | 1080x1350 |
+| `story` | phone, 360x640 CSS at scale 3 | 1080x1920 |
+
+`post` and `story` are for social feeds, and show the phone layout. For
+anything else, `--viewport WxH` takes CSS pixels and behaves as a desktop, and
+`--scale N` multiplies shots and video alike, so `--scale 2` on `desktop` is a
+2560x1600 video.
+
+`--slow 150` when the video moves too fast to follow. `--storage-state FILE`
+to start signed in. `--locale sk`, `--dark`.
+
+The video is H.264 at 30 fps and shows the one page the scenario was given.
+`--cursor` draws the pointer from its first move, so a scenario that only
+scrolls shows none. A scroll done with `scrollIntoView({ behavior: "smooth" })`
+and a pause after it reads better than a jump.
 
 Files land in `./out/<run-id>/` with a `run.json`; the command prints the
 paths. Look at the PNGs before publishing. If the scenario throws, read
 `failed.png` in the same directory.
 
-The command queues itself through `heavy` on a shared box. Do not wrap it.
-Exit 75 means the box is busy. Retry later.
+`run`, `clip` and `caption` queue themselves through `heavy` on a shared box.
+Do not wrap them. Exit 75 means the box is busy. Retry later.
+
+## Caption
+
+```sh
+shots caption out/<run-id>
+```
+
+Writes `video-captioned.mp4` beside `video.mp4`, each step's title on a black
+band low in the frame from that step until the next. Pull a frame from inside
+each step and look at it before publishing:
+
+```sh
+ffmpeg -v error -ss 4 -i out/<run-id>/video-captioned.mp4 -frames:v 1 /tmp/frame.png
+```
+
+Caption first, then clip the captioned file if it needs trimming.
 
 ## Clip
 
@@ -62,8 +95,8 @@ shots clip out/<run-id>/video.mp4 --from 1 --to 8 --speed 1.5
 shots clip out/<run-id>/video.mp4 --gif --width 480
 ```
 
-Do this before publishing: a clip made inside the run directory is uploaded
-with it. An mp4 is only ever a link in Markdown; a GIF shows inline.
+Do this before publishing: a clip or a captioned video made inside the run
+directory is uploaded with it. An mp4 is only ever a link in Markdown; a GIF shows inline.
 
 ## Publish
 
