@@ -15,8 +15,8 @@ export type RunFile = {
   at?: number;
 };
 
-/** A chapter a scenario marked with `step(title)`. */
-export type Step = { title: string; at: number };
+/** A chapter a scenario marked with `step(title)`. `caption: false` keeps it out of `shots caption`. */
+export type Step = { title: string; at: number; caption?: false };
 
 /** `run.json`: what `shots run` writes next to the files. */
 export interface Run {

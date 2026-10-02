@@ -2,8 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   buildIndex,
+  captionFilter,
+  captionLayout,
+  captionOptions,
+  captionTimeline,
   clipArgs,
   clipOptions,
+  filterValue,
   framesDue,
   indexEntry,
   markdown,
@@ -11,6 +16,7 @@ import {
   recordArgs,
   runId,
   runOptions,
+  wrap,
 } from "../src/lib.ts";
 import type { IndexEntry, Manifest } from "../src/types.ts";
 
@@ -58,6 +64,62 @@ test("the recorder repeats the frame on screen until the wall clock is covered",
   assert.deepEqual(args.slice(0, 9), ["-y", "-f", "image2pipe", "-framerate", "30", "-c:v", "mjpeg", "-i", "-"]);
   assert.ok(args.includes("libx264") && args.includes("yuv420p") && args.includes("+faststart"));
   assert.equal(args.at(-1), "out/video.mp4");
+});
+
+test("a caption runs from its step to the next one, and the last to the end", () => {
+  const steps = [
+    { title: "Pricing", at: 4000 },
+    { title: "The landing", at: 500 },
+    { title: "a cut", at: 6000, caption: false as const },
+    { title: "Sign up", at: 8000 },
+    { title: "after the end", at: 12_000 },
+  ];
+  assert.deepEqual(captionTimeline(steps, 10), [
+    { title: "The landing", from: 0.5, to: 4 },
+    { title: "Pricing", from: 4, to: 6 },
+    { title: "Sign up", from: 8, to: 10 },
+  ]);
+  assert.deepEqual(captionTimeline([], 10), []);
+  assert.equal(captionOptions(["out/run/"]).out, "out/run/video-captioned.mp4");
+  assert.throws(() => captionOptions([]), /usage/);
+});
+
+test("a long caption wraps, and a word too long for a line shrinks the text", () => {
+  assert.deepEqual(wrap("one two three four", 9), ["one two", "three", "four"]);
+  assert.deepEqual(wrap("  spaced   out ", 20), ["spaced out"]);
+
+  const story = { width: 1080, height: 1920 };
+  const short = captionLayout("Cenník", story);
+  assert.equal(short.size, 49);
+  assert.deepEqual(short.lines, ["Cenník"]);
+  // Low, clear of the middle and of a story's own controls.
+  assert.ok(short.top > story.height * 0.7 && short.top + short.height === Math.round(story.height * 0.88));
+
+  const long = captionLayout("Every booking lands on the team's board the moment a guest confirms it", story);
+  assert.ok(long.lines.length > 1);
+  assert.ok(long.lines.every((line) => line.length * 0.68 * long.size <= story.width * 0.9));
+  assert.equal(long.top + long.height, short.top + short.height);
+
+  const word = captionLayout("Donaudampfschifffahrtsgesellschaftskapitänsmütze", story);
+  assert.ok(word.size < 49 && word.lines.length === 1);
+
+  // A wide frame keeps the band on its bottom edge.
+  const desktop = captionLayout("Pricing", { width: 1280, height: 800 });
+  assert.equal(desktop.top + desktop.height, 800);
+});
+
+test("caption text survives ffmpeg's two rounds of unescaping", () => {
+  assert.equal(filterValue("plain text"), "plain text");
+  assert.equal(filterValue("a:b"), "a\\\\:b");
+  assert.equal(filterValue("it's"), "it\\\\\\'s");
+  assert.equal(filterValue("a\\b"), "a\\\\\\\\b");
+  assert.equal(filterValue("[a], b; 50%"), "\\[a\\]\\, b\\; 50%");
+
+  const filter = captionFilter([{ title: "Step 1: it's on", from: 0.5, to: 4 }], { width: 1280, height: 800 }, "/f/Sans.ttf");
+  assert.match(filter, /^drawbox=x=0:y=\d+:w=iw:h=\d+:color=black:t=fill:enable=between\(t\\,0\.500\\,4\.000\)/);
+  assert.match(filter, /drawtext=fontfile=\/f\/Sans\.ttf:text=Step 1\\\\: it\\\\\\'s on:expansion=none:fontsize=36:fontcolor=white/);
+  // Nothing unescaped is left to end the filter early: the band, its two rules, one line.
+  assert.equal(filter.split(/(?<!\\),/).length, 4);
 });
 
 test("run flags refuse what they cannot use", () => {

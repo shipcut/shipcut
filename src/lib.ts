@@ -1,7 +1,7 @@
 // The pure parts: ids, flags, ffmpeg arguments, the index and the Markdown.
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
-import type { IndexEntry, Manifest } from "./types.ts";
+import type { IndexEntry, Manifest, Step } from "./types.ts";
 
 /**
  * Sizes are CSS pixels, and `scale` multiplies them into the pixels of the
@@ -156,6 +156,103 @@ export function recordArgs(out: string, fps = FPS): string[] {
   return ["-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-", "-vf", vf, ...MP4, ...tags, "-preset", "veryfast", out];
 }
 
+
+export type CaptionOptions = ReturnType<typeof captionOptions>;
+
+export function captionOptions(argv: string[]) {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: { out: { type: "string" }, font: { type: "string" } },
+  });
+  const [dir, ...rest] = positionals;
+  if (!dir || rest.length) throw new Error("usage: shots caption <run-dir> [--out FILE] [--font FILE]");
+  return { dir, out: values.out ?? `${dir.replace(/\/$/, "")}/video-captioned.mp4`, font: values.font };
+}
+
+export type Caption = { title: string; from: number; to: number };
+
+/**
+ * When each step's title is on screen, in seconds: from its own offset to the
+ * next step's, the last one to the end. A step marked `caption: false` shows
+ * nothing and still ends the caption before it.
+ */
+export function captionTimeline(steps: Step[], duration: number): Caption[] {
+  const sorted = [...steps].sort((a, b) => a.at - b.at);
+  return sorted.flatMap((step, i) => {
+    const from = step.at / 1000;
+    const to = Math.min((sorted[i + 1]?.at ?? Infinity) / 1000, duration);
+    return step.caption === false || !step.title.trim() || to <= from ? [] : [{ title: step.title.trim(), from, to }];
+  });
+}
+
+/** Greedy wrap into lines of at most `max` characters; a longer word stays whole. */
+export function wrap(text: string, max: number): string[] {
+  const lines: string[] = [];
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const last = lines.at(-1);
+    if (last !== undefined && last.length + 1 + word.length <= max) lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  }
+  return lines;
+}
+
+/**
+ * A value for an option of a filter in `-vf`. ffmpeg unescapes twice: the
+ * graph takes `\ ' , ; [ ]`, then the filter's options take `\ ' :`. So what
+ * both read is escaped twice, and what only the graph reads once.
+ */
+export const filterValue = (text: string) =>
+  text.replace(/[\\':]/g, "\\$&").replace(/[\\',;[\]]/g, "\\$&");
+
+// ponytail: no font metrics, a glyph is taken to be 0.68 of the font size wide
+// (DejaVu Sans Bold averages a little under that). A font much wider overflows
+// the 90% line; measure with a drawtext dry run if that ever shows.
+const GLYPH = 0.68;
+
+/** Where a caption of these lines sits in a frame: a band across it, low. */
+export function captionLayout(title: string, frame: { width: number; height: number }) {
+  const usable = frame.width * 0.9;
+  const longest = Math.max(...title.split(/\s+/).map((w) => w.length));
+  // Relative to the frame's short side; one word too long for a line shrinks it.
+  const size = Math.floor(Math.min(Math.min(frame.width, frame.height) / 22, usable / (GLYPH * longest)));
+  const lines = wrap(title, Math.floor(usable / (GLYPH * size)));
+  const lineHeight = Math.round(size * 1.35);
+  const pad = Math.round(size * 0.6);
+  const height = lines.length * lineHeight + 2 * pad;
+  // A story's bottom eighth is under the platform's own controls, so a tall
+  // frame lifts the band clear of it. Either way the middle stays free.
+  const bottom = frame.height > frame.width ? Math.round(frame.height * 0.88) : frame.height;
+  return { lines, size, lineHeight, pad, height, top: bottom - height };
+}
+
+/**
+ * The `-vf` value that burns the captions in: white text on an opaque black
+ * band, so the page never shows through, with a white rule above and below,
+ * so the band still reads as one on a black page.
+ */
+export function captionFilter(captions: Caption[], frame: { width: number; height: number }, font?: string): string {
+  return captions
+    .flatMap((c) => {
+      const l = captionLayout(c.title, frame);
+      const enable = `enable=${filterValue(`between(t,${c.from.toFixed(3)},${c.to.toFixed(3)})`)}`;
+      const face = font ? `fontfile=${filterValue(font)}:` : "";
+      const rule = Math.max(2, Math.round(l.size / 16));
+      const box = (y: number, height: number, colour: string) =>
+        `drawbox=x=0:y=${y}:w=iw:h=${height}:color=${colour}:t=fill:${enable}`;
+      return [
+        box(l.top, l.height, "black"),
+        box(l.top, rule, "white"),
+        box(l.top + l.height - rule, rule, "white"),
+        ...l.lines.map(
+          (line, i) =>
+            `drawtext=${face}text=${filterValue(line)}:expansion=none:fontsize=${l.size}:fontcolor=white:` +
+            `x=(w-text_w)/2:y=${l.top + l.pad + i * l.lineHeight + Math.round((l.lineHeight - l.size) / 2)}:y_align=font:${enable}`,
+        ),
+      ];
+    })
+    .join(",");
+}
 
 /** The ffmpeg arguments for `shots clip`. */
 export function clipArgs(o: ClipOptions): string[] {
