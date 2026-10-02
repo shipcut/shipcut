@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { del, get, list, put } from "@vercel/blob";
-import { indexEntry, markdown, withEntry, withoutEntry } from "./lib.ts";
+import { buildIndex, indexEntry, markdown } from "./lib.ts";
 import type { IndexEntry, Manifest, Run } from "./types.ts";
 
 const YEAR = 31_536_000;
@@ -39,22 +39,51 @@ const putJson = (path: string, value: unknown) =>
     token: token(),
   });
 
-async function readIndex(project: string): Promise<IndexEntry[]> {
-  // Past the CDN: a copy up to a minute old would drop whatever was published since.
-  const found = await get(`${project}/index.json`, { access: "public", useCache: false, token: token() });
-  if (!found || found.statusCode !== 200) return [];
-  return (await new Response(found.stream).json()) as IndexEntry[];
+async function getJson<T>(path: string): Promise<{ value: T; url: string } | undefined> {
+  const found = await get(path, { access: "public", token: token() });
+  if (!found || found.statusCode !== 200) return undefined;
+  return { value: (await new Response(found.stream).json()) as T, url: new URL(found.blob.url).href };
 }
 
-// ponytail: read-modify-write with no lock. Two publishes (or a publish and an
-// rm) to one project within the same second or so can each read the old index,
-// and the later write drops the other's entry; its files and manifest.json stay
-// in the store, only the listing misses it, and publishing that run again puts
-// it back. Fine for one person and a few agents. Upgrade path: keep the etag
-// `get` returns, pass it to `put` as `ifMatch`, retry on
+/**
+ * A project's index as the store has it now, with one run added or dropped.
+ *
+ * A public store is read through a CDN that serves an overwritten file's old
+ * copy for a minute or more, so `index.json` cannot be trusted as its own
+ * source: two publishes a few seconds apart would each start from the copy
+ * without the other. The listing API is not cached, so the run folders it
+ * returns decide which runs exist; `index.json` only supplies their entries,
+ * and a run it does not know is read from its own `manifest.json`.
+ */
+async function currentIndex(project: string, change: { add?: IndexEntry; drop?: string } = {}) {
+  // ponytail: one listing page, so 1000 runs per project. Follow `cursor` past that.
+  const { folders } = await list({ prefix: `${project}/`, mode: "folded", token: token() });
+  const ids = new Set(folders.map((f) => f.slice(project.length + 1, -1)));
+  if (change.add) ids.add(change.add.id);
+  if (change.drop) ids.delete(change.drop);
+
+  const known = (await getJson<IndexEntry[]>(`${project}/index.json`))?.value ?? [];
+  if (change.add) known.push(change.add);
+  const manifests = await Promise.all(
+    buildIndex([...ids], known).missing.map((id) => getJson<Manifest>(`${project}/${id}/manifest.json`)),
+  );
+  // A folder with no manifest is a publish that died half way; it is left out.
+  for (const m of manifests) if (m) known.push(indexEntry(m.value, m.url));
+  return buildIndex([...ids], known).index;
+}
+
+// ponytail: no lock, the last writer wins. Two publishes that overlap can each
+// write an index without the other's run. Nothing is lost for good: the files
+// and manifest.json are there, `shots list` reads the listing and shows both,
+// and the next publish or rm in the project rebuilds index.json with both.
+// Until then a reader of index.json alone misses one run. Upgrade path: take
+// the etag from `get`, pass it to `put` as `ifMatch`, retry on
 // BlobPreconditionFailedError.
-async function updateIndex(project: string, change: (index: IndexEntry[]) => IndexEntry[]) {
-  await putJson(`${project}/index.json`, change(await readIndex(project)));
+async function writeIndex(project: string, change: { add?: IndexEntry; drop?: string }) {
+  const index = await currentIndex(project, change);
+  if (index.length) await putJson(`${project}/index.json`, index);
+  // The last run gone, the project goes too, so `shots list` stops naming it.
+  else await del(`${project}/index.json`, { token: token() });
 }
 
 export async function publish(dir: string, project: string | undefined, title: string | undefined) {
@@ -77,7 +106,7 @@ export async function publish(dir: string, project: string | undefined, title: s
   );
   const manifest: Manifest = { ...run, project: name, title, files };
   const { url } = await putJson(`${prefix}/manifest.json`, manifest);
-  await updateIndex(name, (index) => withEntry(index, indexEntry(manifest, url)));
+  await writeIndex(name, { add: indexEntry(manifest, url) });
 
   console.log(markdown(manifest));
   console.error(`\nmanifest: ${url}`);
@@ -93,7 +122,7 @@ export async function listRuns(project: string | undefined, limit: number) {
     ? [projectName(project)]
     : (await list({ mode: "folded", token: token() })).folders.map((f) => f.replace(/\/$/, ""));
   const rows = (
-    await Promise.all(projects.map(async (p) => (await readIndex(p)).map((e) => ({ ...e, project: p }))))
+    await Promise.all(projects.map(async (p) => (await currentIndex(p)).map((e) => ({ ...e, project: p }))))
   )
     .flat()
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -109,8 +138,7 @@ export async function remove(target: string | undefined, yes: boolean) {
   const name = projectName(project);
   // The trailing slash keeps a run id that is a prefix of another one apart.
   const { blobs } = await list({ prefix: `${name}/${id}/`, token: token() });
-  const listed = (await readIndex(name)).some((e) => e.id === id);
-  if (!blobs.length && !listed) throw new Error(`nothing stored as ${name}/${id}`);
+  if (!blobs.length) throw new Error(`nothing stored as ${name}/${id}`);
 
   if (!yes) {
     const prompt = createInterface({ input: process.stdin, output: process.stderr });
@@ -118,7 +146,8 @@ export async function remove(target: string | undefined, yes: boolean) {
     prompt.close();
     if (!/^y(es)?$/i.test(answer.trim())) throw new Error("not deleted");
   }
-  if (blobs.length) await del(blobs.map((b) => b.url), { token: token() });
-  await updateIndex(name, (index) => withoutEntry(index, id));
+  await del(blobs.map((b) => b.url), { token: token() });
+  await writeIndex(name, { drop: id });
   console.log(`deleted ${name}/${id} (${blobs.length} files)`);
+  console.error("note: the CDN can serve a deleted file's cached copy for some minutes more");
 }

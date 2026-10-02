@@ -155,14 +155,18 @@ export function indexEntry(m: Manifest, manifestUrl: string): IndexEntry {
   };
 }
 
-/** Puts a run into an index, replacing an earlier publish of the same run. Newest first. */
-export const withEntry = (index: IndexEntry[], entry: IndexEntry): IndexEntry[] =>
-  [entry, ...index.filter((e) => e.id !== entry.id)].sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt),
-  );
-
-export const withoutEntry = (index: IndexEntry[], id: string): IndexEntry[] =>
-  index.filter((e) => e.id !== id);
+/**
+ * The index a project should have: an entry for every stored run id, newest
+ * first. A later `known` entry wins over an earlier one with the same id; ids
+ * nobody knows come back as `missing`.
+ */
+export function buildIndex(ids: string[], known: IndexEntry[]) {
+  const byId = new Map(known.map((e) => [e.id, e]));
+  return {
+    index: ids.flatMap((id) => byId.get(id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    missing: ids.filter((id) => !byId.has(id)),
+  };
+}
 
 /** The block to paste into a changelog or a PR. */
 export function markdown(m: Manifest): string {

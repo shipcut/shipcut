@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clipArgs, clipOptions, indexEntry, markdown, runId, runOptions, withEntry, withoutEntry } from "../src/lib.ts";
+import { buildIndex, clipArgs, clipOptions, indexEntry, markdown, runId, runOptions } from "../src/lib.ts";
 import type { IndexEntry, Manifest } from "../src/types.ts";
 
 test("a run id is the UTC second and the scenario's file name", () => {
@@ -70,18 +70,18 @@ test("the Markdown block embeds images and links the video", () => {
   );
 });
 
-test("the index keeps one entry per run, newest first", () => {
+test("the index holds the stored runs only, newest first, the latest entry winning", () => {
   const entry = indexEntry(manifest, "https://b/manifest.json");
   assert.equal(entry.cover, "https://b/01-top.png");
   assert.equal(entry.files, 3);
 
   const older: IndexEntry = { ...entry, id: "old", createdAt: "2026-09-01T00:00:00.000Z" };
   const newer: IndexEntry = { ...entry, id: "new", createdAt: "2026-11-01T00:00:00.000Z" };
-  const index = withEntry(withEntry([older], newer), entry);
-  assert.deepEqual(index.map((e) => e.id), ["new", entry.id, "old"]);
+  const deleted: IndexEntry = { ...entry, id: "deleted" };
+  const stale = [older, deleted, entry];
 
-  const again = withEntry(index, { ...entry, title: "Renamed" });
-  assert.equal(again.length, 3);
-  assert.equal(again[1]?.title, "Renamed");
-  assert.deepEqual(withoutEntry(again, entry.id).map((e) => e.id), ["new", "old"]);
+  const built = buildIndex(["old", "new", entry.id, "unknown"], [...stale, newer, { ...entry, title: "Renamed" }]);
+  assert.deepEqual(built.index.map((e) => e.id), ["new", entry.id, "old"]);
+  assert.equal(built.index[1]?.title, "Renamed");
+  assert.deepEqual(built.missing, ["unknown"]);
 });
