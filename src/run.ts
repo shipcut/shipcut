@@ -149,9 +149,9 @@ export async function run(o: RunOptions): Promise<void> {
     const context = await browser.newContext({
       viewport: { width, height },
       deviceScaleFactor: scale,
-      // A phone-sized viewport gets touch and the mobile layout sites key on it.
-      isMobile: o.preset === "phone",
-      hasTouch: o.preset === "phone",
+      // Touch and the mobile viewport: what sites key their phone layout on.
+      isMobile: o.mobile,
+      hasTouch: o.mobile,
       locale: o.locale,
       colorScheme: o.dark ? "dark" : "light",
       storageState: o.storageState,
@@ -202,6 +202,7 @@ export async function run(o: RunOptions): Promise<void> {
     scenario: o.scenario,
     base: o.base,
     viewport: o.viewport,
+    mobile: o.mobile || undefined,
     preset: o.preset,
     locale: o.locale,
     dark: o.dark,

@@ -24,7 +24,10 @@ export interface Run {
   id: string;
   scenario: string;
   base: string;
+  /** CSS pixels, and the scale that multiplies them into the files' pixels. */
   viewport: { width: number; height: number; scale: number };
+  /** Recorded as a phone: touch and the mobile viewport. */
+  mobile?: boolean;
   preset?: string;
   locale?: string;
   dark: boolean;

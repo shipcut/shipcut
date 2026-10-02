@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildIndex, clipArgs, clipOptions, indexEntry, markdown, runId, runOptions } from "../src/lib.ts";
+import { buildIndex, clipArgs, clipOptions, indexEntry, markdown, PRESETS, runId, runOptions } from "../src/lib.ts";
 import type { IndexEntry, Manifest } from "../src/types.ts";
 
 test("a run id is the UTC second and the scenario's file name", () => {
@@ -15,13 +15,25 @@ test("run flags resolve to a viewport", () => {
   assert.equal(plain.base, "http://localhost:3000");
 
   const story = runOptions(["a.ts", "--preset", "story", "--scale", "2", "--video", "--base", "https://x.dev/"]);
-  assert.deepEqual(story.viewport, { width: 1080, height: 1920, scale: 2 });
+  assert.deepEqual(story.viewport, { width: 360, height: 640, scale: 2 });
   assert.equal(story.video, true);
   assert.equal(story.base, "https://x.dev");
 
   const custom = runOptions(["a.ts", "--viewport", "800x600"]);
   assert.deepEqual(custom.viewport, { width: 800, height: 600, scale: 1 });
   assert.equal(custom.preset, undefined);
+  assert.equal(custom.mobile, false);
+});
+
+test("story and post are a phone's layout that multiplies up to 1080 wide", () => {
+  const pixels = (name: keyof typeof PRESETS) => {
+    const { viewport, mobile } = runOptions(["a.ts", "--preset", name]);
+    return { width: viewport.width * viewport.scale, height: viewport.height * viewport.scale, css: viewport.width, mobile };
+  };
+  assert.deepEqual(pixels("story"), { width: 1080, height: 1920, css: 360, mobile: true });
+  assert.deepEqual(pixels("post"), { width: 1080, height: 1350, css: 360, mobile: true });
+  assert.deepEqual(pixels("phone"), { width: 390, height: 844, css: 390, mobile: true });
+  assert.deepEqual(pixels("desktop"), { width: 1280, height: 800, css: 1280, mobile: false });
 });
 
 test("run flags refuse what they cannot use", () => {

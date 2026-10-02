@@ -3,11 +3,17 @@ import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
 import type { IndexEntry, Manifest } from "./types.ts";
 
+/**
+ * Sizes are CSS pixels, and `scale` multiplies them into the pixels of the
+ * shots and the video. `post` and `story` are a phone's layout at the size a
+ * feed wants: 360 CSS pixels wide, times 3, is 1080. At 1080 CSS pixels a site
+ * serves its desktop layout, which is not what a story shows.
+ */
 export const PRESETS = {
-  desktop: { width: 1280, height: 800 },
-  phone: { width: 390, height: 844 },
-  post: { width: 1080, height: 1350 },
-  story: { width: 1080, height: 1920 },
+  desktop: { width: 1280, height: 800, scale: 1, mobile: false },
+  phone: { width: 390, height: 844, scale: 1, mobile: true },
+  post: { width: 360, height: 450, scale: 3, mobile: true },
+  story: { width: 360, height: 640, scale: 3, mobile: true },
 } as const;
 
 export const slug = (text: string) =>
@@ -65,11 +71,11 @@ export function runOptions(argv: string[]) {
   if (values.preset && values.viewport) throw new Error("--preset and --viewport exclude each other");
 
   const preset: string | undefined = values.preset ?? (values.viewport ? undefined : "desktop");
-  let size: { width: number; height: number };
+  let size: { width: number; height: number; scale: number; mobile: boolean };
   if (values.viewport) {
     const match = /^(\d+)x(\d+)$/.exec(values.viewport);
     if (!match) throw new Error(`--viewport wants WxH, got "${values.viewport}"`);
-    size = { width: Number(match[1]), height: Number(match[2]) };
+    size = { width: Number(match[1]), height: Number(match[2]), scale: 1, mobile: false };
   } else {
     if (!preset || !(preset in PRESETS))
       throw new Error(`--preset is one of ${Object.keys(PRESETS).join(", ")}`);
@@ -81,7 +87,9 @@ export function runOptions(argv: string[]) {
     base: values.base.replace(/\/$/, ""),
     out: values.out,
     preset,
-    viewport: { ...size, scale: number("scale", values.scale) ?? 1 },
+    viewport: { width: size.width, height: size.height, scale: number("scale", values.scale) || size.scale },
+    /** Touch and the mobile viewport, as a phone reports them. */
+    mobile: size.mobile,
     video: values.video,
     cursor: values.cursor,
     slow: number("slow", values.slow) ?? 0,
