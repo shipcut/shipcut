@@ -132,6 +132,31 @@ export function clipOptions(argv: string[]) {
 export const MP4 = ["-c:v", "libx264", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an"];
 const EVEN = "scale=trunc(iw/2)*2:trunc(ih/2)*2";
 
+/** Frames per second of a recording, constant whatever the page did. */
+export const FPS = 30;
+
+/**
+ * How many copies of the frame on screen the encoder is owed `elapsedMs` into
+ * a recording that has `written` so far. Chromium sends a frame only when the
+ * page changes, so the gaps are filled with the frame that was showing, and
+ * the video's clock stays the wall clock's.
+ */
+export const framesDue = (elapsedMs: number, written: number, fps = FPS) =>
+  Math.max(0, Math.round((elapsedMs * fps) / 1000) - written);
+
+/** The ffmpeg arguments that turn JPEG frames on stdin into the run's video. */
+export function recordArgs(out: string, fps = FPS): string[] {
+  // The frames are full-range BT.601 JPEGs. Players take an untagged HD file
+  // for limited-range BT.709, so it is converted and tagged, else black is grey.
+  // zscale, because swscale either rounds a white page to #fbfdfa or, told to
+  // be accurate, takes four times the CPU. The crop keeps the dimensions even.
+  const vf = "crop=trunc(iw/2)*2:trunc(ih/2)*2,zscale=min=170m:rin=full:m=709:r=limited,format=yuv420p";
+  const tags = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+  // veryfast, because the encoder shares four cores with the browser it records.
+  return ["-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-", "-vf", vf, ...MP4, ...tags, "-preset", "veryfast", out];
+}
+
+
 /** The ffmpeg arguments for `shots clip`. */
 export function clipArgs(o: ClipOptions): string[] {
   // Seeking before -i is fast, and exact here because the output is re-encoded.

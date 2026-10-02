@@ -1,10 +1,11 @@
 // `shots run`: drive a scenario in headless Chromium, keep the shots and the video.
-import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { once } from "node:events";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { chromium, type Page } from "playwright";
-import { contentType, MP4, runId, type RunOptions, slug } from "./lib.ts";
+import { type BrowserContext, chromium, type Page } from "playwright";
+import { contentType, FPS, framesDue, recordArgs, runId, type RunOptions, slug } from "./lib.ts";
 import type { Run, RunFile, Step } from "./types.ts";
 
 /** What a scenario's default export receives. */
@@ -31,7 +32,10 @@ function cursor(id: string) {
     "position:fixed;left:0;top:0;z-index:2147483647;pointer-events:none;width:22px;height:22px;" +
     "margin:-11px 0 0 -11px;border-radius:50%;background:rgba(20,20,20,.55);border:2px solid #fff;" +
     "box-shadow:0 0 0 1px rgba(0,0,0,.35);transition:transform .2s cubic-bezier(.2,.8,.2,1)";
+  // Hidden until the mouse first moves, else half a pointer sits in the corner.
+  dot.style.display = "none";
   const place = (x: number, y: number) => {
+    dot.style.display = "";
     dot.style.transform = `translate(${x}px,${y}px)`;
   };
   // The position survives a navigation, else the pointer jumps to the corner on every page.
@@ -66,10 +70,71 @@ function cursor(id: string) {
   else attach();
 }
 
-function ffmpeg(args: string[]) {
-  const done = spawnSync("ffmpeg", ["-v", "error", ...args], { stdio: ["ignore", "ignore", "pipe"] });
-  if (done.error) throw done.error;
-  if (done.status !== 0) throw new Error(`ffmpeg failed: ${done.stderr.toString().trim()}`);
+/**
+ * Records `page` into `path` as H.264 at the device's pixels. Chromium's
+ * screencast hands over a JPEG whenever the page repaints; each goes down a
+ * pipe to ffmpeg, repeated as often as the wall clock says, so the frame rate
+ * is constant and an offset in the video is an offset in the run. Playwright's
+ * own `recordVideo` is the same screencast squeezed into low-bitrate VP8 at CSS
+ * size, which is why it is not used.
+ *
+ * ponytail: one page. A popup or a second tab is not in the video; record each
+ * page's session when a scenario needs that.
+ */
+type Recorded = { captured: number; written: number; backlog: number; seconds: number };
+
+async function record(context: BrowserContext, page: Page, path: string) {
+  const encoder = spawn("ffmpeg", ["-v", "error", ...recordArgs(path)], { stdio: ["pipe", "ignore", "pipe"] });
+  const closed = once(encoder, "close");
+  let complaint = "";
+  encoder.stderr.on("data", (chunk) => (complaint += chunk));
+  // A dead encoder is reported by its exit code, not by the pipe.
+  encoder.stdin.on("error", () => {});
+
+  const cdp = await context.newCDPSession(page);
+  const start = Date.now();
+  let frame: Buffer | undefined;
+  const stats = { captured: 0, written: 0, backlog: 0 };
+  let ended = false;
+  const fill = (elapsed: number) => {
+    // A repaint can still arrive after the stop; writing it would destroy the
+    // pipe and take the frames queued in it along.
+    if (!frame || ended) return;
+    for (let n = framesDue(elapsed, stats.written); n > 0; n--, stats.written++) encoder.stdin.write(frame);
+    stats.backlog = Math.max(stats.backlog, encoder.stdin.writableLength);
+  };
+  cdp.on("Page.screencastFrame", (event) => {
+    // Chromium sends the next frame only after this one is acknowledged.
+    cdp.send("Page.screencastFrameAck", { sessionId: event.sessionId }).catch(() => {});
+    fill(Date.now() - start);
+    frame = Buffer.from(event.data, "base64");
+    stats.captured++;
+  });
+  await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92 });
+
+  return {
+    start,
+    /** Ends the file. Call it before the context closes. */
+    async stop(): Promise<Recorded> {
+      await cdp.send("Page.stopScreencast").catch(() => {});
+      const seconds = (Date.now() - start) / 1000;
+      fill(seconds * 1000);
+      if (frame && !stats.written) {
+        encoder.stdin.write(frame);
+        stats.written = 1;
+      }
+      ended = true;
+      encoder.stdin.end();
+      const [code] = (await closed) as [number | null];
+      if (!frame) throw new Error("the page never painted, so there is no video");
+      if (code !== 0) throw new Error(`ffmpeg failed: ${complaint.trim()}`);
+      // A frame the encoder lost shortens the video and shifts every caption after it.
+      const kept = Math.round((measure(path, "video.mp4").duration ?? 0) * FPS);
+      if (Math.abs(kept - stats.written) > 1)
+        throw new Error(`the encoder kept ${kept} of the ${stats.written} frames it was sent`);
+      return { ...stats, seconds };
+    },
+  };
 }
 
 /** Size, dimensions and duration of a file, through ffprobe. */
@@ -141,10 +206,15 @@ export async function run(o: RunOptions): Promise<void> {
   mkdirSync(out, { recursive: true });
 
   const { width, height, scale } = o.viewport;
-  const browser = await chromium.launch({ slowMo: o.slow });
+  const browser = await chromium.launch({
+    slowMo: o.slow,
+    // The context's deviceScaleFactor alone gives sharp shots but a screencast
+    // in CSS pixels. Scaling the browser itself makes the frames device-sized.
+    args: scale === 1 ? [] : [`--force-device-scale-factor=${scale}`],
+  });
   const steps: Step[] = [];
   const shots: { name: string; at: number }[] = [];
-  let webm: string | undefined;
+  let video: Recorded | undefined;
   try {
     const context = await browser.newContext({
       viewport: { width, height },
@@ -155,12 +225,11 @@ export async function run(o: RunOptions): Promise<void> {
       locale: o.locale,
       colorScheme: o.dark ? "dark" : "light",
       storageState: o.storageState,
-      // The video is recorded in CSS pixels: --scale sharpens shots, not the video.
-      recordVideo: o.video ? { dir: out, size: { width, height } } : undefined,
     });
     if (o.cursor) await context.addInitScript(cursor, CURSOR_ID);
     const page = await context.newPage();
-    const start = Date.now();
+    const recording = o.video ? await record(context, page, join(out, "video.mp4")) : undefined;
+    const start = recording?.start ?? Date.now();
     const shot: ScenarioContext["shot"] = async (name, options) => {
       const file = `${String(shots.length + 1).padStart(2, "0")}-${slug(name) || "shot"}.png`;
       await page.screenshot({
@@ -182,20 +251,18 @@ export async function run(o: RunOptions): Promise<void> {
       console.error(`shots: the scenario failed, the page as it was is ${join(out, "failed.png")}`);
       throw error;
     } finally {
-      // The webm is complete only once the context has closed.
-      await context.close();
-      webm = await page.video()?.path();
+      try {
+        video = await recording?.stop();
+      } finally {
+        await context.close();
+      }
     }
   } finally {
     await browser.close();
   }
 
   const files: RunFile[] = shots.map((s) => ({ ...measure(join(out, s.name), s.name), at: s.at }));
-  if (webm) {
-    ffmpeg(["-y", "-i", webm, "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", ...MP4, join(out, "video.mp4")]);
-    rmSync(webm);
-    files.push(measure(join(out, "video.mp4"), "video.mp4"));
-  }
+  if (video) files.push(measure(join(out, "video.mp4"), "video.mp4"));
 
   const result: Run = {
     id,
@@ -219,6 +286,11 @@ export async function run(o: RunOptions): Promise<void> {
     console.log(`${join(out, f.name)}  ${(f.bytes / 1024).toFixed(0)} KB${size}${length}`);
   }
   console.log(join(out, "run.json"));
+  if (video)
+    console.error(
+      `shots: video ${FPS} fps, ${video.written} frames over ${video.seconds.toFixed(2)}s from ${video.captured} repaints, ` +
+        `encoder backlog at most ${(video.backlog / 2 ** 20).toFixed(1)} MB`,
+    );
   const peak = process.env.SHOTS_HEAVY ? peakMemory() : undefined;
   if (peak) console.error(`shots: peak memory ${peak} MB of the 1500 MB cap`);
 }

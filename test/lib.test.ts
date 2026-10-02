@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildIndex, clipArgs, clipOptions, indexEntry, markdown, PRESETS, runId, runOptions } from "../src/lib.ts";
+import {
+  buildIndex,
+  clipArgs,
+  clipOptions,
+  framesDue,
+  indexEntry,
+  markdown,
+  PRESETS,
+  recordArgs,
+  runId,
+  runOptions,
+} from "../src/lib.ts";
 import type { IndexEntry, Manifest } from "../src/types.ts";
 
 test("a run id is the UTC second and the scenario's file name", () => {
@@ -34,6 +45,19 @@ test("story and post are a phone's layout that multiplies up to 1080 wide", () =
   assert.deepEqual(pixels("post"), { width: 1080, height: 1350, css: 360, mobile: true });
   assert.deepEqual(pixels("phone"), { width: 390, height: 844, css: 390, mobile: true });
   assert.deepEqual(pixels("desktop"), { width: 1280, height: 800, css: 1280, mobile: false });
+});
+
+test("the recorder repeats the frame on screen until the wall clock is covered", () => {
+  assert.equal(framesDue(0, 0), 0);
+  assert.equal(framesDue(1000, 0), 30);
+  assert.equal(framesDue(1000, 29), 1);
+  // Two repaints inside one thirtieth of a second: the later one replaces the earlier.
+  assert.equal(framesDue(1010, 30), 0);
+  assert.equal(framesDue(10_000, 0, 25), 250);
+  const args = recordArgs("out/video.mp4");
+  assert.deepEqual(args.slice(0, 9), ["-y", "-f", "image2pipe", "-framerate", "30", "-c:v", "mjpeg", "-i", "-"]);
+  assert.ok(args.includes("libx264") && args.includes("yuv420p") && args.includes("+faststart"));
+  assert.equal(args.at(-1), "out/video.mp4");
 });
 
 test("run flags refuse what they cannot use", () => {
