@@ -5,6 +5,9 @@ Chromium and publishes them to Vercel Blob with a manifest. Other projects
 keep the scenarios; this repo records, clips and publishes. `.claude/CLAUDE.md`
 is a single `@` import of this file.
 
+What the product is and is not: `PRODUCT.md`. The order of work: `ROADMAP.md`.
+The current stage in detail: `docs/prd/<nn>-*.md`, the one `ROADMAP.md` names.
+
 `README.md` is the user's view: the six commands and the data layout. Keep it
 true when a flag or a stored shape changes.
 
@@ -27,11 +30,17 @@ true when a flag or a stored shape changes.
 
 ## Rules
 
+- Work inside the current PRD. An idea for a later stage goes to "Заметки" in
+  `ROADMAP.md`, not into code.
+- A slice ends with a video one can watch and the numbers from `measure`.
+- Existing commands and flags keep working. New behaviour starts behind a flag.
+- Capture and polish are separate: capture writes raw frames and the event
+  log, polish builds the video from them and can be rerun without a new run.
 - No build step. Node 24 strips types, so only erasable syntax: no `enum`, no
   parameter properties, no namespaces, and imports carry `.ts`. `tsconfig.json`
   enforces it.
 - Runtime dependencies are `playwright` and `@vercel/blob`. Anything else needs
-  a reason; ffmpeg is called as a program.
+  a reason; if ffmpeg or Playwright does the job, there is no reason.
 - Playwright stays on the minor whose Chromium is in `~/.cache/ms-playwright`.
   Bumping it means a browser download, so say so first.
 - The video is Chromium's screencast over CDP, piped to ffmpeg. The frames
@@ -45,6 +54,24 @@ true when a flag or a stored shape changes.
   listing API is the truth (`currentIndex` in `src/store.ts`).
 - `vercel.json` keeps Git deployments off until there is an app. Do not push a
   branch expecting a preview.
+
+## Words
+
+Use these in code, commits and documents. Russian for prose, the code column
+for identifiers.
+
+| Термин | In code | Meaning |
+|---|---|---|
+| Сценарий | scenario | The TypeScript file that drives the page |
+| Прогон | run | One execution of a scenario, with its output directory |
+| Снимок | shot | A PNG saved by a `shot()` call |
+| Кадр | frame | One picture of the video |
+| Глава | step | A timestamped mark from a `step()` call |
+| Титр | caption | A step's title burnt into the video |
+| Пресет | preset | A named viewport size and scale |
+| Журнал событий | events | Clicks, pointer moves and steps with offsets, in `run.json` |
+| Оформление | polish | Building the final video from raw frames and the events |
+| Манифест | manifest | The description of a published run in the store |
 
 ## Heavy
 
