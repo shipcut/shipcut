@@ -5,9 +5,11 @@ Chromium and publishes them to Vercel Blob with a manifest. Other projects
 keep the scenarios; this repo records, clips and publishes. `.claude/CLAUDE.md`
 is a single `@` import of this file.
 
-The command and the product are `shipcut` since 2026-10-07; the old name
-`shots` stays where renaming would break something real: this repository
-and its directory, the Vercel project, the Blob store `shots-media`,
+The command and the product are `shipcut` since 2026-10-07, and the
+repository is `shipcut/shipcut` on GitHub (moved from `RomanDenysov/shots`,
+which redirects). The old name `shots` stays where renaming would break
+something real: the local directory `~/projects/shots`, which Heystol's
+scenario imports from, the Vercel project, the Blob store `shots-media`,
 Heystol's `.agents/shots/`, and `~/.config/shots/env`, which is still read
 after `~/.config/shipcut/env`.
 
