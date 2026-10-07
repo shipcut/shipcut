@@ -28,7 +28,7 @@ works).
 ### run
 
 ```sh
-shots run flows/booking.ts --base http://localhost:3000 --video --cursor
+shots run flows/booking.ts --base http://localhost:3000 --video --pointer
 ```
 
 A scenario is an ES module (`.ts` or `.mjs`) with a default export:
@@ -57,7 +57,8 @@ offset are kept, and `shots caption` burns them into the video.
 | `--viewport WxH` | CSS pixels, instead of a preset; no touch, scale 1 |
 | `--scale N` | device pixel ratio; multiplies the shots and the video alike |
 | `--video` | records the run as `video.mp4` (H.264, yuv420p, 30 fps, faststart) |
-| `--cursor` | draws a pointer and click rings in the video once the mouse moves; shots stay clean |
+| `--pointer` | glides a pointer to each element before the scenario acts on it and logs the path and the clicks in `run.json`; `shots polish` draws it. Needs `--video` |
+| `--cursor` | the older pointer, drawn by the page itself from the mouse events; it jumps rather than glides. Excludes `--pointer` |
 | `--slow MS` | pause between browser actions, so a video can be followed |
 | `--storage-state FILE` | a Playwright storage state, to start signed in |
 | `--locale xx`, `--dark` | browser locale, dark colour scheme |
@@ -131,6 +132,27 @@ because a story's own controls cover what is below.
 The font is the bold sans `fc-match` returns, named on stderr; `--font FILE`
 picks another. Nothing is downloaded. Without fontconfig, ffmpeg's default
 font is used.
+
+### polish
+
+```sh
+shots polish out/20261002-134501-booking
+```
+
+Draws the pointer a `--pointer` run logged over its video: an arrow on a
+desktop, a fingertip on a touch preset, and a ring where it pressed. Writes
+`video-polished.mp4` in the run directory unless `--out`, and adds it to
+`run.json`. The page draws nothing during the run, so the pointer moves at the
+video's 30 fps however slowly the page itself repaints. It can be drawn again
+without a new run.
+
+Under `--pointer` the pointer starts in the middle of the viewport. Before the
+scenario clicks, taps, checks, hovers, fills, types or selects through a
+locator or the page, the pointer travels to the element on a shallow arc. The
+trip takes 250 ms for a short hop and 900 ms at most. `page.mouse.click` and
+`dblclick` glide too, so a run takes that much longer per action. `run.json` gets
+`events`: `clicks` and `moves`, each `[ms, x, y]` in milliseconds of the video
+and CSS pixels.
 
 ### measure
 

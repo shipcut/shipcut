@@ -3,9 +3,9 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { type BrowserContext, chromium, type Page } from "playwright";
-import { concatList, contentType, FPS, frameName, recordArgs, runId, type RunOptions, slug } from "./lib.ts";
-import type { Run, RunFile, Step } from "./types.ts";
+import { type BrowserContext, chromium, type Frame, type Page } from "playwright";
+import { concatList, contentType, FPS, frameName, glidePath, recordArgs, runId, type RunOptions, slug } from "./lib.ts";
+import type { Events, Run, RunFile, Step } from "./types.ts";
 
 /** What a scenario's default export receives. */
 export type ScenarioContext = {
@@ -67,6 +67,82 @@ function cursor(id: string) {
   const attach = () => document.documentElement.append(dot);
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", attach);
   else attach();
+}
+
+type ActionOptions = { strict?: boolean; force?: boolean; timeout?: number; position?: { x: number; y: number } } | undefined;
+type Action = (this: Frame, selector: string, ...rest: unknown[]) => Promise<unknown>;
+
+/** The Frame methods every Locator and Page action goes through; the second group takes a value before its options. */
+const ACTIONS = ["click", "dblclick", "tap", "check", "uncheck", "hover"] as const;
+const VALUED = ["fill", "type", "selectOption"] as const;
+const PRESSES = new Set<string>(["click", "dblclick", "tap", "check", "uncheck"]);
+
+/**
+ * Under `--pointer`, the scenario's pointer travels to an element before
+ * acting on it: this waits as long as the glide takes and logs every point of
+ * it in `events`, with each press, and `shots polish` draws it from them. The
+ * page draws nothing, so a glide costs no repaint: a heavy page that manages
+ * three frames a second still gets a pointer at 30. `locator.click()` is
+ * `frame.click(selector)` inside Playwright, and so is `page.click()`, so
+ * wrapping the Frame methods covers both and no scenario changes.
+ *
+ * ponytail: an ElementHandle's own actions are neither glided nor logged, so
+ * the pointer stays where it was. Locators are what scenarios use.
+ */
+function pointer(page: Page, start: number, events: Events): void {
+  const viewport = page.viewportSize() ?? { width: 0, height: 0 };
+  let here = { x: viewport.width / 2, y: viewport.height / 2 };
+  const now = () => Date.now() - start;
+  const travel = async (to: { x: number; y: number }) => {
+    const path = glidePath(here, to);
+    here = to;
+    if (!path.length) return;
+    const began = now();
+    for (const [ms, x, y] of path) events.moves.push([began + ms, Math.round(x), Math.round(y)]);
+    await new Promise((done) => setTimeout(done, path.at(-1)![0]));
+  };
+  const pressed = (name: string, at: { x: number; y: number }) => {
+    if (PRESSES.has(name)) events.clicks.push([now(), Math.round(at.x), Math.round(at.y)]);
+  };
+
+  const frame = Object.getPrototypeOf(page.mainFrame()) as Record<string, Action>;
+  for (const name of [...ACTIONS, ...VALUED]) {
+    const original = frame[name]!;
+    frame[name] = async function (this: Frame, selector: string, ...rest: unknown[]) {
+      const options = ((VALUED as readonly string[]).includes(name) ? rest[1] : rest[0]) as ActionOptions;
+      if (this.page() === page) {
+        try {
+          const target = options?.strict ? this.locator(selector) : this.locator(selector).first();
+          if (!options?.force) await target.scrollIntoViewIfNeeded({ timeout: options?.timeout });
+          const box = await target.boundingBox({ timeout: options?.timeout });
+          if (box) {
+            const to = { x: box.x + (options?.position?.x ?? box.width / 2), y: box.y + (options?.position?.y ?? box.height / 2) };
+            await travel(to);
+            pressed(name, to);
+          }
+        } catch {
+          // The action decides whether the element can be acted on; a pointer that cannot get there stays put.
+        }
+      }
+      return original.call(this, selector, ...rest);
+    };
+  }
+
+  const mouse = page.mouse as unknown as Record<"click" | "dblclick" | "move", (x: number, y: number, o?: unknown) => Promise<void>>;
+  for (const name of ["click", "dblclick"] as const) {
+    const original = mouse[name].bind(page.mouse);
+    mouse[name] = async (x, y, o) => {
+      await travel({ x, y });
+      pressed(name, { x, y });
+      return original(x, y, o);
+    };
+  }
+  const move = mouse.move.bind(page.mouse);
+  mouse.move = async (x, y, o) => {
+    here = { x, y };
+    events.moves.push([now(), Math.round(x), Math.round(y)]);
+    return move(x, y, o);
+  };
 }
 
 /**
@@ -179,7 +255,12 @@ function git(): Run["git"] {
   }
 }
 
-// The peak of the systemd scope `heavy` put this process in, browser included.
+/** Prints the peak memory of the systemd scope `heavy` put this command in, children included, against its cap. */
+export function reportPeak(): void {
+  const peak = process.env.SHOTS_HEAVY ? peakMemory() : undefined;
+  if (peak) console.error(`shots: peak memory ${peak} MB of the 1500 MB cap`);
+}
+
 function peakMemory(): number | undefined {
   try {
     const group = readFileSync("/proc/self/cgroup", "utf8").trim().replace(/^0::/, "");
@@ -208,6 +289,7 @@ export async function run(o: RunOptions): Promise<void> {
   });
   const steps: Step[] = [];
   const shots: { name: string; at: number }[] = [];
+  const events: Events | undefined = o.pointer ? { clicks: [], moves: [] } : undefined;
   let video: Recorded | undefined;
   let recording: Awaited<ReturnType<typeof record>> | undefined;
   try {
@@ -225,6 +307,7 @@ export async function run(o: RunOptions): Promise<void> {
     const page = await context.newPage();
     recording = o.video ? await record(context, page, out) : undefined;
     const start = recording?.start ?? Date.now();
+    if (events) pointer(page, start, events);
     const shot: ScenarioContext["shot"] = async (name, options) => {
       const file = `${String(shots.length + 1).padStart(2, "0")}-${slug(name) || "shot"}.png`;
       await page.screenshot({
@@ -274,6 +357,7 @@ export async function run(o: RunOptions): Promise<void> {
     dark: o.dark,
     steps,
     files,
+    events,
     recording: video ? { seconds: Math.round(video.seconds * 100) / 100, repaints: video.captured } : undefined,
     git: git(),
     createdAt: createdAt.toISOString(),
@@ -291,6 +375,5 @@ export async function run(o: RunOptions): Promise<void> {
       `shots: video ${FPS} fps, ${video.seconds.toFixed(2)}s from ${video.captured} repaints ` +
         `(${(video.captured / video.seconds).toFixed(1)}/s), encoded in ${video.encodeSeconds.toFixed(1)}s`,
     );
-  const peak = process.env.SHOTS_HEAVY ? peakMemory() : undefined;
-  if (peak) console.error(`shots: peak memory ${peak} MB of the 1500 MB cap`);
+  reportPeak();
 }

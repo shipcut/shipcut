@@ -1,7 +1,7 @@
 // The pure parts: ids, flags, ffmpeg arguments, the index and the Markdown.
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
-import type { IndexEntry, Manifest, Run, Step } from "./types.ts";
+import type { IndexEntry, Manifest, Point, Run, Step } from "./types.ts";
 
 /**
  * Sizes are CSS pixels, and `scale` multiplies them into the pixels of the
@@ -60,6 +60,7 @@ export function runOptions(argv: string[]) {
       scale: { type: "string" },
       video: { type: "boolean", default: false },
       cursor: { type: "boolean", default: false },
+      pointer: { type: "boolean", default: false },
       slow: { type: "string" },
       "storage-state": { type: "string" },
       locale: { type: "string" },
@@ -69,6 +70,8 @@ export function runOptions(argv: string[]) {
   const [scenario, ...rest] = positionals;
   if (!scenario || rest.length) throw new Error("usage: shots run <scenario> [flags]");
   if (values.preset && values.viewport) throw new Error("--preset and --viewport exclude each other");
+  if (values.pointer && values.cursor) throw new Error("--pointer and --cursor both draw a pointer; --pointer is drawn by shots polish");
+  if (values.pointer && !values.video) throw new Error("--pointer is drawn over the video, so it needs --video");
 
   const preset: string | undefined = values.preset ?? (values.viewport ? undefined : "desktop");
   let size: { width: number; height: number; scale: number; mobile: boolean };
@@ -92,6 +95,7 @@ export function runOptions(argv: string[]) {
     mobile: size.mobile,
     video: values.video,
     cursor: values.cursor,
+    pointer: values.pointer,
     slow: number("slow", values.slow) ?? 0,
     storageState: values["storage-state"],
     locale: values.locale,
@@ -135,6 +139,37 @@ const EVEN = "scale=trunc(iw/2)*2:trunc(ih/2)*2";
 /** Frames per second of a recording, constant whatever the page did. */
 export const FPS = 30;
 
+/**
+ * How long the pointer takes to cross `distance` CSS pixels: farther is
+ * longer, up to a ceiling, so a long move is quick and a short one still
+ * reads as a move. The three numbers are the knob.
+ */
+export const glideMs = (distance: number) => Math.round(Math.min(900, 250 + distance * 0.9));
+
+/**
+ * The pointer's way from `from` to `to`: a shallow arc, slow at both ends,
+ * one point every sixtieth of a second, each `[ms, x, y]` from the start of
+ * the move. Empty when it is already there.
+ */
+export function glidePath(from: { x: number; y: number }, to: { x: number; y: number }): Point[] {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance < 2) return [];
+  const ms = glideMs(distance);
+  // The arc's control point sits off the straight line by a sixth of its length.
+  const cx = from.x + dx / 2 - dy / 6;
+  const cy = from.y + dy / 2 + dx / 6;
+  const points: Point[] = [];
+  for (let at = 0; ; at = Math.min(at + 1000 / 60, ms)) {
+    const p = at / ms;
+    const t = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;
+    const u = 1 - t;
+    points.push([Math.round(at), u * u * from.x + 2 * u * t * cx + t * t * to.x, u * u * from.y + 2 * u * t * cy + t * t * to.y]);
+    if (at === ms) return points;
+  }
+}
+
 /** The file a captured frame is stored under, `000001.jpg` for the first. */
 export const frameName = (n: number) => `${String(n + 1).padStart(6, "0")}.jpg`;
 
@@ -166,8 +201,92 @@ export function recordArgs(list: string, out: string, seconds: number, fps = FPS
   // are copies of the converted picture. -t, because the list's repeated last
   // file adds a frame of its own past the recording's end.
   const vf = `crop=trunc(iw/2)*2:trunc(ih/2)*2,zscale=min=170m:rin=full:m=709:r=limited,format=yuv420p,fps=${fps}`;
-  const tags = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
-  return ["-y", "-f", "concat", "-safe", "0", "-i", list, "-vf", vf, "-t", seconds.toFixed(3), ...MP4, ...tags, "-preset", "medium", out];
+  return ["-y", "-f", "concat", "-safe", "0", "-i", list, "-vf", vf, "-t", seconds.toFixed(3), ...MP4, ...BT709, "-preset", "medium", out];
+}
+
+/** The tags of a limited-range BT.709 file, which every video here is. */
+export const BT709 = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+
+export type PolishOptions = ReturnType<typeof polishOptions>;
+
+export function polishOptions(argv: string[]) {
+  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: { out: { type: "string" } } });
+  const [dir, ...rest] = positionals;
+  if (!dir || rest.length) throw new Error("usage: shots polish <run-dir> [--out FILE]");
+  return { dir, out: values.out ?? `${dir.replace(/\/$/, "")}/video-polished.mp4` };
+}
+
+/** Something `polish` draws: SVG in CSS pixels, its width, and the point of it that sits on the pointer's position. */
+export type Sprite = { svg: string; width: number; hotspot: { x: number; y: number } };
+
+const svg = (width: number, height: number, body: string) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`;
+const SHADOW = '<defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dy="1" stdDeviation="1" flood-opacity=".4"/></filter></defs>';
+
+/** The pointer: an arrow on a desktop, a fingertip where the run was a touch device. */
+export function pointerSprite(touch: boolean): Sprite {
+  if (touch)
+    return {
+      width: 40,
+      hotspot: { x: 20, y: 20 },
+      svg: svg(40, 40, `${SHADOW}<circle cx="20" cy="20" r="14.25" fill="#fff" fill-opacity=".55" stroke="#000" stroke-opacity=".3" stroke-width="1.5" filter="url(#s)"/>`),
+    };
+  // The tip is the hotspot; the arrow is a 14x21 drawing at 18x27.
+  return {
+    width: 24,
+    hotspot: { x: 4.3, y: 4.3 },
+    svg: svg(
+      24,
+      33,
+      `${SHADOW}<path transform="translate(3 3) scale(1.2857)" d="M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z" ` +
+        'fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round" filter="url(#s)"/>',
+    ),
+  };
+}
+
+/** The ring a press leaves, one sprite per video frame: it grows to three times its size and fades out over 450 ms. */
+export function ringFrames(fps = FPS): Sprite[] {
+  const count = Math.round(0.45 * fps);
+  return Array.from({ length: count }, (_, k) => {
+    const p = k / (count - 1);
+    const grow = 1 + 2 * (1 - (1 - p) ** 2);
+    return {
+      width: 74,
+      hotspot: { x: 37, y: 37 },
+      svg: svg(
+        74,
+        74,
+        `<g transform="translate(37 37) scale(${grow.toFixed(3)})" opacity="${(1 - p).toFixed(3)}" fill="none">` +
+          '<circle r="11.5" stroke="#000" stroke-opacity=".35"/><circle r="10" stroke="#fff" stroke-width="2"/></g>',
+      ),
+    };
+  });
+}
+
+/**
+ * Where the pointer sprite's top-left corner goes, in video pixels, from the
+ * first move on: `start` and `from` (seconds) place it, and `commands` are
+ * ffmpeg `sendcmd` lines for the overlay named `pointer`, one for each frame
+ * in which it moved. Each fires half a frame early, so a rounded timestamp
+ * cannot land it on the next frame.
+ */
+export function pointerTrack(moves: Point[], seconds: number, scale: number, hotspot: { x: number; y: number }, fps = FPS) {
+  const first = moves[0];
+  if (!first) return undefined;
+  const corner = (p: Point) => ({ x: Math.round((p[1] - hotspot.x) * scale), y: Math.round((p[2] - hotspot.y) * scale) });
+  const lines: string[] = [];
+  let i = 0;
+  let last = "";
+  for (let frame = 0; frame < Math.round(seconds * fps); frame++) {
+    const ms = (frame * 1000) / fps;
+    while (i < moves.length - 1 && moves[i + 1]![0] <= ms) i++;
+    if (moves[i]![0] > ms) continue;
+    const { x, y } = corner(moves[i]!);
+    if (`${x},${y}` === last) continue;
+    last = `${x},${y}`;
+    lines.push(`${Math.max(0, (frame - 0.5) / fps).toFixed(4)} overlay@pointer x ${x}, overlay@pointer y ${y};`);
+  }
+  return { from: first[0] / 1000, start: corner(first), commands: `${lines.join("\n")}\n` };
 }
 
 

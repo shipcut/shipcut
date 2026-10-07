@@ -8,7 +8,7 @@ is a single `@` import of this file.
 What the product is and is not: `PRODUCT.md`. The order of work: `ROADMAP.md`.
 The current stage in detail: `docs/prd/<nn>-*.md`, the one `ROADMAP.md` names.
 
-`README.md` is the user's view: the seven commands and the data layout. Keep it
+`README.md` is the user's view: the eight commands and the data layout. Keep it
 true when a flag or a stored shape changes.
 
 ## Layout
@@ -18,9 +18,9 @@ true when a flag or a stored shape changes.
 - `src/lib.ts` - everything pure: run id, presets, flag parsing, ffmpeg
   arguments, the caption timeline and layout, the index, the Markdown. This is
   what the tests cover.
-- `src/run.ts` - the browser: scenario contract, cursor, the recorder,
+- `src/run.ts` - the browser: scenario contract, the pointer's glide, the old cursor, the recorder,
   `run.json`.
-- `src/clip.ts` - `clip`, `caption` and `measure`, the ffmpeg wrappers.
+- `src/clip.ts` - `clip`, `caption`, `polish` and `measure`, the ffmpeg wrappers.
 - `src/store.ts` - Blob: publish, list, rm, the token.
 - `src/types.ts` - the stored shapes. Published manifests already have them,
   so add fields, do not rename or remove.
@@ -78,7 +78,7 @@ for identifiers.
 ## Heavy
 
 The box is shared. Anything that starts a browser or ffmpeg goes through
-`heavy`. `shots run`, `clip`, `caption` and `measure` do that themselves, so call them
+`heavy`. `shots run`, `clip`, `caption`, `polish` and `measure` do that themselves, so call them
 plainly; do not wrap them in `heavy` again and do not set `SHOTS_HEAVY` to
 skip it. Exit 75 means wait and retry.
 
@@ -88,7 +88,8 @@ skip it. Exit 75 means wait and retry.
 A change to `run.ts` or `clip.ts` also wants a real run:
 
 ```sh
-bin/shots run examples/counter.ts --video --cursor --out out/check
+bin/shots run examples/counter.ts --video --pointer --out out/check
+bin/shots polish out/check
 bin/shots caption out/check
 ffprobe -v error -show_entries stream=codec_name,width,height,avg_frame_rate:format=duration out/check/video-captioned.mp4
 ```

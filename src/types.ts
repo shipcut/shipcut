@@ -18,6 +18,12 @@ export type RunFile = {
 /** A chapter a scenario marked with `step(title)`. `caption: false` keeps it out of `shots caption`. */
 export type Step = { title: string; at: number; caption?: false };
 
+/** `[ms, x, y]`: milliseconds from the start of the video and CSS pixels of the viewport. */
+export type Point = [number, number, number];
+
+/** What the pointer did under `--pointer`: where it pressed, and every point of its way there. */
+export type Events = { clicks: Point[]; moves: Point[] };
+
 /** `run.json`: what `shots run` writes next to the files. */
 export interface Run {
   /** `YYYYMMDD-HHMMSS-<scenario>`, UTC, so ids sort by time. */
@@ -33,6 +39,8 @@ export interface Run {
   dark: boolean;
   steps: Step[];
   files: RunFile[];
+  /** Under `--pointer`: the pointer's clicks and path, which `shots polish` draws. */
+  events?: Events;
   /** The video's wall-clock length and how many repaints Chromium sent, for `shots measure`. */
   recording?: { seconds: number; repaints: number };
   /** The caller's repository, when the run started inside one. */

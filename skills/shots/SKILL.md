@@ -12,7 +12,7 @@ uploads them to a public Blob store. You get Markdown with the links.
 
 - A visible change: record the same scenario before (on the base branch or
   production) and after, and paste both.
-- A new flow: one run with `--video --cursor`.
+- A new flow: one run with `--video --pointer`, then `shots polish`.
 - Not for verification. Asserting that a flow works is the project's verify
   skill; this is for showing it.
 
@@ -42,7 +42,7 @@ export default async ({ page, base, shot, step }) => {
 ## Record
 
 ```sh
-shots run shots/landing.ts --base http://localhost:3000 --video --cursor
+shots run shots/landing.ts --base http://localhost:3000 --video --pointer
 ```
 
 | Preset | Layout | Shots and video |
@@ -64,16 +64,26 @@ The video is H.264 at 30 fps and shows the one page the scenario was given.
 It is encoded after the browser closes, so the command ends about as long
 again after the scenario does, and `<out>/.frames/` holds the raw frames
 until then.
-`--cursor` draws the pointer from its first move, so a scenario that only
-scrolls shows none. A scroll done with `scrollIntoView({ behavior: "smooth" })`
+`--pointer` glides a pointer to each element the scenario acts on, from its
+first action, and `shots polish` draws it; a scenario that only scrolls shows
+none. A scroll done with `scrollIntoView({ behavior: "smooth" })`
 and a pause after it reads better than a jump.
 
 Files land in `./out/<run-id>/` with a `run.json`; the command prints the
 paths. Look at the PNGs before publishing. If the scenario throws, read
 `failed.png` in the same directory.
 
-`run`, `clip` and `caption` queue themselves through `heavy` on a shared box.
+`run`, `clip`, `caption` and `polish` queue themselves through `heavy` on a shared box.
 Do not wrap them. Exit 75 means the box is busy. Retry later.
+
+## Polish
+
+```sh
+shots polish out/<run-id>
+```
+
+Writes `video-polished.mp4`: the run's video with the pointer and a ring on
+each click. Look at a frame from inside a move before publishing.
 
 ## Caption
 

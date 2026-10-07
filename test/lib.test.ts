@@ -10,6 +10,10 @@ import {
   clipOptions,
   filterValue,
   concatList,
+  glideMs,
+  glidePath,
+  pointerTrack,
+  ringFrames,
   framesKept,
   measureLines,
   indexEntry,
@@ -132,6 +136,8 @@ test("run flags refuse what they cannot use", () => {
   assert.throws(() => runOptions(["a.ts", "--preset", "phone", "--viewport", "1x1"]), /exclude/);
   assert.throws(() => runOptions(["a.ts", "--slow", "soon"]), /number/);
   assert.throws(() => runOptions(["a.ts", "--vidoe"]));
+  assert.throws(() => runOptions(["a.ts", "--video", "--pointer", "--cursor"]), /both draw/);
+  assert.throws(() => runOptions(["a.ts", "--pointer"]), /needs --video/);
 });
 
 test("clip builds an mp4 trim and a palette GIF", () => {
@@ -198,4 +204,40 @@ test("measure reads the last frame count ffmpeg printed and reports against the 
     "18.1 repaints/s from Chromium (181)",
     "2 steps, last at 6.40s",
   ]);
+});
+
+test("the pointer glides on an arc from where it is to the target, longer for farther, never past the ceiling", () => {
+  assert.deepEqual(glidePath({ x: 10, y: 10 }, { x: 11, y: 10 }), []);
+  const path = glidePath({ x: 0, y: 0 }, { x: 300, y: 0 });
+  assert.deepEqual(path[0], [0, 0, 0]);
+  assert.deepEqual(path.at(-1), [glideMs(300), 300, 0]);
+  assert.ok(path.every(([at], i) => i === 0 || at > path[i - 1]![0]), "time only goes forward");
+  assert.ok(path.some(([, , y]) => y > 20), "an arc, not a straight line");
+  // Slow at both ends: the first and the last sixtieth cover less ground than one in the middle.
+  const step = (i: number) => Math.hypot(path[i + 1]![1] - path[i]![1], path[i + 1]![2] - path[i]![2]);
+  const middle = Math.floor(path.length / 2);
+  assert.ok(step(0) < step(middle) / 4 && step(path.length - 2) < step(middle) / 4);
+  assert.equal(glideMs(0), 250);
+  assert.ok(glideMs(300) > glideMs(100));
+  assert.equal(glideMs(5000), 900);
+});
+
+test("polish places the pointer's corner on each frame it moves, in video pixels, and the ring fades as it grows", () => {
+  const moves: [number, number, number][] = [[500, 100, 200], [520, 110, 200], [540, 120, 200], [2000, 50, 60]];
+  const track = pointerTrack(moves, 3, 3, { x: 20, y: 20 })!;
+  assert.equal(track.from, 0.5);
+  assert.deepEqual(track.start, { x: 240, y: 540 });
+  // Frame 15 is at 500 ms, frame 16 at 533 ms, where the 520 ms point is the latest; 540 ms falls in frame 17.
+  assert.deepEqual(track.commands.trim().split("\n"), [
+    "0.4833 overlay@pointer x 240, overlay@pointer y 540;",
+    "0.5167 overlay@pointer x 270, overlay@pointer y 540;",
+    "0.5500 overlay@pointer x 300, overlay@pointer y 540;",
+    "1.9833 overlay@pointer x 90, overlay@pointer y 120;",
+  ]);
+  assert.equal(pointerTrack([], 3, 1, { x: 0, y: 0 }), undefined);
+
+  const rings = ringFrames();
+  assert.equal(rings.length, 14);
+  assert.match(rings[0]!.svg, /scale\(1\.000\)" opacity="1\.000"/);
+  assert.match(rings.at(-1)!.svg, /scale\(3\.000\)" opacity="0\.000"/);
 });
