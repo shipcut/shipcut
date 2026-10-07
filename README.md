@@ -158,9 +158,9 @@ shots polish out/20261002-134501-booking
 ```
 
 On a landscape video it draws the pointer with its labels, zooms on the
-clicks and sets the result in a frame; on a portrait one, a story or a post,
-only the pointer and its labels, since their zoom and frame are not worked out
-yet. `--no-labels`, `--no-zoom` and `--no-frame` turn a part off, `--zoom` and
+clicks and sets the result in a frame. A story gets the pointer, its labels
+and the frame, a post or a phone the pointer and its labels: on a phone's
+width a zoom crops the page at the sides. `--no-labels`, `--no-zoom` and `--no-frame` turn a part off, `--zoom` and
 `--frame` turn one on. For a video to post:
 
 ```sh
@@ -188,9 +188,9 @@ stderr; where Inter is not installed, that is the system's sans.
 
 The frame shrinks the result into a window with rounded corners and a soft
 shadow on a still background, so the video keeps its size and the camera
-moves inside the window. The window leaves a margin of 7% of the short side
-and, in a story, stays out of the 250 px above and 340 px below that the
-feed's own controls cover. The background is lavender into pale blue unless
+moves inside the window. The window leaves a margin of 7% of the short side,
+in a story too, where its top and bottom edges go under the feed's own
+controls; kept clear of them, the window was a small card. The background is lavender into pale blue unless
 `--background` gives one colour (`#0b0b0f`) or two for a diagonal gradient
 (`#e4ddff,#c9dcff`); `--background` implies `--frame`. A framed desktop video
 shows its page at 86%, so a recording meant for posting reads better at

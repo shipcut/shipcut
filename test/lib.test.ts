@@ -320,11 +320,8 @@ test("a label says its step's words beside the pointer, flips at the right edge 
 
 test("the frame centres the recording with a margin, inside a story's safe zones, on the background asked for", () => {
   assert.deepEqual(frameLayout({ width: 1280, height: 800 }), { width: 1100, height: 688, x: 90, y: 56, radius: 20 });
-  // A story: 250 px above and 340 below belong to the feed.
-  const story = frameLayout({ width: 1080, height: 1920 }, "story");
-  assert.ok(story.y >= 250 && story.y + story.height <= 1920 - 340);
-  assert.equal(story.x * 2 + story.width, 1080);
-  assert.equal(story.width % 2 + story.height % 2, 0);
+  // A story is a large card too, reaching into the zones its feed covers.
+  assert.deepEqual(frameLayout({ width: 1080, height: 1920 }), { width: 928, height: 1652, x: 76, y: 134, radius: 27 });
 
   assert.deepEqual(backgroundColors(undefined), ["#E4DDFF", "#C9DCFF"]);
   assert.deepEqual(backgroundColors("#000"), ["#000"]);
@@ -336,9 +333,11 @@ test("the frame centres the recording with a margin, inside a story's safe zones
 test("polish draws labels always, and a zoom and a frame on a landscape video unless told otherwise", () => {
   const desk = { width: 1280, height: 800 };
   const story = { width: 1080, height: 1920 };
-  const plan = (args: string[], size: { width: number; height: number }) => polishPlan(polishOptions(["out/x", ...args]), size);
+  const plan = (args: string[], size: { width: number; height: number }, preset?: string) =>
+    polishPlan(polishOptions(["out/x", ...args]), size, preset);
   assert.deepEqual(plan([], desk), { labels: true, zoom: 1.5, frame: ["#E4DDFF", "#C9DCFF"] });
   assert.deepEqual(plan([], story), { labels: true, zoom: undefined, frame: undefined });
+  assert.deepEqual(plan([], story, "story"), { labels: true, zoom: undefined, frame: ["#E4DDFF", "#C9DCFF"] });
   assert.deepEqual(plan(["--no-zoom", "--no-labels", "--zoom-factor", "2"], desk), { labels: false, zoom: undefined, frame: ["#E4DDFF", "#C9DCFF"] });
   assert.deepEqual(plan(["--zoom", "--zoom-factor", "1.2", "--background", "#000"], story), { labels: true, zoom: 1.2, frame: ["#000"] });
   assert.deepEqual(plan(["--no-frame", "--background", "#000"], desk).frame, undefined);

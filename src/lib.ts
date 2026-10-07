@@ -257,16 +257,17 @@ export function polishOptions(argv: string[]) {
 
 /**
  * What `polish` draws on a video of `size` where the flags leave it open:
- * the labels always, the zoom and the frame on a landscape video only, since
- * a story's frame and zoom are not worked out yet. `--background` implies the
- * frame. `zoom` is the factor, `frame` the background's colours.
+ * the labels always; the frame on a landscape video and on a story; the zoom
+ * on a landscape video only, since on a phone's width it crops the page at
+ * the sides. `--background` implies the frame. `zoom` is the factor, `frame`
+ * the background's colours.
  */
-export function polishPlan(o: PolishOptions, size: { width: number; height: number }) {
+export function polishPlan(o: PolishOptions, size: { width: number; height: number }, preset?: string) {
   const landscape = size.width > size.height;
   return {
     labels: o.labels ?? true,
     zoom: (o.zoom ?? landscape) ? o.zoomFactor : undefined,
-    frame: (o.frame ?? (o.background !== undefined || landscape)) ? (o.background ?? BACKGROUND) : undefined,
+    frame: (o.frame ?? (o.background !== undefined || landscape || preset === "story")) ? (o.background ?? BACKGROUND) : undefined,
   };
 }
 
@@ -714,15 +715,15 @@ export function backgroundColors(spec: string | undefined): string[] {
 
 /**
  * Where `--frame` puts the recording in a video of `size` pixels: scaled
- * down to leave a margin of 7% of the short side, centred, and for a story
- * inside its safe zones. The window keeps the recording's shape and even
- * dimensions; its corners round by 2.5% of the short side.
+ * down to leave a margin of 7% of the short side, centred. The window keeps
+ * the recording's shape and even dimensions; its corners round by 2.5% of the
+ * short side. A story's window reaches into the zones its feed covers, top
+ * and bottom: kept clear of them, it was a small card (Roman, 2026-10-07).
  */
-export function frameLayout(size: { width: number; height: number }, preset?: string) {
+export function frameLayout(size: { width: number; height: number }) {
   const short = Math.min(size.width, size.height);
   const margin = 0.07 * short;
-  const safe = preset === "story" ? STORY_SAFE : { top: 0, bottom: 0 };
-  const room = { width: size.width - 2 * margin, height: size.height - safe.top - safe.bottom - 2 * margin };
+  const room = { width: size.width - 2 * margin, height: size.height - 2 * margin };
   const fit = Math.min(room.width / size.width, room.height / size.height);
   const even = (n: number) => 2 * Math.round(n / 2);
   const width = even(size.width * fit);
@@ -731,7 +732,7 @@ export function frameLayout(size: { width: number; height: number }, preset?: st
     width,
     height,
     x: even((size.width - width) / 2),
-    y: even(safe.top + (size.height - safe.top - safe.bottom - height) / 2),
+    y: even((size.height - height) / 2),
     radius: Math.round(0.025 * short),
   };
 }

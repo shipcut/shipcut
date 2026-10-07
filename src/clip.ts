@@ -122,7 +122,7 @@ export function polish(o: PolishOptions): void {
   if (!run.events?.moves.length) throw new Error(`${o.dir} has no pointer to draw: record with \`shots run --video --pointer\``);
   if (resolve(o.out) === source) throw new Error("--out is the source video");
 
-  const plan = polishPlan(o, { width: video.width!, height: video.height! });
+  const plan = polishPlan(o, { width: video.width!, height: video.height! }, run.preset);
   const scale = run.viewport.scale;
   const px = (css: number) => String(Math.round(css * scale));
   const sprite = POINTER;
@@ -191,7 +191,7 @@ export function polish(o: PolishOptions): void {
     const camera = plan.zoom ? zoomTrack(run.events.clicks, run.steps, size, plan.zoom) : undefined;
     graph.push(camera?.keys.length ? `[drawn]${zoomFilter(camera.keys, size)}[shot]` : "[drawn]null[shot]");
     if (plan.frame) {
-      const window = frameLayout(size, run.preset);
+      const window = frameLayout(size);
       writeFileSync(join(work, "background.svg"), backgroundSvg(size, window, plan.frame));
       writeFileSync(join(work, "mask.svg"), windowMask(window));
       graph.push(
