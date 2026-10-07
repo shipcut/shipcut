@@ -58,6 +58,7 @@ offset are kept, and `shots caption` burns them into the video.
 | `--viewport WxH` | CSS pixels, instead of a preset; no touch, scale 1 |
 | `--scale N` | device pixel ratio; multiplies the shots and the video alike |
 | `--video` | records the run as `video.mp4` (H.264, yuv420p, 30 fps, faststart) |
+| `--frame-by-frame` | records every frame of the page's animations however slowly it paints, on a virtual clock; slower to record. Needs `--video`, excludes `--slow` |
 | `--pointer` | glides a pointer to each element before the scenario acts on it and logs the path and the clicks in `run.json`; `shots polish` draws it. Needs `--video` |
 | `--cursor` | the older pointer, drawn by the page itself from the mouse events; it jumps rather than glides. Excludes `--pointer` |
 | `--slow MS` | pause between browser actions, so a video can be followed |
@@ -95,7 +96,21 @@ frame fails and says so.
 It records the one page the scenario is given. A popup or a second tab is not
 in it. Headless Chromium paints in software, so a 1080x1920 page that changes
 on every frame comes out at about 26 repaints a second on a 4-vCPU box with
-no GPU; `shots measure` prints the number for a run.
+no GPU, and a heavy page at 2 to 4; `shots measure` prints the number for a
+run.
+
+`--frame-by-frame` takes the page's time away from the wall clock. Chromium
+draws a frame only when asked, and before each one the page's clock moves on
+by exactly 1/30 s, standing still while a request is pending. Every frame of
+every animation is in the video, the page's timers keep video time, and a
+request looks instant. Steps, shots, the pointer's events and the scenario's
+`page.waitForTimeout` and typing delays all count video time, so two runs of
+the same scenario come out the same length to within a frame. Recording takes
+longer than the video: about 3 times at 1280x800 and 4 at 1080x1920 here. A
+request that never ends, a stream or a long poll, would hold the clock, so
+after 5 s the clock runs past pending requests for the rest of the run and
+says which request it was. It needs Chromium's headless shell, which
+Playwright runs by default, on Linux or Windows.
 
 Where `heavy` is on PATH, `run`, `clip` and `caption` run themselves again
 under `heavy --name shots --no-lock --mem 1500M --need 800`, so the browser and

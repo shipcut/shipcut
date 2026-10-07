@@ -67,6 +67,10 @@ test("the concat list shows each frame until the next arrived, the first from th
     "ffconcat version 1.0\nfile 000001.jpg\nduration 0.400\nfile 000002.jpg\nduration 0.600\nfile 000003.jpg\nduration 1.000\nfile 000003.jpg\n",
   );
   assert.throws(() => concatList([], 1000));
+  // A frame every thirtieth of a second for ten seconds lists exactly ten seconds.
+  const steady = concatList(Array.from({ length: 300 }, (_, k) => (k * 1000) / 30), 10_000);
+  const total = [...steady.matchAll(/duration ([\d.]+)/g)].reduce((sum, m) => sum + Number(m[1]), 0);
+  assert.equal(Math.round(total * 1000), 10_000);
   const args = recordArgs("out/.frames/list.ffconcat", "out/video.mp4", 10.224);
   assert.deepEqual(args.slice(0, 7), ["-y", "-f", "concat", "-safe", "0", "-i", "out/.frames/list.ffconcat"]);
   assert.ok(args[args.indexOf("-vf") + 1]!.endsWith("fps=30"));
@@ -140,6 +144,8 @@ test("run flags refuse what they cannot use", () => {
   assert.throws(() => runOptions(["a.ts", "--vidoe"]));
   assert.throws(() => runOptions(["a.ts", "--video", "--pointer", "--cursor"]), /both draw/);
   assert.throws(() => runOptions(["a.ts", "--pointer"]), /needs --video/);
+  assert.throws(() => runOptions(["a.ts", "--frame-by-frame"]), /needs --video/);
+  assert.throws(() => runOptions(["a.ts", "--video", "--frame-by-frame", "--slow", "100"]), /wall-clock/);
 });
 
 test("--mask turns on the defaults and --mask-selector adds to them", () => {

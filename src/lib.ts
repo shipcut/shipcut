@@ -61,6 +61,7 @@ export function runOptions(argv: string[]) {
       video: { type: "boolean", default: false },
       cursor: { type: "boolean", default: false },
       pointer: { type: "boolean", default: false },
+      "frame-by-frame": { type: "boolean", default: false },
       slow: { type: "string" },
       "storage-state": { type: "string" },
       mask: { type: "boolean", default: false },
@@ -74,6 +75,9 @@ export function runOptions(argv: string[]) {
   if (values.preset && values.viewport) throw new Error("--preset and --viewport exclude each other");
   if (values.pointer && values.cursor) throw new Error("--pointer and --cursor both draw a pointer; --pointer is drawn by shots polish");
   if (values.pointer && !values.video) throw new Error("--pointer is drawn over the video, so it needs --video");
+  if (values["frame-by-frame"] && !values.video) throw new Error("--frame-by-frame is a way to record the video, so it needs --video");
+  if (values["frame-by-frame"] && values.slow)
+    throw new Error("--slow pauses in wall-clock time, which --frame-by-frame does not keep; pause in the scenario instead");
 
   const preset: string | undefined = values.preset ?? (values.viewport ? undefined : "desktop");
   let size: { width: number; height: number; scale: number; mobile: boolean };
@@ -98,6 +102,8 @@ export function runOptions(argv: string[]) {
     video: values.video,
     cursor: values.cursor,
     pointer: values.pointer,
+    /** Chromium draws each frame on request, on a virtual clock: every frame of every animation is in the video. */
+    frameByFrame: values["frame-by-frame"],
     slow: number("slow", values.slow) ?? 0,
     storageState: values["storage-state"],
     /** Under `--mask` or `--mask-selector`: the extra selectors to blur, beside the email and phone defaults. */
@@ -186,9 +192,11 @@ export const frameName = (n: number) => `${String(n + 1).padStart(6, "0")}.jpg`;
 export function concatList(offsetsMs: number[], endMs: number): string {
   if (!offsetsMs.length) throw new Error("no frames to list");
   const lines = ["ffconcat version 1.0"];
+  // Whole milliseconds of the running time, not of each gap: a thirtieth of a
+  // second rounded on its own loses a third of a millisecond a frame.
   for (let i = 0; i < offsetsMs.length; i++) {
-    const from = i === 0 ? 0 : offsetsMs[i]!;
-    const to = offsetsMs[i + 1] ?? endMs;
+    const from = i === 0 ? 0 : Math.round(offsetsMs[i]!);
+    const to = Math.round(offsetsMs[i + 1] ?? endMs);
     lines.push(`file ${frameName(i)}`, `duration ${(Math.max(to - from, 1) / 1000).toFixed(3)}`);
   }
   lines.push(`file ${frameName(offsetsMs.length - 1)}`);

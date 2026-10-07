@@ -93,17 +93,17 @@ const PRESSES = new Set<string>(["click", "dblclick", "tap", "check", "uncheck"]
  * ponytail: an ElementHandle's own actions are neither glided nor logged, so
  * the pointer stays where it was. Locators are what scenarios use.
  */
-function pointer(page: Page, start: number, events: Events): void {
+function pointer(page: Page, clock: Clock, events: Events): void {
   const viewport = page.viewportSize() ?? { width: 0, height: 0 };
   let here = { x: viewport.width / 2, y: viewport.height / 2 };
-  const now = () => Date.now() - start;
+  const now = () => Math.round(clock.now());
   const travel = async (to: { x: number; y: number }) => {
     const path = glidePath(here, to);
     here = to;
     if (!path.length) return;
     const began = now();
     for (const [ms, x, y] of path) events.moves.push([began + ms, Math.round(x), Math.round(y)]);
-    await new Promise((done) => setTimeout(done, path.at(-1)![0]));
+    await clock.wait(path.at(-1)![0]);
   };
   const pressed = (name: string, at: { x: number; y: number }) => {
     if (PRESSES.has(name)) events.clicks.push([now(), Math.round(at.x), Math.round(at.y)]);
@@ -184,65 +184,231 @@ function mask(selectors: string[]) {
   scan();
 }
 
+type Recorded = { captured: number; seconds: number; encodeSeconds: number };
+
 /**
- * Records `page` into `<out>/video.mp4` at the device's pixels. Chromium's
- * screencast hands over a JPEG whenever the page repaints; each is written to
- * `<out>/.frames/` with its offset, and nothing else runs while the page does.
- * `encode()`, after the browser has closed, turns the frames into H.264, each
- * shown until the next arrived, so the frame rate is constant and an offset in
- * the video is an offset in the run. Playwright's own `recordVideo` is the same
- * screencast squeezed into low-bitrate VP8 at CSS size, which is why it is not
- * used.
- *
- * A minute of motion is a few hundred MB of JPEGs until the encode ends. The
- * folder goes when it succeeds and stays, named in the error, when it fails.
+ * The run's time: `now()` in milliseconds of the video, `wait(ms)` a pause of
+ * that much video. Steps, shots, the pointer's events and its glides all go
+ * by it, so they land where they happened in the video, whichever way it was
+ * captured.
+ */
+type Clock = { now(): number; wait(ms: number): Promise<unknown> };
+
+/**
+ * Typing with a `delay` waits between keys inside Playwright, in wall-clock
+ * time. Under `--frame-by-frame` that time is not the video's, so the keys go
+ * one at a time here, with the pause on the video's clock.
+ */
+function typeInVideoTime(page: Page, clock: Clock): void {
+  type Typing = (this: Frame, selector: string, text: string, options?: { delay?: number }) => Promise<void>;
+  const frame = Object.getPrototypeOf(page.mainFrame()) as { type: Typing };
+  const type = frame.type;
+  frame.type = async function (selector, text, options) {
+    if (!options?.delay || this.page() !== page) return type.call(this, selector, text, options);
+    for (const key of text) {
+      await type.call(this, selector, key, { ...options, delay: 0 });
+      await clock.wait(options.delay);
+    }
+  };
+  const keyboard = page.keyboard;
+  const typeKeys = keyboard.type.bind(keyboard);
+  keyboard.type = async (text, options) => {
+    if (!options?.delay) return typeKeys(text, options);
+    for (const key of text) {
+      await typeKeys(key);
+      await clock.wait(options.delay);
+    }
+  };
+}
+
+/** A capture: its clock, `stop()` before the context closes, `encode()` after the browser has. */
+type Recorder = Clock & { stop(): Promise<void>; encode(): Recorded };
+
+const wallClock = (start: number): Clock => ({
+  now: () => Date.now() - start,
+  wait: (ms) => new Promise((done) => setTimeout(done, ms)),
+});
+
+/**
+ * Captured frames, each a JPEG in `<out>/.frames/` with its offset in the
+ * video. `close()` writes the concat list that shows each frame until the
+ * next, and `encode()` turns it into `video.mp4` in one ffmpeg pass. A minute
+ * of motion is a few hundred MB of JPEGs until then. The folder goes when the
+ * encode succeeds and stays, named in the error, when it fails.
+ */
+function frameStore(out: string) {
+  const dir = join(out, ".frames");
+  mkdirSync(dir, { recursive: true });
+  const offsets: number[] = [];
+  let seconds = 0;
+  return {
+    add(jpeg: Buffer, at: number) {
+      writeFileSync(join(dir, frameName(offsets.length)), jpeg);
+      offsets.push(at);
+    },
+    close(endMs: number) {
+      seconds = endMs / 1000;
+      if (!offsets.length) throw new Error("the page never painted, so there is no video");
+      writeFileSync(join(dir, "list.ffconcat"), concatList(offsets, endMs));
+    },
+    encode(): Recorded {
+      const began = Date.now();
+      const path = join(out, "video.mp4");
+      const done = spawnSync("ffmpeg", ["-v", "error", ...recordArgs(join(dir, "list.ffconcat"), path, seconds)], {
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+      if (done.error) throw done.error;
+      if (done.status !== 0) throw new Error(`ffmpeg failed: ${done.stderr.toString().trim()}; the frames are in ${dir}`);
+      // A frame the encoder lost shortens the video and shifts every step after it.
+      const duration = measure(path, "video.mp4").duration ?? 0;
+      if (Math.abs(duration - seconds) > 1 / FPS)
+        throw new Error(`the video is ${duration}s for a ${seconds.toFixed(2)}s recording; the frames are in ${dir}`);
+      rmSync(dir, { recursive: true, force: true });
+      return { captured: offsets.length, seconds, encodeSeconds: (Date.now() - began) / 1000 };
+    },
+  };
+}
+
+/**
+ * Records `page` as Chromium paints it, in wall-clock time, at the device's
+ * pixels. The screencast hands over a JPEG whenever the page repaints, and
+ * nothing else runs beside the browser. A page that paints slowly gets few
+ * frames; `--frame-by-frame` is the cure. Playwright's own `recordVideo` is
+ * the same screencast squeezed into low-bitrate VP8 at CSS size, which is why
+ * it is not used.
  *
  * ponytail: one page. A popup or a second tab is not in the video; record each
  * page's session when a scenario needs that.
  */
-type Recorded = { captured: number; seconds: number; encodeSeconds: number };
-
-async function record(context: BrowserContext, page: Page, out: string) {
-  const frames = join(out, ".frames");
-  mkdirSync(frames, { recursive: true });
+async function screencast(context: BrowserContext, page: Page, out: string): Promise<Recorder> {
+  const store = frameStore(out);
   const cdp = await context.newCDPSession(page);
-  const start = Date.now();
-  const offsets: number[] = [];
-  let seconds = 0;
+  const clock = wallClock(Date.now());
+  let ended = false;
   cdp.on("Page.screencastFrame", (event) => {
     // Chromium sends the next frame only after this one is acknowledged.
     cdp.send("Page.screencastFrameAck", { sessionId: event.sessionId }).catch(() => {});
-    if (seconds) return; // a repaint after the stop is not in the recording
-    writeFileSync(join(frames, frameName(offsets.length)), Buffer.from(event.data, "base64"));
-    offsets.push(Date.now() - start);
+    if (!ended) store.add(Buffer.from(event.data, "base64"), clock.now()); // a repaint after the stop is not in it
   });
   await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92 });
+  return {
+    ...clock,
+    async stop() {
+      await cdp.send("Page.stopScreencast").catch(() => {});
+      ended = true;
+      store.close(clock.now());
+    },
+    encode: () => store.encode(),
+  };
+}
+
+const FRAME_MS = 1000 / FPS;
+/** How long one frame may wait for the page's requests before the clock runs past them. */
+const STUCK_MS = 5000;
+
+/**
+ * Under `--frame-by-frame`, Chromium draws a frame only when asked, and the
+ * page's clock is virtual: before each frame it moves on by exactly 1/30 s,
+ * holding still while a request is pending. So every frame of every animation
+ * is in the video however slowly the page paints, the page's timers keep
+ * video time, and a request looks instant. Recording takes longer than the
+ * video it makes, about 2.6 times at 1280x800 on four shared cores. A pause
+ * of the scenario's is counted in frames (`wait`), so it keeps its length in
+ * the video.
+ *
+ * Begin-frame control is a flag only `Target.createTarget` takes, so the page
+ * is made over CDP and Playwright adopts it into the context, init scripts,
+ * viewport and all. It needs Chromium's headless shell, which Playwright runs
+ * by default, and Linux or Windows.
+ */
+async function frameByFrame(context: BrowserContext, out: string): Promise<Recorder & { page: Page }> {
+  const helper = await context.newPage();
+  const { targetInfo } = (await (await context.newCDPSession(helper)).send("Target.getTargetInfo")) as {
+    targetInfo: { browserContextId: string };
+  };
+  const root = await context.browser()!.newBrowserCDPSession();
+  const adopted = context.waitForEvent("page");
+  await root.send("Target.createTarget", {
+    url: "about:blank",
+    browserContextId: targetInfo.browserContextId,
+    enableBeginFrameControl: true,
+  });
+  const page = await adopted;
+  await helper.close();
+
+  const cdp = await context.newCDPSession(page);
+  const store = frameStore(out);
+  // The requests in flight, to name the one that holds the clock.
+  const pending = new Map<string, string>();
+  cdp.on("Network.requestWillBeSent", (e) => pending.set(e.requestId, `${e.request.method} ${e.request.url.slice(0, 120)}`));
+  cdp.on("Network.loadingFinished", (e) => pending.delete(e.requestId));
+  cdp.on("Network.loadingFailed", (e) => pending.delete(e.requestId));
+  await cdp.send("Network.enable");
+  const { virtualTimeTicksBase } = await cdp.send("Emulation.setVirtualTimePolicy", { policy: "pause" });
+  let frames = 0;
+  let running = true;
+  let heedRequests = true;
+  let failure: unknown;
+  const waiting: { until: number; done: () => void }[] = [];
+  const settle = () => {
+    for (const w of waiting.filter((w) => frames >= w.until || !running)) {
+      waiting.splice(waiting.indexOf(w), 1);
+      w.done();
+    }
+  };
+  const advance = async () => {
+    const expired = new Promise((done) => cdp.once("Emulation.virtualTimeBudgetExpired", done));
+    await cdp.send("Emulation.setVirtualTimePolicy", {
+      policy: heedRequests ? "pauseIfNetworkFetchesPending" : "advance",
+      budget: FRAME_MS,
+    });
+    const timer = new Promise((done) => setTimeout(() => done("stuck"), STUCK_MS));
+    if ((await Promise.race([expired, timer])) !== "stuck") return;
+    // A request that never ends (a stream, a long poll) would hold the clock forever.
+    heedRequests = false;
+    console.error(
+      `shots: a request held the page's clock for ${STUCK_MS / 1000}s; from here time runs past pending requests. ` +
+        `In flight: ${[...pending.values()].slice(0, 3).join(", ") || "none Chromium reported"}`,
+    );
+    await cdp.send("Emulation.setVirtualTimePolicy", { policy: "advance", budget: FRAME_MS });
+    await expired;
+  };
+  const loop = (async () => {
+    try {
+      while (running) {
+        await advance();
+        const frame = await cdp.send("HeadlessExperimental.beginFrame", {
+          frameTimeTicks: virtualTimeTicksBase + (frames + 1) * FRAME_MS,
+          interval: FRAME_MS,
+          screenshot: { format: "jpeg", quality: 92 },
+        });
+        if (frame.screenshotData) store.add(Buffer.from(frame.screenshotData, "base64"), frames * FRAME_MS);
+        frames++;
+        settle();
+      }
+    } catch (error) {
+      if (running) failure = error;
+    } finally {
+      running = false;
+      settle();
+    }
+  })();
 
   return {
-    start,
-    /** Ends the capture and writes the list. Call it before the context closes. */
-    async stop(): Promise<void> {
-      await cdp.send("Page.stopScreencast").catch(() => {});
-      seconds = (Date.now() - start) / 1000;
-      if (!offsets.length) throw new Error("the page never painted, so there is no video");
-      writeFileSync(join(frames, "list.ffconcat"), concatList(offsets, seconds * 1000));
+    page,
+    now: () => frames * FRAME_MS,
+    wait: (ms) =>
+      new Promise<void>((done) => {
+        waiting.push({ until: frames + Math.round(ms / FRAME_MS), done });
+        settle();
+      }),
+    async stop() {
+      running = false;
+      await loop;
+      if (failure) throw new Error(`frame-by-frame capture stopped: ${failure instanceof Error ? failure.message : String(failure)}`);
+      store.close(frames * FRAME_MS);
     },
-    /** Encodes the frames into the video. Call it after the browser has closed. */
-    encode(): Recorded {
-      const began = Date.now();
-      const path = join(out, "video.mp4");
-      const done = spawnSync("ffmpeg", ["-v", "error", ...recordArgs(join(frames, "list.ffconcat"), path, seconds)], {
-        stdio: ["ignore", "ignore", "pipe"],
-      });
-      if (done.error) throw done.error;
-      if (done.status !== 0) throw new Error(`ffmpeg failed: ${done.stderr.toString().trim()}; the frames are in ${frames}`);
-      // A frame the encoder lost shortens the video and shifts every step after it.
-      const duration = measure(path, "video.mp4").duration ?? 0;
-      if (Math.abs(duration - seconds) > 1 / FPS)
-        throw new Error(`the video is ${duration}s for a ${seconds.toFixed(2)}s recording; the frames are in ${frames}`);
-      rmSync(frames, { recursive: true, force: true });
-      return { captured: offsets.length, seconds, encodeSeconds: (Date.now() - began) / 1000 };
-    },
+    encode: () => store.encode(),
   };
 }
 
@@ -324,13 +490,26 @@ export async function run(o: RunOptions): Promise<void> {
     slowMo: o.slow,
     // The context's deviceScaleFactor alone gives sharp shots but a screencast
     // in CSS pixels. Scaling the browser itself makes the frames device-sized.
-    args: scale === 1 ? [] : [`--force-device-scale-factor=${scale}`],
+    args: [
+      ...(scale === 1 ? [] : [`--force-device-scale-factor=${scale}`]),
+      // Under begin-frame control, a frame must hold everything: no stage
+      // deferred to a later frame, no animation or scroll on another thread.
+      ...(o.frameByFrame
+        ? [
+            "--run-all-compositor-stages-before-draw",
+            "--disable-new-content-rendering-timeout",
+            "--disable-threaded-animation",
+            "--disable-threaded-scrolling",
+            "--disable-checker-imaging",
+          ]
+        : []),
+    ],
   });
   const steps: Step[] = [];
   const shots: { name: string; at: number }[] = [];
   const events: Events | undefined = o.pointer ? { clicks: [], moves: [] } : undefined;
   let video: Recorded | undefined;
-  let recording: Awaited<ReturnType<typeof record>> | undefined;
+  let recording: Recorder | undefined;
   try {
     const context = await browser.newContext({
       viewport: { width, height },
@@ -344,10 +523,20 @@ export async function run(o: RunOptions): Promise<void> {
     });
     if (o.cursor) await context.addInitScript(cursor, CURSOR_ID);
     if (o.mask) await context.addInitScript(mask, o.mask);
-    const page = await context.newPage();
-    recording = o.video ? await record(context, page, out) : undefined;
-    const start = recording?.start ?? Date.now();
-    if (events) pointer(page, start, events);
+    let page: Page;
+    if (o.frameByFrame) {
+      const captured = await frameByFrame(context, out);
+      page = captured.page;
+      recording = captured;
+      // The scenario's pauses are video time too.
+      page.waitForTimeout = (ms) => captured.wait(ms).then(() => undefined);
+      typeInVideoTime(page, captured);
+    } else {
+      page = await context.newPage();
+      recording = o.video ? await screencast(context, page, out) : undefined;
+    }
+    const clock = recording ?? wallClock(Date.now());
+    if (events) pointer(page, clock, events);
     const shot: ScenarioContext["shot"] = async (name, options) => {
       const file = `${String(shots.length + 1).padStart(2, "0")}-${slug(name) || "shot"}.png`;
       await page.screenshot({
@@ -355,7 +544,7 @@ export async function run(o: RunOptions): Promise<void> {
         fullPage: options?.fullPage,
         style: `#${CURSOR_ID}{display:none}`,
       });
-      shots.push({ name: file, at: Date.now() - start });
+      shots.push({ name: file, at: Math.round(clock.now()) });
     };
     try {
       await loaded.default({
@@ -365,7 +554,7 @@ export async function run(o: RunOptions): Promise<void> {
         step: (title, options) =>
           void steps.push({
             title,
-            at: Date.now() - start,
+            at: Math.round(clock.now()),
             ...(options?.caption === false ? { caption: false } : {}),
             ...(options?.zoom === false ? { zoom: false } : {}),
           }),

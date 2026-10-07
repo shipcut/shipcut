@@ -68,6 +68,10 @@ a shot holds them. `--mask-selector 'input[name=name]'` adds what the defaults
 miss, such as a name. Pull a frame after typing and check it.
 
 The video is H.264 at 30 fps and shows the one page the scenario was given.
+Add `--frame-by-frame` for a video worth posting: every frame of the page's
+own animations gets in, and a run of the same scenario comes out the same
+length every time, at about three times the video's length to record. Pauses
+in the scenario still mean video time there.
 It is encoded after the browser closes, so the command ends about as long
 again after the scenario does, and `<out>/.frames/` holds the raw frames
 until then.

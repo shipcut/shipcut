@@ -43,13 +43,17 @@ true when a flag or a stored shape changes.
   a reason; if ffmpeg or Playwright does the job, there is no reason.
 - Playwright stays on the minor whose Chromium is in `~/.cache/ms-playwright`.
   Bumping it means a browser download, so say so first.
-- The video is Chromium's screencast over CDP, stored frame by frame under
-  `<out>/.frames/` and encoded by one ffmpeg pass after the browser has
-  closed, so the encoder never competes with the page. The frames are
-  device-sized only because the browser starts with
+- The video comes from Chromium's screencast over CDP, or under
+  `--frame-by-frame` from `HeadlessExperimental.beginFrame` on a virtual clock.
+  Either way the frames go to `<out>/.frames/` and one ffmpeg pass encodes
+  them after the browser has closed, so the encoder never competes with the
+  page. The frames are device-sized only because the browser starts with
   `--force-device-scale-factor`; the context's `deviceScaleFactor` alone gives
   CSS-sized frames. A frame that arrives after `stop()` is dropped, else the
   list and the recording's length disagree.
+- Every time in a run comes from its `Clock`: steps, shots, the pointer's
+  events and its waits. Never `Date.now()` or `setTimeout` for those; under
+  `--frame-by-frame` the video's time is not the wall clock's.
 - The token is read in `src/store.ts` and nowhere else, and is never printed.
 - Reads of a rewritten Blob path are stale for a minute or more, even with a
   cache-busting query. Do not build on reading back what was just written; the
