@@ -24,6 +24,8 @@ true when a flag or a stored shape changes.
 - `src/store.ts` - Blob: publish, list, rm, the token.
 - `src/types.ts` - the stored shapes. Published manifests already have them,
   so add fields, do not rename or remove.
+- `fonts/` - Inter SemiBold for the labels, with its OFL licence, which must
+  travel with it. `polish` points fontconfig at it.
 - `examples/counter.ts` - a scenario that serves its own page, for a run with
   no network.
 - `skills/shots/SKILL.md` - how an agent in another project uses the CLI.

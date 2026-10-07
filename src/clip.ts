@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   BT709,
   backgroundSvg,
@@ -36,9 +37,9 @@ import {
 import { measure, recordFile, reportPeak } from "./run.ts";
 import type { Run } from "./types.ts";
 
-/** Runs ffmpeg (in `cwd` when given), reports the result, and adds it to a `run.json` beside it. */
-function produce(args: string[], path: string, cwd?: string): void {
-  const done = spawnSync("ffmpeg", ["-v", "error", ...args], { cwd, stdio: ["ignore", "ignore", "pipe"] });
+/** Runs ffmpeg (in `cwd`, with `env`, when given), reports the result, and adds it to a `run.json` beside it. */
+function produce(args: string[], path: string, cwd?: string, env?: NodeJS.ProcessEnv): void {
+  const done = spawnSync("ffmpeg", ["-v", "error", ...args], { cwd, env, stdio: ["ignore", "ignore", "pipe"] });
   if (done.error) throw done.error;
   if (done.status !== 0) throw new Error(`ffmpeg failed: ${done.stderr.toString().trim()}`);
 
@@ -131,6 +132,7 @@ export function polish(o: PolishOptions): void {
   const press = presses[0]!;
 
   const work = mkdtempSync(join(tmpdir(), "shots-polish-"));
+  const env = { ...process.env, FONTCONFIG_FILE: fontConfig(work) };
   try {
     writeFileSync(join(work, "pointer.svg"), sprite.svg);
     presses.forEach((p, k) => writeFileSync(join(work, `press${String(k).padStart(2, "0")}.svg`), p.svg));
@@ -162,9 +164,9 @@ export function polish(o: PolishOptions): void {
       const frame = { width: video.width! / scale, height: video.height! / scale };
       const safe = run.preset === "story" ? { top: STORY_SAFE.top / scale, bottom: STORY_SAFE.bottom / scale } : undefined;
       const windows = labelWindows(run.steps, video.duration, track.from);
-      console.error(`shots: ${windows.length} labels in ${labelFont()}`);
+      console.error(`shots: ${windows.length} labels in ${labelFont(env)}`);
       windows.forEach(({ text, from, to }, k) => {
-        const label = labelSprite(text, measureInk(text, scale, join(work, `probe${k}.svg`)));
+        const label = labelSprite(text, measureInk(text, scale, join(work, `probe${k}.svg`), env));
         writeFileSync(join(work, `label${k}.svg`), label.svg);
         const labelStill = still(`label${k}.svg`, px(label.width));
         const place = (x: number, y: number) => {
@@ -210,6 +212,7 @@ export function polish(o: PolishOptions): void {
       [...args, "-filter_complex_script", "graph.txt", "-map", "[out]", ...MP4, ...BT709, "-preset", "medium", resolve(o.out)],
       o.out,
       work,
+      env,
     );
   } finally {
     rmSync(work, { recursive: true, force: true });
@@ -218,22 +221,42 @@ export function polish(o: PolishOptions): void {
 }
 
 /** The ink of a label's text in CSS pixels, found by rendering it with ffmpeg's librsvg and reading the `bbox` filter. */
-function measureInk(text: string, scale: number, file: string): { left: number; width: number } {
+function measureInk(text: string, scale: number, file: string, env: NodeJS.ProcessEnv): { left: number; width: number } {
   const probe = labelProbe(text);
   writeFileSync(file, probe.svg);
   const width = String(Math.round(probe.width * scale));
   const done = spawnSync("ffmpeg", ["-v", "info", "-width", width, "-i", file, "-vf", "bbox=min_val=64", "-frames:v", "1", "-f", "null", "-"], {
     encoding: "utf8",
+    env,
   });
   const box = /x1:(\d+) x2:(\d+)/.exec(done.stderr);
   if (!box) throw new Error(`could not measure the label "${text}": ${done.stderr.trim().split("\n").at(-1)}`);
   return { left: Number(box[1]) / scale - LABEL.padX, width: (Number(box[2]) - Number(box[1]) + 1) / scale };
 }
 
+/**
+ * A fontconfig file that adds the package's own `fonts/` to the system's, so
+ * librsvg sets the labels in the bundled Inter on any machine, and still
+ * finds the system's fonts for a glyph Inter lacks.
+ */
+function fontConfig(work: string): string {
+  const fonts = fileURLToPath(new URL("../fonts/", import.meta.url));
+  const file = join(work, "fonts.conf");
+  writeFileSync(
+    file,
+    `<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">\n<fontconfig>\n` +
+      `  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>\n  <dir>${fonts}</dir>\n</fontconfig>\n`,
+  );
+  return file;
+}
+
 /** The face fontconfig gives a label, named so a run says what it drew with. */
-function labelFont(): string {
+function labelFont(env: NodeJS.ProcessEnv): string {
   try {
-    return execFileSync("fc-match", ["-f", "%{fullname}", "Inter:weight=600"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }) || "the default font";
+    return (
+      execFileSync("fc-match", ["-f", "%{fullname}", "Inter:weight=600"], { encoding: "utf8", env, stdio: ["ignore", "pipe", "ignore"] }) ||
+      "the default font"
+    );
   } catch {
     return "the default font";
   }

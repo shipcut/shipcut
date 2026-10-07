@@ -183,8 +183,9 @@ step until the next one, 4 s at most, and fades in and out. It does not show
 before the pointer's first move, and `step(title, { caption: false })` keeps
 one out. A label flips to the pointer's left near the right edge and stays out
 of a story's safe zones. A title longer than 32 characters is cut with an
-ellipsis. The text is set in whatever fontconfig returns for Inter, named on
-stderr; where Inter is not installed, that is the system's sans.
+ellipsis. The text is set in Inter SemiBold, which ships in `fonts/` under the
+SIL Open Font License, so a label looks the same on any machine; a glyph Inter
+lacks comes from the system's fonts.
 
 The frame shrinks the result into a window with rounded corners and a soft
 shadow on a still background, so the video keeps its size and the camera
