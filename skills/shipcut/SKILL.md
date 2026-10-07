@@ -1,24 +1,24 @@
 ---
-name: shots
-description: Record screenshots and a short video of this project's web app with the `shots` CLI and publish them to get links for a changelog entry or a PR. Use when a UI change should be shown before and after, when a PR needs proof of a flow, or for /shots.
+name: shipcut
+description: Record screenshots and a short video of this project's web app with the `shipcut` CLI and publish them to get links for a changelog entry or a PR. Use when a UI change should be shown before and after, when a PR needs proof of a flow, or for /shipcut.
 ---
 
-# shots
+# shipcut
 
-`shots` drives a scenario in headless Chromium, saves PNGs and an mp4, and
+`shipcut` drives a scenario in headless Chromium, saves PNGs and an mp4, and
 uploads them to a public Blob store. You get Markdown with the links.
 
 ## When to record
 
 - A visible change: record the same scenario before (on the base branch or
   production) and after, and paste both.
-- A new flow: one run with `--video --pointer`, then `shots polish`.
+- A new flow: one run with `--video --pointer`, then `shipcut polish`.
 - Not for verification. Asserting that a flow works is the project's verify
   skill; this is for showing it.
 
 ## The scenario
 
-An ES module in this project (keep them in one directory, e.g. `shots/`):
+An ES module in this project (keep them in one directory, e.g. `shipcut/`):
 
 ```ts
 export default async ({ page, base, shot, step }) => {
@@ -31,7 +31,7 @@ export default async ({ page, base, shot, step }) => {
 
 - `page` is a Playwright page, `base` is `--base` with no trailing slash.
 - `shot(name)` saves `NN-name.png` of the viewport; `shot(name, { fullPage: true })` the whole page.
-- `step(title)` marks a chapter, and `shots caption` burns the title into the
+- `step(title)` marks a chapter, and `shipcut caption` burns the title into the
   video until the next step. Write it as a caption: a few words, no full stop.
   `step(title, { caption: false })` marks a chapter that shows none, and
   `{ zoom: false }` one that `polish --zoom` does not close in on.
@@ -43,7 +43,7 @@ export default async ({ page, base, shot, step }) => {
 ## Record
 
 ```sh
-shots run shots/landing.ts --base http://localhost:3000 --video --pointer
+shipcut run shipcut/landing.ts --base http://localhost:3000 --video --pointer
 ```
 
 | Preset | Layout | Shots and video |
@@ -76,7 +76,7 @@ It is encoded after the browser closes, so the command ends about as long
 again after the scenario does, and `<out>/.frames/` holds the raw frames
 until then.
 `--pointer` glides a pointer to each element the scenario acts on, from its
-first action, and `shots polish` draws it; a scenario that only scrolls shows
+first action, and `shipcut polish` draws it; a scenario that only scrolls shows
 none. A scroll done with `scrollIntoView({ behavior: "smooth" })`
 and a pause after it reads better than a jump.
 
@@ -90,7 +90,7 @@ Do not wrap them. Exit 75 means the box is busy. Retry later.
 ## Polish
 
 ```sh
-shots polish out/<run-id>
+shipcut polish out/<run-id>
 ```
 
 Writes `video-polished.mp4`: the run's video with the pointer and a press
@@ -106,7 +106,7 @@ publishing.
 ## Caption
 
 ```sh
-shots caption out/<run-id>
+shipcut caption out/<run-id>
 ```
 
 Writes `video-captioned.mp4` beside `video.mp4`, each step's title on a black
@@ -122,8 +122,8 @@ Caption first, then clip the captioned file if it needs trimming.
 ## Clip
 
 ```sh
-shots clip out/<run-id>/video.mp4 --from 1 --to 8 --speed 1.5
-shots clip out/<run-id>/video.mp4 --gif --width 480
+shipcut clip out/<run-id>/video.mp4 --from 1 --to 8 --speed 1.5
+shipcut clip out/<run-id>/video.mp4 --gif --width 480
 ```
 
 Do this before publishing: a clip or a captioned video made inside the run
@@ -132,7 +132,7 @@ directory is uploaded with it. An mp4 is only ever a link in Markdown; a GIF sho
 ## Publish
 
 ```sh
-shots publish out/<run-id> --project <this project's name> --title "What changed"
+shipcut publish out/<run-id> --project <this project's name> --title "What changed"
 ```
 
 The project name is lowercase with dashes and stays the same for every run of
@@ -140,6 +140,6 @@ this project. Stdout is the Markdown block. Paste it as printed into the PR
 description or the changelog entry; for before and after, put the two blocks
 under "Before" and "After".
 
-`shots list --project <name>` shows what is stored.
-`shots rm <project>/<run-id> --yes` removes a run you published by mistake.
+`shipcut list --project <name>` shows what is stored.
+`shipcut rm <project>/<run-id> --yes` removes a run you published by mistake.
 Remove only runs you made.

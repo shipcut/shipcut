@@ -47,7 +47,7 @@ function number(flag: string, value: string | undefined): number | undefined {
 
 export type RunOptions = ReturnType<typeof runOptions>;
 
-/** Flags of `shots run`, resolved to what the browser needs. */
+/** Flags of `shipcut run`, resolved to what the browser needs. */
 export function runOptions(argv: string[]) {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -71,9 +71,9 @@ export function runOptions(argv: string[]) {
     },
   });
   const [scenario, ...rest] = positionals;
-  if (!scenario || rest.length) throw new Error("usage: shots run <scenario> [flags]");
+  if (!scenario || rest.length) throw new Error("usage: shipcut run <scenario> [flags]");
   if (values.preset && values.viewport) throw new Error("--preset and --viewport exclude each other");
-  if (values.pointer && values.cursor) throw new Error("--pointer and --cursor both draw a pointer; --pointer is drawn by shots polish");
+  if (values.pointer && values.cursor) throw new Error("--pointer and --cursor both draw a pointer; --pointer is drawn by shipcut polish");
   if (values.pointer && !values.video) throw new Error("--pointer is drawn over the video, so it needs --video");
   if (values["frame-by-frame"] && !values.video) throw new Error("--frame-by-frame is a way to record the video, so it needs --video");
   if (values["frame-by-frame"] && values.slow)
@@ -129,7 +129,7 @@ export function clipOptions(argv: string[]) {
     },
   });
   const [input, ...rest] = positionals;
-  if (!input || rest.length) throw new Error("usage: shots clip <video> [flags]");
+  if (!input || rest.length) throw new Error("usage: shipcut clip <video> [flags]");
   const stem = input.slice(0, input.length - extname(input).length);
   return {
     input,
@@ -239,7 +239,7 @@ export function polishOptions(argv: string[]) {
   const [dir, ...rest] = positionals;
   if (!dir || rest.length)
     throw new Error(
-      "usage: shots polish <run-dir> [--[no-]labels] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]",
+      "usage: shipcut polish <run-dir> [--[no-]labels] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]",
     );
   const factor = number("zoom-factor", values["zoom-factor"]) ?? ZOOM.factor;
   if (factor <= 1) throw new Error("--zoom-factor wants a number above 1");
@@ -519,7 +519,7 @@ export function labelPlace(
 export function measureOptions(argv: string[]) {
   const { positionals } = parseArgs({ args: argv, allowPositionals: true });
   const [dir, ...rest] = positionals;
-  if (!dir || rest.length) throw new Error("usage: shots measure <run-dir>");
+  if (!dir || rest.length) throw new Error("usage: shipcut measure <run-dir>");
   return { dir };
 }
 
@@ -531,7 +531,7 @@ export function framesKept(stderr: string): number {
 }
 
 /**
- * What `shots measure` prints: distinct frames a second, the video's length
+ * What `shipcut measure` prints: distinct frames a second, the video's length
  * against the seconds recorded, and the repaints Chromium sent. One fact a
  * line, the number first, so a before and after can sit side by side.
  */
@@ -556,7 +556,7 @@ export function captionOptions(argv: string[]) {
     options: { out: { type: "string" }, font: { type: "string" } },
   });
   const [dir, ...rest] = positionals;
-  if (!dir || rest.length) throw new Error("usage: shots caption <run-dir> [--out FILE] [--font FILE]");
+  if (!dir || rest.length) throw new Error("usage: shipcut caption <run-dir> [--out FILE] [--font FILE]");
   return { dir, out: values.out ?? `${dir.replace(/\/$/, "")}/video-captioned.mp4`, font: values.font };
 }
 
@@ -645,7 +645,7 @@ export function captionFilter(captions: Caption[], frame: { width: number; heigh
     .join(",");
 }
 
-/** The ffmpeg arguments for `shots clip`. */
+/** The ffmpeg arguments for `shipcut clip`. */
 export function clipArgs(o: ClipOptions): string[] {
   // Seeking before -i is fast, and exact here because the output is re-encoded.
   const seek = [

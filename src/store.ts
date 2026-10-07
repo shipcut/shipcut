@@ -12,16 +12,17 @@ const YEAR = 31_536_000;
 // Blob's minimum. The manifest and the index are the only paths ever rewritten.
 const MINUTE = 60;
 
-/** The store's token: the environment, else `~/.config/shots/env`. Never printed. */
+/** The store's token: the environment, else `~/.config/shipcut/env`, else the `~/.config/shots/env` of before the rename. Never printed. */
 function token(): string {
   const fromEnv = process.env.BLOB_READ_WRITE_TOKEN;
   if (fromEnv) return fromEnv;
-  const file = join(homedir(), ".config/shots/env");
-  if (existsSync(file)) {
+  for (const dir of ["shipcut", "shots"]) {
+    const file = join(homedir(), `.config/${dir}/env`);
+    if (!existsSync(file)) continue;
     const found = /^BLOB_READ_WRITE_TOKEN=["']?([^"'\n]+)/m.exec(readFileSync(file, "utf8"));
     if (found?.[1]) return found[1];
   }
-  throw new Error("no BLOB_READ_WRITE_TOKEN in the environment or in ~/.config/shots/env");
+  throw new Error("no BLOB_READ_WRITE_TOKEN in the environment or in ~/.config/shipcut/env");
 }
 
 function projectName(name: string | undefined): string {
@@ -74,7 +75,7 @@ async function currentIndex(project: string, change: { add?: IndexEntry; drop?: 
 
 // ponytail: no lock, the last writer wins. Two publishes that overlap can each
 // write an index without the other's run. Nothing is lost for good: the files
-// and manifest.json are there, `shots list` reads the listing and shows both,
+// and manifest.json are there, `shipcut list` reads the listing and shows both,
 // and the next publish or rm in the project rebuilds index.json with both.
 // Until then a reader of index.json alone misses one run. Upgrade path: take
 // the etag from `get`, pass it to `put` as `ifMatch`, retry on
@@ -82,7 +83,7 @@ async function currentIndex(project: string, change: { add?: IndexEntry; drop?: 
 async function writeIndex(project: string, change: { add?: IndexEntry; drop?: string }) {
   const index = await currentIndex(project, change);
   if (index.length) await putJson(`${project}/index.json`, index);
-  // The last run gone, the project goes too, so `shots list` stops naming it.
+  // The last run gone, the project goes too, so `shipcut list` stops naming it.
   else await del(`${project}/index.json`, { token: token() });
 }
 
@@ -95,7 +96,7 @@ export async function publish(dir: string, project: string | undefined, title: s
       const { url } = await put(`${prefix}/${f.name}`, await readFile(join(dir, f.name)), {
         access: "public",
         // A run id is unique, so its files never change; a second publish of
-        // the same run (after `shots clip`) rewrites them with the same bytes.
+        // the same run (after `shipcut clip`) rewrites them with the same bytes.
         allowOverwrite: true,
         contentType: f.contentType,
         cacheControlMaxAge: YEAR,
@@ -113,7 +114,7 @@ export async function publish(dir: string, project: string | undefined, title: s
   if (files.some((f) => f.contentType.startsWith("video/")))
     console.error(
       "note: an mp4 link plays inline on no Markdown host (GitHub only inlines videos uploaded through its own editor);\n" +
-        "X and Threads want the file uploaded. For motion inline, `shots clip --gif` and publish again: a GIF is an image.",
+        "X and Threads want the file uploaded. For motion inline, `shipcut clip --gif` and publish again: a GIF is an image.",
     );
 }
 
@@ -134,7 +135,7 @@ export async function listRuns(project: string | undefined, limit: number) {
 
 export async function remove(target: string | undefined, yes: boolean) {
   const [project, id, ...rest] = (target ?? "").split("/");
-  if (!id || rest.length) throw new Error("usage: shots rm <project>/<run-id> [--yes]");
+  if (!id || rest.length) throw new Error("usage: shipcut rm <project>/<run-id> [--yes]");
   const name = projectName(project);
   // The trailing slash keeps a run id that is a prefix of another one apart.
   const { blobs } = await list({ prefix: `${name}/${id}/`, token: token() });

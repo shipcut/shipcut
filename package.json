@@ -1,11 +1,11 @@
 {
-  "name": "shots",
+  "name": "shipcut",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Record screenshots and short videos of a web app's flows and publish them to Vercel Blob.",
   "bin": {
-    "shots": "bin/shots"
+    "shipcut": "bin/shipcut"
   },
   "engines": {
     "node": ">=24"

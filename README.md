@@ -1,10 +1,10 @@
-# shots
+# shipcut
 
 Screenshots and short videos of an app's real flows, recorded in headless
 Chromium and published to Vercel Blob with a manifest. A changelog entry or a
 PR pastes the links; later a web UI lists what was saved.
 
-Scenarios live in the project they record. `shots` only records, clips and
+Scenarios live in the project they record. `shipcut` only records, clips and
 publishes.
 
 ## Install
@@ -13,7 +13,7 @@ Node 24 runs the TypeScript as is, so there is no build.
 
 ```sh
 pnpm install
-ln -s "$PWD/bin/shots" ~/.local/bin/shots
+ln -s "$PWD/bin/shipcut" ~/.local/bin/shipcut
 ```
 
 It needs `ffmpeg` built with librsvg (Ubuntu's is) and `ffprobe` on PATH, and
@@ -21,15 +21,15 @@ Playwright's Chromium
 (`pnpm exec playwright install chromium` where it is missing).
 
 Publishing needs `BLOB_READ_WRITE_TOKEN`, from the environment or else from
-`~/.config/shots/env` (a `KEY=value` file; a link to this repo's `.env.local`
-works).
+`~/.config/shipcut/env` (a `KEY=value` file; a link to this repo's `.env.local`
+works). `~/.config/shots/env`, from before the rename, is still read.
 
 ## Commands
 
 ### run
 
 ```sh
-shots run flows/booking.ts --base http://localhost:3000 --video --pointer
+shipcut run flows/booking.ts --base http://localhost:3000 --video --pointer
 ```
 
 A scenario is an ES module (`.ts` or `.mjs`) with a default export:
@@ -46,7 +46,7 @@ export default async ({ page, base, shot, step }) => {
 ```
 
 `page` is a Playwright page. `step(title)` marks a chapter; its title and time
-offset are kept, and `shots caption` burns them into the video.
+offset are kept, and `shipcut caption` burns them into the video.
 `step(title, { caption: false })` marks one that shows no caption, and
 `{ zoom: false }` one whose clicks `polish --zoom` leaves alone. Type it with
 `import type { Scenario } from "<this repo>/src/run.ts"` if you want the types.
@@ -60,7 +60,7 @@ offset are kept, and `shots caption` burns them into the video.
 | `--scale N` | device pixel ratio; multiplies the shots and the video alike |
 | `--video` | records the run as `video.mp4` (H.264, yuv420p, 30 fps, faststart) |
 | `--frame-by-frame` | records every frame of the page's animations however slowly it paints, on a virtual clock; slower to record. Needs `--video`, excludes `--slow` |
-| `--pointer` | glides a pointer to each element before the scenario acts on it and logs the path and the clicks in `run.json`; `shots polish` draws it. Needs `--video` |
+| `--pointer` | glides a pointer to each element before the scenario acts on it and logs the path and the clicks in `run.json`; `shipcut polish` draws it. Needs `--video` |
 | `--cursor` | the older pointer, drawn by the page itself from the mouse events; it jumps rather than glides. Excludes `--pointer` |
 | `--slow MS` | pause between browser actions, so a video can be followed |
 | `--storage-state FILE` | a Playwright storage state, to start signed in |
@@ -97,7 +97,7 @@ frame fails and says so.
 It records the one page the scenario is given. A popup or a second tab is not
 in it. Headless Chromium paints in software, so a 1080x1920 page that changes
 on every frame comes out at about 26 repaints a second on a 4-vCPU box with
-no GPU, and a heavy page at 2 to 4; `shots measure` prints the number for a
+no GPU, and a heavy page at 2 to 4; `shipcut measure` prints the number for a
 run.
 
 `--frame-by-frame` takes the page's time away from the wall clock. Chromium
@@ -114,15 +114,15 @@ says which request it was. It needs Chromium's headless shell, which
 Playwright runs by default, on Linux or Windows.
 
 Where `heavy` is on PATH, `run`, `clip` and `caption` run themselves again
-under `heavy --name shots --no-lock --mem 1500M --need 800`, so the browser and
+under `heavy --name shipcut --no-lock --mem 1500M --need 800`, so the browser and
 ffmpeg share one memory cap. Exit 75 means the box had no memory to spare. A
 story run peaks near 700 MB.
 
 ### clip
 
 ```sh
-shots clip out/20261002-134501-booking/video.mp4 --from 2 --to 9 --speed 1.5
-shots clip out/20261002-134501-booking/video.mp4 --gif --width 480
+shipcut clip out/20261002-134501-booking/video.mp4 --from 2 --to 9 --speed 1.5
+shipcut clip out/20261002-134501-booking/video.mp4 --gif --width 480
 ```
 
 Trims (`--from`, `--to` in seconds of the source), speeds up, scales, or makes
@@ -133,7 +133,7 @@ directory is added to its `run.json`, so `publish` uploads it.
 ### caption
 
 ```sh
-shots caption out/20261002-134501-booking
+shipcut caption out/20261002-134501-booking
 ```
 
 Burns each step's title into `video.mp4`, from the step's offset until the
@@ -154,7 +154,7 @@ a caption looks the same on any machine; `--font FILE` picks another.
 ### polish
 
 ```sh
-shots polish out/20261002-134501-booking
+shipcut polish out/20261002-134501-booking
 ```
 
 On a landscape video it draws the pointer with its labels, zooms on the
@@ -164,9 +164,9 @@ width a zoom crops the page at the sides. `--no-labels`, `--no-zoom` and `--no-f
 `--frame` turn one on. For a video to post:
 
 ```sh
-shots run flows/booking.ts --scale 2 --video --frame-by-frame --pointer --mask
-shots polish out/<run-id>
-shots clip out/<run-id>/video-polished.mp4 --width 1920
+shipcut run flows/booking.ts --scale 2 --video --frame-by-frame --pointer --mask
+shipcut polish out/<run-id>
+shipcut clip out/<run-id>/video-polished.mp4 --width 1920
 ```
 
 The pointer is the one a `--pointer` run logged: an arrow on every
@@ -195,7 +195,7 @@ controls; kept clear of them, the window was a small card. The background is lav
 `--background` gives one colour (`#0b0b0f`) or two for a diagonal gradient
 (`#e4ddff,#c9dcff`); `--background` implies `--frame`. A framed desktop video
 shows its page at 86%, so a recording meant for posting reads better at
-`--scale 2`, brought back to a feed's size with `shots clip --width 1920`.
+`--scale 2`, brought back to a feed's size with `shipcut clip --width 1920`.
 At 2560x1600 `polish` peaks near 1.35 GB of its 1.5 GB cap.
 
 The zoom moves the camera. It closes in on a click by `--zoom-factor`
@@ -218,7 +218,7 @@ and CSS pixels.
 ### measure
 
 ```sh
-shots measure out/20261002-134501-booking
+shipcut measure out/20261002-134501-booking
 ```
 
 Prints how the run's video came out, one fact a line: distinct frames a
@@ -231,7 +231,7 @@ a before and an after.
 ### publish
 
 ```sh
-shots publish out/20261002-134501-booking --project heystol --title "Booking, new form"
+shipcut publish out/20261002-134501-booking --project heystol --title "Booking, new form"
 ```
 
 Uploads the run and prints Markdown on stdout: images embedded, videos linked.
@@ -241,7 +241,7 @@ first. Publishing the same run again replaces it.
 ### list
 
 ```sh
-shots list --project heystol --limit 5
+shipcut list --project heystol --limit 5
 ```
 
 Without `--project`, every project.
@@ -249,7 +249,7 @@ Without `--project`, every project.
 ### rm
 
 ```sh
-shots rm heystol/20261002-134501-booking
+shipcut rm heystol/20261002-134501-booking
 ```
 
 Deletes the run's files and its index entry. Asks first unless `--yes`. The

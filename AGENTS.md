@@ -1,9 +1,15 @@
-# shots
+# shipcut
 
 A CLI that records screenshots and short videos of a web app in headless
 Chromium and publishes them to Vercel Blob with a manifest. Other projects
 keep the scenarios; this repo records, clips and publishes. `.claude/CLAUDE.md`
 is a single `@` import of this file.
+
+The command and the product are `shipcut` since 2026-10-07; the old name
+`shots` stays where renaming would break something real: this repository
+and its directory, the Vercel project, the Blob store `shots-media`,
+Heystol's `.agents/shots/`, and `~/.config/shots/env`, which is still read
+after `~/.config/shipcut/env`.
 
 What the product is and is not: `PRODUCT.md`. The order of work: `ROADMAP.md`.
 The current stage in detail: `docs/prd/<nn>-*.md`, the one `ROADMAP.md` names.
@@ -13,7 +19,7 @@ true when a flag or a stored shape changes.
 
 ## Layout
 
-- `bin/shots` - the entry, symlinked into PATH. Runs `src/cli.ts` with Node.
+- `bin/shipcut` - the entry, symlinked into PATH. Runs `src/cli.ts` with Node.
 - `src/cli.ts` - dispatch, and the re-exec under `heavy`.
 - `src/lib.ts` - everything pure: run id, presets, flag parsing, ffmpeg
   arguments, the caption timeline and layout, the index, the Markdown. This is
@@ -29,7 +35,7 @@ true when a flag or a stored shape changes.
   fontconfig at the folder; `caption` hands drawtext the file.
 - `examples/counter.ts` - a scenario that serves its own page, for a run with
   no network.
-- `skills/shots/SKILL.md` - how an agent in another project uses the CLI.
+- `skills/shipcut/SKILL.md` - how an agent in another project uses the CLI.
 
 ## Rules
 
@@ -92,8 +98,8 @@ for identifiers.
 ## Heavy
 
 The box is shared. Anything that starts a browser or ffmpeg goes through
-`heavy`. `shots run`, `clip`, `caption`, `polish` and `measure` do that themselves, so call them
-plainly; do not wrap them in `heavy` again and do not set `SHOTS_HEAVY` to
+`heavy`. `shipcut run`, `clip`, `caption`, `polish` and `measure` do that themselves, so call them
+plainly; do not wrap them in `heavy` again and do not set `SHIPCUT_HEAVY` to
 skip it. Exit 75 means wait and retry.
 
 ## Check
@@ -102,14 +108,14 @@ skip it. Exit 75 means wait and retry.
 A change to `run.ts` or `clip.ts` also wants a real run:
 
 ```sh
-bin/shots run examples/counter.ts --video --pointer --out out/check
-bin/shots polish out/check
-bin/shots caption out/check
+bin/shipcut run examples/counter.ts --video --pointer --out out/check
+bin/shipcut polish out/check
+bin/shipcut caption out/check
 ffprobe -v error -show_entries stream=codec_name,width,height,avg_frame_rate:format=duration out/check/video-captioned.mp4
 ```
 
 Then pull a frame out and look at it. `ffprobe` does not see a soft or
 mis-coloured picture.
 
-A publish test goes under project `selftest` and is removed with `shots rm`
+A publish test goes under project `selftest` and is removed with `shipcut rm`
 afterwards.

@@ -1,4 +1,4 @@
-// `shots run`: drive a scenario in headless Chromium, keep the shots and the video.
+// `shipcut run`: drive a scenario in headless Chromium, keep the shots and the video.
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -15,7 +15,7 @@ export type ScenarioContext = {
   /** Saves `NN-name.png` of the viewport, or of the whole page with `fullPage`. */
   shot: (name: string, options?: { fullPage?: boolean }) => Promise<void>;
   /**
-   * Marks a chapter; its title and time offset go into the manifest. `shots
+   * Marks a chapter; its title and time offset go into the manifest. `shipcut
    * caption` burns it in unless `caption: false`, and `polish --zoom` zooms on
    * its clicks unless `zoom: false`.
    */
@@ -23,7 +23,7 @@ export type ScenarioContext = {
 };
 export type Scenario = (context: ScenarioContext) => Promise<void>;
 
-const CURSOR_ID = "__shots_cursor";
+const CURSOR_ID = "__shipcut_cursor";
 
 // Runs in the page. Headless Chromium draws no pointer, so a recording would
 // show buttons pressing themselves; this draws one from the mouse events.
@@ -84,7 +84,7 @@ const PRESSES = new Set<string>(["click", "dblclick", "tap", "check", "uncheck"]
 /**
  * Under `--pointer`, the scenario's pointer travels to an element before
  * acting on it: this waits as long as the glide takes and logs every point of
- * it in `events`, with each press, and `shots polish` draws it from them. The
+ * it in `events`, with each press, and `shipcut polish` draws it from them. The
  * page draws nothing, so a glide costs no repaint: a heavy page that manages
  * three frames a second still gets a pointer at 30. `locator.click()` is
  * `frame.click(selector)` inside Playwright, and so is `page.click()`, so
@@ -162,10 +162,10 @@ function mask(selectors: string[]) {
     "input[type=email],input[type=tel],input[type=password],input[autocomplete~=email],input[autocomplete~=tel]";
   const style = document.createElement("style");
   style.textContent =
-    `${FIELDS}{${HIDE}}::highlight(shots-mask){${HIDE}}` + (selectors.length ? `${selectors.join(",")}{filter:blur(.6em)!important}` : "");
+    `${FIELDS}{${HIDE}}::highlight(shipcut-mask){${HIDE}}` + (selectors.length ? `${selectors.join(",")}{filter:blur(.6em)!important}` : "");
   const PATTERN = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\+\d[\d ()-]{6,}\d/g;
   const marks = new Highlight();
-  CSS.highlights.set("shots-mask", marks);
+  CSS.highlights.set("shipcut-mask", marks);
   const scan = () => {
     if (!style.isConnected && document.documentElement) document.documentElement.append(style);
     marks.clear();
@@ -367,7 +367,7 @@ async function frameByFrame(context: BrowserContext, out: string): Promise<Recor
     // A request that never ends (a stream, a long poll) would hold the clock forever.
     heedRequests = false;
     console.error(
-      `shots: a request held the page's clock for ${STUCK_MS / 1000}s; from here time runs past pending requests. ` +
+      `shipcut: a request held the page's clock for ${STUCK_MS / 1000}s; from here time runs past pending requests. ` +
         `In flight: ${[...pending.values()].slice(0, 3).join(", ") || "none Chromium reported"}`,
     );
     await cdp.send("Emulation.setVirtualTimePolicy", { policy: "advance", budget: FRAME_MS });
@@ -462,8 +462,8 @@ function git(): Run["git"] {
 
 /** Prints the peak memory of the systemd scope `heavy` put this command in, children included, against its cap. */
 export function reportPeak(): void {
-  const peak = process.env.SHOTS_HEAVY ? peakMemory() : undefined;
-  if (peak) console.error(`shots: peak memory ${peak} MB of the 1500 MB cap`);
+  const peak = process.env.SHIPCUT_HEAVY ? peakMemory() : undefined;
+  if (peak) console.error(`shipcut: peak memory ${peak} MB of the 1500 MB cap`);
 }
 
 function peakMemory(): number | undefined {
@@ -561,8 +561,8 @@ export async function run(o: RunOptions): Promise<void> {
       });
     } catch (error) {
       await page.screenshot({ path: join(out, "failed.png") }).catch(() => {});
-      console.error(`shots: the scenario failed, the page as it was is ${join(out, "failed.png")}`);
-      if (recording) console.error(`shots: the frames captured so far are in ${join(out, ".frames")}`);
+      console.error(`shipcut: the scenario failed, the page as it was is ${join(out, "failed.png")}`);
+      if (recording) console.error(`shipcut: the frames captured so far are in ${join(out, ".frames")}`);
       throw error;
     } finally {
       try {
@@ -606,7 +606,7 @@ export async function run(o: RunOptions): Promise<void> {
   console.log(join(out, "run.json"));
   if (video)
     console.error(
-      `shots: video ${FPS} fps, ${video.seconds.toFixed(2)}s from ${video.captured} repaints ` +
+      `shipcut: video ${FPS} fps, ${video.seconds.toFixed(2)}s from ${video.captured} repaints ` +
         `(${(video.captured / video.seconds).toFixed(1)}/s), encoded in ${video.encodeSeconds.toFixed(1)}s`,
     );
   reportPeak();
