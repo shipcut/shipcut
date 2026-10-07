@@ -147,9 +147,8 @@ wraps, and a single word too long for a line shrinks the text. A wide frame
 has the band on its bottom edge. A tall one has it end at 88% of the height,
 because a story's own controls cover what is below.
 
-The font is the bold sans `fc-match` returns, named on stderr; `--font FILE`
-picks another. Nothing is downloaded. Without fontconfig, ffmpeg's default
-font is used.
+The font is Inter Bold, which ships in `fonts/` with the labels' SemiBold, so
+a caption looks the same on any machine; `--font FILE` picks another.
 
 ### polish
 

@@ -595,10 +595,11 @@ export function wrap(text: string, max: number): string[] {
 export const filterValue = (text: string) =>
   text.replace(/[\\':]/g, "\\$&").replace(/[\\',;[\]]/g, "\\$&");
 
-// ponytail: no font metrics, a glyph is taken to be 0.68 of the font size wide
-// (DejaVu Sans Bold averages a little under that). A font much wider overflows
-// the 90% line; measure with a drawtext dry run if that ever shows.
-const GLYPH = 0.68;
+// ponytail: no font metrics, a glyph is taken to be 0.6 of the font size wide.
+// The bundled Inter Bold averages 0.53 on a Slovak sentence, DejaVu Sans Bold
+// 0.62; the margin is for capitals. A `--font` much wider overflows the 90%
+// line; measure with drawtext and the bbox filter if that ever shows.
+const GLYPH = 0.6;
 
 /** Where a caption of these lines sits in a frame: a band across it, low. */
 export function captionLayout(title: string, frame: { width: number; height: number }) {

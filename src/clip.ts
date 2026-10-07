@@ -53,18 +53,8 @@ export function clip(o: ClipOptions): void {
   produce(clipArgs(o), o.out);
 }
 
-/** The bold sans fontconfig would pick, or nothing where there is no fontconfig. */
-function systemFont(): { file: string; name: string } | undefined {
-  try {
-    const [file, name] = execFileSync("fc-match", ["-f", "%{file}\n%{fullname}", "sans-serif:bold"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).split("\n");
-    return file ? { file, name: name || basename(file) } : undefined;
-  } catch {
-    return undefined;
-  }
-}
+/** The captions' face unless `--font`: Inter Bold, shipped in `fonts/` like the labels' SemiBold. */
+const CAPTION_FONT = fileURLToPath(new URL("../fonts/Inter-Bold.ttf", import.meta.url));
 
 /** Burns each step's title into the run's video, from its offset to the next step's. */
 export function caption(o: CaptionOptions): void {
@@ -78,11 +68,9 @@ export function caption(o: CaptionOptions): void {
   const captions = captionTimeline(run.steps, video.duration);
   if (!captions.length) throw new Error("no step to caption: the scenario marks them with step(title)");
 
-  const font = o.font ? { file: o.font, name: o.font } : systemFont();
-  console.error(
-    font ? `shots: captions in ${font.name} (${font.file})` : "shots: no fc-match here, captions in ffmpeg's default font",
-  );
-  const filter = captionFilter(captions, { width: video.width, height: video.height }, font?.file);
+  const font = o.font ?? CAPTION_FONT;
+  console.error(`shots: captions in ${o.font ?? "Inter Bold"}`);
+  const filter = captionFilter(captions, { width: video.width, height: video.height }, font);
   produce(["-y", "-i", source, "-vf", filter, ...MP4, o.out], o.out);
 }
 

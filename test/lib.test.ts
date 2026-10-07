@@ -116,7 +116,7 @@ test("a long caption wraps, and a word too long for a line shrinks the text", ()
 
   const long = captionLayout("Every booking lands on the team's board the moment a guest confirms it", story);
   assert.ok(long.lines.length > 1);
-  assert.ok(long.lines.every((line) => line.length * 0.68 * long.size <= story.width * 0.9));
+  assert.ok(long.lines.every((line) => line.length * 0.6 * long.size <= story.width * 0.9));
   assert.equal(long.top + long.height, short.top + short.height);
 
   const word = captionLayout("Donaudampfschifffahrtsgesellschaftskapitänsmütze", story);
