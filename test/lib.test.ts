@@ -142,6 +142,15 @@ test("run flags refuse what they cannot use", () => {
   assert.throws(() => runOptions(["a.ts", "--pointer"]), /needs --video/);
 });
 
+test("--mask turns on the defaults and --mask-selector adds to them", () => {
+  assert.equal(runOptions(["a.ts"]).mask, undefined);
+  assert.deepEqual(runOptions(["a.ts", "--mask"]).mask, []);
+  assert.deepEqual(runOptions(["a.ts", "--mask-selector", "input[name=name]", "--mask-selector", ".card"]).mask, [
+    "input[name=name]",
+    ".card",
+  ]);
+});
+
 test("clip builds an mp4 trim and a palette GIF", () => {
   const mp4 = clipOptions(["out/video.mp4", "--from", "1", "--to", "3.5", "--speed", "2", "--width", "720"]);
   assert.equal(mp4.out, "out/video-clip.mp4");

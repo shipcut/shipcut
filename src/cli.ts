@@ -5,6 +5,7 @@ import { captionOptions, clipOptions, measureOptions, polishOptions, runOptions 
 
 const USAGE = `shots run <scenario> [--base URL] [--out DIR] [--preset desktop|phone|post|story | --viewport WxH]
           [--scale N] [--video] [--pointer | --cursor] [--slow MS] [--storage-state FILE] [--locale xx] [--dark]
+          [--mask] [--mask-selector CSS]...
 shots clip <video> [--from S] [--to S] [--speed X] [--width W] [--gif] [--out FILE]
 shots caption <run-dir> [--out FILE] [--font FILE]
 shots polish <run-dir> [--zoom] [--zoom-factor N] [--out FILE]

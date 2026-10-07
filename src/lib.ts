@@ -63,6 +63,8 @@ export function runOptions(argv: string[]) {
       pointer: { type: "boolean", default: false },
       slow: { type: "string" },
       "storage-state": { type: "string" },
+      mask: { type: "boolean", default: false },
+      "mask-selector": { type: "string", multiple: true },
       locale: { type: "string" },
       dark: { type: "boolean", default: false },
     },
@@ -98,6 +100,8 @@ export function runOptions(argv: string[]) {
     pointer: values.pointer,
     slow: number("slow", values.slow) ?? 0,
     storageState: values["storage-state"],
+    /** Under `--mask` or `--mask-selector`: the extra selectors to blur, beside the email and phone defaults. */
+    mask: values.mask || values["mask-selector"]?.length ? (values["mask-selector"] ?? []) : undefined,
     locale: values.locale,
     dark: values.dark,
   };

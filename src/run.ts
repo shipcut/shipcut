@@ -149,6 +149,41 @@ function pointer(page: Page, start: number, events: Events): void {
   };
 }
 
+// Runs in every frame of the page under `--mask`. Hides what should not
+// reach a published video or shot: the text in email, phone and password
+// fields, every email address and international phone number in the page's
+// text, and whatever `selectors` match. Text is marked with a CSS highlight,
+// not wrapped in elements, so the page's own DOM is left alone, and the marks
+// are redone in the mutation observer's callback, before the next paint.
+function mask(selectors: string[]) {
+  // Blur in fractions of the text's own size, so letters run together at any size.
+  const HIDE = "color:transparent!important;text-shadow:0 0 .7em rgba(128,128,128,.9)!important";
+  const FIELDS =
+    "input[type=email],input[type=tel],input[type=password],input[autocomplete~=email],input[autocomplete~=tel]";
+  const style = document.createElement("style");
+  style.textContent =
+    `${FIELDS}{${HIDE}}::highlight(shots-mask){${HIDE}}` + (selectors.length ? `${selectors.join(",")}{filter:blur(.6em)!important}` : "");
+  const PATTERN = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\+\d[\d ()-]{6,}\d/g;
+  const marks = new Highlight();
+  CSS.highlights.set("shots-mask", marks);
+  const scan = () => {
+    if (!style.isConnected && document.documentElement) document.documentElement.append(style);
+    marks.clear();
+    if (!document.documentElement) return;
+    const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      for (const match of (node.textContent ?? "").matchAll(PATTERN)) {
+        const range = new Range();
+        range.setStart(node, match.index);
+        range.setEnd(node, match.index + match[0].length);
+        marks.add(range);
+      }
+    }
+  };
+  new MutationObserver(scan).observe(document, { subtree: true, childList: true, characterData: true });
+  scan();
+}
+
 /**
  * Records `page` into `<out>/video.mp4` at the device's pixels. Chromium's
  * screencast hands over a JPEG whenever the page repaints; each is written to
@@ -308,6 +343,7 @@ export async function run(o: RunOptions): Promise<void> {
       storageState: o.storageState,
     });
     if (o.cursor) await context.addInitScript(cursor, CURSOR_ID);
+    if (o.mask) await context.addInitScript(mask, o.mask);
     const page = await context.newPage();
     recording = o.video ? await record(context, page, out) : undefined;
     const start = recording?.start ?? Date.now();

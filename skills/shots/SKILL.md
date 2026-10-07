@@ -61,6 +61,12 @@ anything else, `--viewport WxH` takes CSS pixels and behaves as a desktop, and
 `--slow 150` when the video moves too fast to follow. `--storage-state FILE`
 to start signed in. `--locale sk`, `--dark`.
 
+`--mask` whenever the scenario types or shows a real person's details: it
+blurs email, phone and password fields and any email address or `+`-prefixed
+phone number on the page, before the frame is taken, so neither the video nor
+a shot holds them. `--mask-selector 'input[name=name]'` adds what the defaults
+miss, such as a name. Pull a frame after typing and check it.
+
 The video is H.264 at 30 fps and shows the one page the scenario was given.
 It is encoded after the browser closes, so the command ends about as long
 again after the scenario does, and `<out>/.frames/` holds the raw frames

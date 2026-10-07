@@ -62,6 +62,8 @@ offset are kept, and `shots caption` burns them into the video.
 | `--cursor` | the older pointer, drawn by the page itself from the mouse events; it jumps rather than glides. Excludes `--pointer` |
 | `--slow MS` | pause between browser actions, so a video can be followed |
 | `--storage-state FILE` | a Playwright storage state, to start signed in |
+| `--mask` | blurs the text in email, phone and password fields and every email address and `+`-prefixed phone number on the page, in the video and the shots alike. A venue's public number is blurred too |
+| `--mask-selector CSS` | also blurs what the selector matches, e.g. `input[name=name]`; repeatable, implies `--mask` |
 | `--locale xx`, `--dark` | browser locale, dark colour scheme |
 
 | Preset | CSS viewport | Scale | Shots and video | Layout |
