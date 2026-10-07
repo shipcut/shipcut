@@ -16,7 +16,8 @@ pnpm install
 ln -s "$PWD/bin/shots" ~/.local/bin/shots
 ```
 
-It needs `ffmpeg` and `ffprobe` on PATH, and Playwright's Chromium
+It needs `ffmpeg` built with librsvg (Ubuntu's is) and `ffprobe` on PATH, and
+Playwright's Chromium
 (`pnpm exec playwright install chromium` where it is missing).
 
 Publishing needs `BLOB_READ_WRITE_TOKEN`, from the environment or else from

@@ -39,6 +39,13 @@ true when a flag or a stored shape changes.
 - Existing commands and flags keep working. New behaviour starts behind a flag.
 - Capture and polish are separate: capture writes raw frames and the event
   log, polish builds the video from them and can be rerun without a new run.
+- Whatever moves over the page (the pointer, presses, labels, the zoom, the
+  frame) is drawn by `polish` from the event log, never by the page: drawn by
+  the page, it moves only as fast as the page paints.
+- Hiding data is the capture's job, in the page, before a frame is taken. The
+  raw `video.mp4` and the shots get published, so `polish` is too late.
+- `polish` renders SVG through ffmpeg's librsvg, so ffmpeg must be built with
+  it (`ffmpeg -decoders | grep librsvg`). Ubuntu's is.
 - No build step. Node 24 strips types, so only erasable syntax: no `enum`, no
   parameter properties, no namespaces, and imports carry `.ts`. `tsconfig.json`
   enforces it.
