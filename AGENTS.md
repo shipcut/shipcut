@@ -8,7 +8,7 @@ is a single `@` import of this file.
 What the product is and is not: `PRODUCT.md`. The order of work: `ROADMAP.md`.
 The current stage in detail: `docs/prd/<nn>-*.md`, the one `ROADMAP.md` names.
 
-`README.md` is the user's view: the six commands and the data layout. Keep it
+`README.md` is the user's view: the seven commands and the data layout. Keep it
 true when a flag or a stored shape changes.
 
 ## Layout
@@ -20,7 +20,7 @@ true when a flag or a stored shape changes.
   what the tests cover.
 - `src/run.ts` - the browser: scenario contract, cursor, the recorder,
   `run.json`.
-- `src/clip.ts` - `clip` and `caption`, the ffmpeg wrappers.
+- `src/clip.ts` - `clip`, `caption` and `measure`, the ffmpeg wrappers.
 - `src/store.ts` - Blob: publish, list, rm, the token.
 - `src/types.ts` - the stored shapes. Published manifests already have them,
   so add fields, do not rename or remove.
@@ -76,7 +76,7 @@ for identifiers.
 ## Heavy
 
 The box is shared. Anything that starts a browser or ffmpeg goes through
-`heavy`. `shots run`, `clip` and `caption` do that themselves, so call them
+`heavy`. `shots run`, `clip`, `caption` and `measure` do that themselves, so call them
 plainly; do not wrap them in `heavy` again and do not set `SHOTS_HEAVY` to
 skip it. Exit 75 means wait and retry.
 

@@ -1,7 +1,7 @@
 // The pure parts: ids, flags, ffmpeg arguments, the index and the Markdown.
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
-import type { IndexEntry, Manifest, Step } from "./types.ts";
+import type { IndexEntry, Manifest, Run, Step } from "./types.ts";
 
 /**
  * Sizes are CSS pixels, and `scale` multiplies them into the pixels of the
@@ -156,6 +156,37 @@ export function recordArgs(out: string, fps = FPS): string[] {
   return ["-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-", "-vf", vf, ...MP4, ...tags, "-preset", "veryfast", out];
 }
 
+
+export function measureOptions(argv: string[]) {
+  const { positionals } = parseArgs({ args: argv, allowPositionals: true });
+  const [dir, ...rest] = positionals;
+  if (!dir || rest.length) throw new Error("usage: shots measure <run-dir>");
+  return { dir };
+}
+
+/** The frame count ffmpeg's progress line reports last: the frames `mpdecimate` let through. */
+export function framesKept(stderr: string): number {
+  const counts = [...stderr.matchAll(/frame=\s*(\d+)/g)];
+  if (!counts.length) throw new Error("ffmpeg printed no frame count");
+  return Number(counts[counts.length - 1]![1]);
+}
+
+/**
+ * What `shots measure` prints: distinct frames a second, the video's length
+ * against the seconds recorded, and the repaints Chromium sent. One fact a
+ * line, the number first, so a before and after can sit side by side.
+ */
+export function measureLines(run: Run, duration: number, distinct: number): string[] {
+  const lines = [`${(distinct / duration).toFixed(1)} distinct frames/s (${distinct} of ${Math.round(duration * FPS)} at ${FPS} fps)`];
+  lines.push(`${duration.toFixed(2)}s video`);
+  if (run.recording) {
+    const drift = duration - run.recording.seconds;
+    lines.push(`${drift >= 0 ? "+" : ""}${(drift * 1000).toFixed(0)} ms against the ${run.recording.seconds.toFixed(2)}s recorded`);
+    lines.push(`${(run.recording.repaints / run.recording.seconds).toFixed(1)} repaints/s from Chromium (${run.recording.repaints})`);
+  }
+  lines.push(`${run.steps.length} steps, last at ${((run.steps.at(-1)?.at ?? 0) / 1000).toFixed(2)}s`);
+  return lines;
+}
 
 export type CaptionOptions = ReturnType<typeof captionOptions>;
 

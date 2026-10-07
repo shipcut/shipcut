@@ -276,6 +276,7 @@ export async function run(o: RunOptions): Promise<void> {
     dark: o.dark,
     steps,
     files,
+    recording: video ? { seconds: Math.round(video.seconds * 100) / 100, repaints: video.captured } : undefined,
     git: git(),
     createdAt: createdAt.toISOString(),
   };

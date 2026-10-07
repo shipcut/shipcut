@@ -124,6 +124,19 @@ The font is the bold sans `fc-match` returns, named on stderr; `--font FILE`
 picks another. Nothing is downloaded. Without fontconfig, ffmpeg's default
 font is used.
 
+### measure
+
+```sh
+shots measure out/20261002-134501-booking
+```
+
+Prints how the run's video came out, one fact a line: distinct frames a
+second (ffmpeg's `mpdecimate` drops a frame that repeats the one before it),
+the video's length and its drift against the seconds recorded, Chromium's
+repaints a second, and the steps. The run's peak memory is on `run`'s own
+stderr. This is the number the recorder is judged by, so a change to it keeps
+a before and an after.
+
 ### publish
 
 ```sh

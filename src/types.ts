@@ -33,6 +33,8 @@ export interface Run {
   dark: boolean;
   steps: Step[];
   files: RunFile[];
+  /** The video's wall-clock length and how many repaints Chromium sent, for `shots measure`. */
+  recording?: { seconds: number; repaints: number };
   /** The caller's repository, when the run started inside one. */
   git?: { commit: string; branch: string; remote?: string };
   createdAt: string;

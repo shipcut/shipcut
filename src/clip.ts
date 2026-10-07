@@ -1,8 +1,8 @@
-// `shots clip` and `shots caption`: ffmpeg does the work.
+// `shots clip`, `shots caption` and `shots measure`: ffmpeg does the work.
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { type CaptionOptions, captionFilter, captionTimeline, clipArgs, type ClipOptions, MP4 } from "./lib.ts";
+import { type CaptionOptions, captionFilter, captionTimeline, clipArgs, type ClipOptions, framesKept, MP4, measureLines } from "./lib.ts";
 import { measure, recordFile } from "./run.ts";
 import type { Run } from "./types.ts";
 
@@ -53,4 +53,19 @@ export function caption(o: CaptionOptions): void {
   );
   const filter = captionFilter(captions, { width: video.width, height: video.height }, font?.file);
   produce(["-y", "-i", source, "-vf", filter, ...MP4, o.out], o.out);
+}
+
+/** Prints how a run's video came out: distinct frames a second and its length against the recording. */
+export function measureRun(dir: string): void {
+  const run = JSON.parse(readFileSync(join(dir, "run.json"), "utf8")) as Run;
+  const video = measure(join(dir, "video.mp4"), "video.mp4");
+  if (!video.duration) throw new Error(`${dir} has no video.mp4: record with \`shots run --video\``);
+  // mpdecimate drops a frame that differs from the one before it by almost nothing,
+  // so what reaches the null output is the count of distinct pictures.
+  const done = spawnSync("ffmpeg", ["-v", "error", "-stats", "-i", join(dir, "video.mp4"), "-vf", "mpdecimate", "-an", "-f", "null", "-"], {
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  if (done.error) throw done.error;
+  if (done.status !== 0) throw new Error(`ffmpeg failed: ${done.stderr.toString().trim()}`);
+  for (const line of measureLines(run, video.duration, framesKept(done.stderr.toString()))) console.log(line);
 }

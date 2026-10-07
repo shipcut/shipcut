@@ -1,12 +1,13 @@
 // shots: record a web app's flows, clip the video, publish to Vercel Blob.
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
-import { captionOptions, clipOptions, runOptions } from "./lib.ts";
+import { captionOptions, clipOptions, measureOptions, runOptions } from "./lib.ts";
 
 const USAGE = `shots run <scenario> [--base URL] [--out DIR] [--preset desktop|phone|post|story | --viewport WxH]
           [--scale N] [--video] [--cursor] [--slow MS] [--storage-state FILE] [--locale xx] [--dark]
 shots clip <video> [--from S] [--to S] [--speed X] [--width W] [--gif] [--out FILE]
 shots caption <run-dir> [--out FILE] [--font FILE]
+shots measure <run-dir>
 shots publish <run-dir> --project NAME [--title TEXT]
 shots list [--project NAME] [--limit N]
 shots rm <project>/<run-id> [--yes]`;
@@ -42,6 +43,11 @@ try {
     const { clip, caption } = await import("./clip.ts");
     if ("input" in options) clip(options);
     else caption(options);
+  } else if (command === "measure") {
+    const { dir } = measureOptions(args);
+    const code = underHeavy();
+    if (code !== undefined) process.exit(code);
+    (await import("./clip.ts")).measureRun(dir);
   } else if (command === "publish") {
     const { values, positionals } = parseArgs({
       args,

@@ -10,6 +10,8 @@ import {
   clipOptions,
   filterValue,
   framesDue,
+  framesKept,
+  measureLines,
   indexEntry,
   markdown,
   PRESETS,
@@ -18,7 +20,7 @@ import {
   runOptions,
   wrap,
 } from "../src/lib.ts";
-import type { IndexEntry, Manifest } from "../src/types.ts";
+import type { IndexEntry, Manifest, Run } from "../src/types.ts";
 
 test("a run id is the UTC second and the scenario's file name", () => {
   assert.equal(runId(new Date("2026-10-02T13:45:01.999Z"), "flows/Book a Table.ts"), "20261002-134501-book-a-table");
@@ -182,4 +184,17 @@ test("the index holds the stored runs only, newest first, the latest entry winni
   assert.deepEqual(built.index.map((e) => e.id), ["new", entry.id, "old"]);
   assert.equal(built.index[1]?.title, "Renamed");
   assert.deepEqual(built.missing, ["unknown"]);
+});
+
+test("measure reads the last frame count ffmpeg printed and reports against the recording", () => {
+  assert.equal(framesKept("frame=   12 fps=0.0 q=-0.0 size=N/A\rframe=  271 fps=260 q=-0.0 Lsize=N/A time=00:00:10.00"), 271);
+  assert.throws(() => framesKept("nothing"));
+  const run = { steps: [{ title: "a", at: 0 }, { title: "b", at: 6400 }], recording: { seconds: 9.98, repaints: 181 } } as Run;
+  assert.deepEqual(measureLines(run, 10, 271), [
+    "27.1 distinct frames/s (271 of 300 at 30 fps)",
+    "10.00s video",
+    "+20 ms against the 9.98s recorded",
+    "18.1 repaints/s from Chromium (181)",
+    "2 steps, last at 6.40s",
+  ]);
 });
