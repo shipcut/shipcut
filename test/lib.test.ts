@@ -13,6 +13,8 @@ import {
   glideMs,
   glidePath,
   pointerTrack,
+  polishOptions,
+  zoomTrack,
   ringFrames,
   framesKept,
   measureLines,
@@ -240,4 +242,39 @@ test("polish places the pointer's corner on each frame it moves, in video pixels
   assert.equal(rings.length, 14);
   assert.match(rings[0]!.svg, /scale\(1\.000\)" opacity="1\.000"/);
   assert.match(rings.at(-1)!.svg, /scale\(3\.000\)" opacity="0\.000"/);
+});
+
+test("the camera closes in before a click, pans only to a click outside the middle, and pulls back after a pause", () => {
+  const size = { width: 1280, height: 800, scale: 1, seconds: 30 };
+  // One click near the top-left corner: the view stays inside the frame.
+  const one = zoomTrack([[4000, 10, 10]], [], size, 2);
+  assert.deepEqual(one.keys, [
+    { t: 3.4, z: 1, x: 640, y: 400 },
+    { t: 3.9, z: 2, x: 320, y: 200 },
+    { t: 5.2, z: 2, x: 320, y: 200 },
+    { t: 5.8, z: 1, x: 640, y: 400 },
+  ]);
+  assert.deepEqual(one.spans, [[3.4, 5.8]]);
+
+  // Close in time: one zoom. The second click sits in the middle of the view, the third does not.
+  const near = zoomTrack([[4000, 640, 400], [6000, 700, 420], [8000, 1200, 700]], [], size, 2);
+  assert.equal(near.spans.length, 1);
+  assert.deepEqual(near.keys.map((k) => [k.t, k.x, k.y]), [
+    [3.4, 640, 400],
+    [3.9, 640, 400],
+    [7.3, 640, 400],
+    [7.9, 960, 600],
+    [9.2, 960, 600],
+    [9.8, 640, 400],
+  ]);
+
+  // Far apart in time: two zooms. A step marked zoom: false drops its clicks.
+  assert.equal(zoomTrack([[2000, 640, 400], [9000, 640, 400]], [], size, 2).spans.length, 2);
+  const steps = [{ title: "a", at: 0 }, { title: "b", at: 8000, zoom: false as const }];
+  assert.equal(zoomTrack([[2000, 640, 400], [9000, 640, 400]], steps, size, 2).spans.length, 1);
+
+  assert.equal(polishOptions(["out/x"]).zoom, undefined);
+  assert.equal(polishOptions(["out/x", "--zoom"]).zoom, 1.5);
+  assert.equal(polishOptions(["out/x", "--zoom", "--zoom-factor", "2"]).zoom, 2);
+  assert.throws(() => polishOptions(["out/x", "--zoom-factor", "0.5"]), /above 1/);
 });

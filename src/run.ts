@@ -14,8 +14,12 @@ export type ScenarioContext = {
   base: string;
   /** Saves `NN-name.png` of the viewport, or of the whole page with `fullPage`. */
   shot: (name: string, options?: { fullPage?: boolean }) => Promise<void>;
-  /** Marks a chapter; its title and time offset go into the manifest, and `shots caption` burns it in unless `caption: false`. */
-  step: (title: string, options?: { caption?: false }) => void;
+  /**
+   * Marks a chapter; its title and time offset go into the manifest. `shots
+   * caption` burns it in unless `caption: false`, and `polish --zoom` zooms on
+   * its clicks unless `zoom: false`.
+   */
+  step: (title: string, options?: { caption?: false; zoom?: false }) => void;
 };
 export type Scenario = (context: ScenarioContext) => Promise<void>;
 
@@ -323,7 +327,12 @@ export async function run(o: RunOptions): Promise<void> {
         base: o.base,
         shot,
         step: (title, options) =>
-          void steps.push({ title, at: Date.now() - start, ...(options?.caption === false ? { caption: false } : {}) }),
+          void steps.push({
+            title,
+            at: Date.now() - start,
+            ...(options?.caption === false ? { caption: false } : {}),
+            ...(options?.zoom === false ? { zoom: false } : {}),
+          }),
       });
     } catch (error) {
       await page.screenshot({ path: join(out, "failed.png") }).catch(() => {});

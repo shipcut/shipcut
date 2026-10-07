@@ -46,7 +46,8 @@ export default async ({ page, base, shot, step }) => {
 
 `page` is a Playwright page. `step(title)` marks a chapter; its title and time
 offset are kept, and `shots caption` burns them into the video.
-`step(title, { caption: false })` marks one that shows no caption. Type it with
+`step(title, { caption: false })` marks one that shows no caption, and
+`{ zoom: false }` one whose clicks `polish --zoom` leaves alone. Type it with
 `import type { Scenario } from "<this repo>/src/run.ts"` if you want the types.
 
 | Flag | |
@@ -145,6 +146,15 @@ desktop, a fingertip on a touch preset, and a ring where it pressed. Writes
 `run.json`. The page draws nothing during the run, so the pointer moves at the
 video's 30 fps however slowly the page itself repaints. It can be drawn again
 without a new run.
+
+`--zoom` also moves the camera. It closes in on a click by `--zoom-factor`
+(1.5 unless given), finishing just before the click. Clicks less than about
+3.4 s apart share one zoom, and the camera pans to a click that falls outside
+the middle of the view. It pulls back 1.2 s after the last click of a run of
+them. The view never leaves the frame, and the pointer is drawn first, so it
+grows with the page. The source rectangle moves by fractions of a pixel, so a
+slow zoom does not shake. It costs time: on a 1280x800 video the render takes
+about as long as the video plays.
 
 Under `--pointer` the pointer starts in the middle of the viewport. Before the
 scenario clicks, taps, checks, hovers, fills, types or selects through a

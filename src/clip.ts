@@ -18,6 +18,8 @@ import {
   pointerTrack,
   type PolishOptions,
   ringFrames,
+  zoomFilter,
+  zoomTrack,
 } from "./lib.ts";
 import { measure, recordFile, reportPeak } from "./run.ts";
 import type { Run } from "./types.ts";
@@ -91,7 +93,8 @@ export function measureRun(dir: string): void {
  * moved frame by frame through `sendcmd`, and a ring for each press, each one
  * the same sequence of SVG frames shifted to its moment. The sprites are SVG
  * rendered by ffmpeg's librsvg at the run's scale, so they are as sharp as the
- * page under them.
+ * page under them. With `zoom`, the camera then closes in on the clicks; the
+ * pointer is drawn first, so it grows with the page.
  *
  * ponytail: one ffmpeg input per press, fine for tens of clicks. A run with
  * hundreds wants one ring track built like the pointer's.
@@ -129,10 +132,16 @@ export function polish(o: PolishOptions): void {
     });
     graph.push(
       `[${below}]sendcmd=f=pointer.cmd[moved]`,
-      `[moved][1:v]overlay@pointer=x=${track.start.x}:y=${track.start.y}:enable='gte(t,${track.from})':eof_action=pass[out]`,
+      `[moved][1:v]overlay@pointer=x=${track.start.x}:y=${track.start.y}:enable='gte(t,${track.from})':eof_action=pass[drawn]`,
     );
+    const size = { width: video.width!, height: video.height!, scale, seconds: video.duration };
+    const camera = o.zoom ? zoomTrack(run.events.clicks, run.steps, size, o.zoom) : undefined;
+    graph.push(camera?.keys.length ? `[drawn]${zoomFilter(camera.keys, size)}[out]` : "[drawn]null[out]");
+    if (camera) console.error(`shots: ${camera.spans.length} zooms at ${o.zoom}x, ${camera.spans.map(([a, b]) => `${a}-${b}s`).join(", ") || "no click to zoom on"}`);
+    // The zoom's expressions run to tens of kilobytes, so the graph goes in a file.
+    writeFileSync(join(work, "graph.txt"), graph.join(";\n"));
     produce(
-      [...args, "-filter_complex", graph.join(";"), "-map", "[out]", ...MP4, ...BT709, "-preset", "medium", resolve(o.out)],
+      [...args, "-filter_complex_script", "graph.txt", "-map", "[out]", ...MP4, ...BT709, "-preset", "medium", resolve(o.out)],
       o.out,
       work,
     );

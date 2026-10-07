@@ -15,8 +15,8 @@ export type RunFile = {
   at?: number;
 };
 
-/** A chapter a scenario marked with `step(title)`. `caption: false` keeps it out of `shots caption`. */
-export type Step = { title: string; at: number; caption?: false };
+/** A chapter a scenario marked with `step(title)`. `caption: false` keeps it out of `shots caption`, `zoom: false` out of `polish --zoom`. */
+export type Step = { title: string; at: number; caption?: false; zoom?: false };
 
 /** `[ms, x, y]`: milliseconds from the start of the video and CSS pixels of the viewport. */
 export type Point = [number, number, number];

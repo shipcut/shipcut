@@ -210,10 +210,102 @@ export const BT709 = ["-colorspace", "bt709", "-color_primaries", "bt709", "-col
 export type PolishOptions = ReturnType<typeof polishOptions>;
 
 export function polishOptions(argv: string[]) {
-  const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: { out: { type: "string" } } });
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: { out: { type: "string" }, zoom: { type: "boolean", default: false }, "zoom-factor": { type: "string" } },
+  });
   const [dir, ...rest] = positionals;
-  if (!dir || rest.length) throw new Error("usage: shots polish <run-dir> [--out FILE]");
-  return { dir, out: values.out ?? `${dir.replace(/\/$/, "")}/video-polished.mp4` };
+  if (!dir || rest.length) throw new Error("usage: shots polish <run-dir> [--zoom] [--zoom-factor N] [--out FILE]");
+  const factor = number("zoom-factor", values["zoom-factor"]) ?? ZOOM.factor;
+  if (factor <= 1) throw new Error("--zoom-factor wants a number above 1");
+  return { dir, out: values.out ?? `${dir.replace(/\/$/, "")}/video-polished.mp4`, zoom: values.zoom ? factor : undefined };
+}
+
+/**
+ * How the camera moves under `polish --zoom`, in seconds: it takes `in` to
+ * close in, finishing `lead` before the click, stays `hold` after the last
+ * click of a run of them, and takes `out` to pull back. Clicks closer in time
+ * than a zoom out, a `gap` and a zoom in would take share one zoom, panning
+ * over `pan` to a click outside the middle of the view, so the picture never
+ * rocks in and out. These numbers are the knob.
+ */
+export const ZOOM = { factor: 1.5, in: 0.5, lead: 0.1, hold: 1.2, out: 0.6, gap: 1, pan: 0.6 };
+
+/** The camera at `t` seconds: `z` times closer, centred on `x`, `y` in video pixels. */
+export type Keyframe = { t: number; z: number; x: number; y: number };
+
+/**
+ * The camera's keyframes for a video of `size` pixels and `seconds`, from the
+ * pointer's clicks (CSS pixels, times `scale`). Between keyframes it eases;
+ * outside them it shows the whole frame. Clicks in a step marked `zoom: false`
+ * are left out. `spans` are the stretches in which it is closer than 1.
+ */
+export function zoomTrack(clicks: Point[], steps: Step[], size: { width: number; height: number; scale: number; seconds: number }, factor: number) {
+  const { width: W, height: H, scale, seconds } = size;
+  const sorted = [...steps].sort((a, b) => a.at - b.at);
+  const zooms = (at: number) => sorted.findLast((s) => s.at <= at)?.zoom !== false;
+  const points = clicks.filter(([at]) => zooms(at)).map(([at, x, y]) => ({ t: at / 1000, x: x * scale, y: y * scale }));
+  const half = { x: W / (2 * factor), y: H / (2 * factor) };
+  const aim = (p: { x: number; y: number }) => ({
+    x: Math.min(Math.max(p.x, half.x), W - half.x),
+    y: Math.min(Math.max(p.y, half.y), H - half.y),
+  });
+  const whole = { x: W / 2, y: H / 2 };
+  const keys: Keyframe[] = [];
+  const spans: [number, number][] = [];
+  const key = (t: number, z: number, at: { x: number; y: number }) => {
+    const clamped = Math.min(Math.max(t, keys.at(-1)?.t ?? 0, 0), seconds);
+    keys.push({ t: Math.round(clamped * 1000) / 1000, z, x: Math.round(at.x), y: Math.round(at.y) });
+  };
+  const apart = ZOOM.hold + ZOOM.out + ZOOM.gap + ZOOM.in + ZOOM.lead;
+  for (let i = 0; i < points.length; ) {
+    let j = i;
+    while (j + 1 < points.length && points[j + 1]!.t - points[j]!.t < apart) j++;
+    let center = aim(points[i]!);
+    key(points[i]!.t - ZOOM.lead - ZOOM.in, 1, whole);
+    const from = keys.at(-1)!.t;
+    key(points[i]!.t - ZOOM.lead, factor, center);
+    for (let k = i + 1; k <= j; k++) {
+      const p = points[k]!;
+      // A click still in the middle of the view needs no pan.
+      if (Math.abs(p.x - center.x) < half.x * 0.6 && Math.abs(p.y - center.y) < half.y * 0.6) continue;
+      key(p.t - ZOOM.lead - ZOOM.pan, factor, center);
+      center = aim(p);
+      key(p.t - ZOOM.lead, factor, center);
+    }
+    key(points[j]!.t + ZOOM.hold, factor, center);
+    key(points[j]!.t + ZOOM.hold + ZOOM.out, 1, whole);
+    spans.push([from, keys.at(-1)!.t]);
+    i = j + 1;
+  }
+  return { keys, spans };
+}
+
+/**
+ * The `perspective` filter that plays a camera track: each corner is an
+ * expression of the frame's time that eases `z`, `x` and `y` between the
+ * keyframes around it and picks the source rectangle the frame shows, in
+ * fractions of a pixel, so a slow zoom does not shake. Registers 1 to 3 hold
+ * `z`, `x` and `y`, register 0 the eased progress.
+ */
+export function zoomFilter(keys: Keyframe[], size: { width: number; height: number }, fps = FPS): string {
+  const T = `(in/${fps})`;
+  let camera = `st(1,1);st(2,${size.width / 2});st(3,${size.height / 2})`;
+  for (let k = keys.length - 2; k >= 0; k--) {
+    const a = keys[k]!;
+    const b = keys[k + 1]!;
+    if (b.t <= a.t) continue;
+    const ease = `st(0,(${T}-${a.t})/${(b.t - a.t).toFixed(3)});st(0,if(lt(ld(0),0.5),4*ld(0)^3,1-(2-2*ld(0))^3/2))`;
+    const lerp = (r: number, from: number, to: number) => `st(${r},${from}+${to - from}*ld(0))`;
+    camera = `if(between(${T},${a.t},${b.t}),${ease};${lerp(1, a.z, b.z)};${lerp(2, a.x, b.x)};${lerp(3, a.y, b.y)},${camera})`;
+  }
+  const left = `${camera};ld(2)-W/(2*ld(1))`;
+  const right = `${camera};ld(2)+W/(2*ld(1))`;
+  const top = `${camera};ld(3)-H/(2*ld(1))`;
+  const bottom = `${camera};ld(3)+H/(2*ld(1))`;
+  const corners = { x0: left, y0: top, x1: right, y1: top, x2: left, y2: bottom, x3: right, y3: bottom };
+  return `perspective=${Object.entries(corners).map(([k, v]) => `${k}='${v}'`).join(":")}:interpolation=cubic:eval=frame`;
 }
 
 /** Something `polish` draws: SVG in CSS pixels, its width, and the point of it that sits on the pointer's position. */

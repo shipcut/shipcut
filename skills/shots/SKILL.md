@@ -33,7 +33,8 @@ export default async ({ page, base, shot, step }) => {
 - `shot(name)` saves `NN-name.png` of the viewport; `shot(name, { fullPage: true })` the whole page.
 - `step(title)` marks a chapter, and `shots caption` burns the title into the
   video until the next step. Write it as a caption: a few words, no full stop.
-  `step(title, { caption: false })` marks a chapter that shows none.
+  `step(title, { caption: false })` marks a chapter that shows none, and
+  `{ zoom: false }` one that `polish --zoom` does not close in on.
 - Wait for the thing you are about to shoot (`waitFor`, `waitForLoadState`),
   not for a timeout. A fixed pause is right only to let a video breathe.
 - Node runs the file directly: plain imports only, no path aliases, no `enum`.
@@ -79,11 +80,13 @@ Do not wrap them. Exit 75 means the box is busy. Retry later.
 ## Polish
 
 ```sh
-shots polish out/<run-id>
+shots polish out/<run-id> --zoom
 ```
 
 Writes `video-polished.mp4`: the run's video with the pointer and a ring on
-each click. Look at a frame from inside a move before publishing.
+each click. `--zoom` closes the camera in on the clicks and pans between them;
+`--zoom-factor 2` for a closer view. Look at a frame from inside a move before
+publishing.
 
 ## Caption
 
