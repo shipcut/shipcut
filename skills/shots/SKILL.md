@@ -61,6 +61,9 @@ anything else, `--viewport WxH` takes CSS pixels and behaves as a desktop, and
 to start signed in. `--locale sk`, `--dark`.
 
 The video is H.264 at 30 fps and shows the one page the scenario was given.
+It is encoded after the browser closes, so the command ends about as long
+again after the scenario does, and `<out>/.frames/` holds the raw frames
+until then.
 `--cursor` draws the pointer from its first move, so a scenario that only
 scrolls shows none. A scroll done with `scrollIntoView({ behavior: "smooth" })`
 and a pause after it reads better than a jump.

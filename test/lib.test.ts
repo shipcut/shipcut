@@ -9,7 +9,7 @@ import {
   clipArgs,
   clipOptions,
   filterValue,
-  framesDue,
+  concatList,
   framesKept,
   measureLines,
   indexEntry,
@@ -55,15 +55,16 @@ test("story and post are a phone's layout that multiplies up to 1080 wide", () =
   assert.deepEqual(pixels("desktop"), { width: 1280, height: 800, css: 1280, mobile: false });
 });
 
-test("the recorder repeats the frame on screen until the wall clock is covered", () => {
-  assert.equal(framesDue(0, 0), 0);
-  assert.equal(framesDue(1000, 0), 30);
-  assert.equal(framesDue(1000, 29), 1);
-  // Two repaints inside one thirtieth of a second: the later one replaces the earlier.
-  assert.equal(framesDue(1010, 30), 0);
-  assert.equal(framesDue(10_000, 0, 25), 250);
-  const args = recordArgs("out/video.mp4");
-  assert.deepEqual(args.slice(0, 9), ["-y", "-f", "image2pipe", "-framerate", "30", "-c:v", "mjpeg", "-i", "-"]);
+test("the concat list shows each frame until the next arrived, the first from the start", () => {
+  assert.equal(
+    concatList([300, 400, 1000], 2000),
+    "ffconcat version 1.0\nfile 000001.jpg\nduration 0.400\nfile 000002.jpg\nduration 0.600\nfile 000003.jpg\nduration 1.000\nfile 000003.jpg\n",
+  );
+  assert.throws(() => concatList([], 1000));
+  const args = recordArgs("out/.frames/list.ffconcat", "out/video.mp4", 10.224);
+  assert.deepEqual(args.slice(0, 7), ["-y", "-f", "concat", "-safe", "0", "-i", "out/.frames/list.ffconcat"]);
+  assert.ok(args[args.indexOf("-vf") + 1]!.endsWith("fps=30"));
+  assert.equal(args[args.indexOf("-t") + 1], "10.224");
   assert.ok(args.includes("libx264") && args.includes("yuv420p") && args.includes("+faststart"));
   assert.equal(args.at(-1), "out/video.mp4");
 });

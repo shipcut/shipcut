@@ -135,25 +135,39 @@ const EVEN = "scale=trunc(iw/2)*2:trunc(ih/2)*2";
 /** Frames per second of a recording, constant whatever the page did. */
 export const FPS = 30;
 
-/**
- * How many copies of the frame on screen the encoder is owed `elapsedMs` into
- * a recording that has `written` so far. Chromium sends a frame only when the
- * page changes, so the gaps are filled with the frame that was showing, and
- * the video's clock stays the wall clock's.
- */
-export const framesDue = (elapsedMs: number, written: number, fps = FPS) =>
-  Math.max(0, Math.round((elapsedMs * fps) / 1000) - written);
+/** The file a captured frame is stored under, `000001.jpg` for the first. */
+export const frameName = (n: number) => `${String(n + 1).padStart(6, "0")}.jpg`;
 
-/** The ffmpeg arguments that turn JPEG frames on stdin into the run's video. */
-export function recordArgs(out: string, fps = FPS): string[] {
+/**
+ * The ffconcat list that turns stored frames into a video with the wall
+ * clock's timing: each frame shows until the next one arrived, the first from
+ * the start of the recording, the last until `endMs`. The demuxer ignores the
+ * last duration unless the last file is listed once more, so it is.
+ */
+export function concatList(offsetsMs: number[], endMs: number): string {
+  if (!offsetsMs.length) throw new Error("no frames to list");
+  const lines = ["ffconcat version 1.0"];
+  for (let i = 0; i < offsetsMs.length; i++) {
+    const from = i === 0 ? 0 : offsetsMs[i]!;
+    const to = offsetsMs[i + 1] ?? endMs;
+    lines.push(`file ${frameName(i)}`, `duration ${(Math.max(to - from, 1) / 1000).toFixed(3)}`);
+  }
+  lines.push(`file ${frameName(offsetsMs.length - 1)}`);
+  return `${lines.join("\n")}\n`;
+}
+
+/** The ffmpeg arguments that encode a concat list of JPEG frames into a video `seconds` long. */
+export function recordArgs(list: string, out: string, seconds: number, fps = FPS): string[] {
   // The frames are full-range BT.601 JPEGs. Players take an untagged HD file
   // for limited-range BT.709, so it is converted and tagged, else black is grey.
   // zscale, because swscale either rounds a white page to #fbfdfa or, told to
   // be accurate, takes four times the CPU. The crop keeps the dimensions even.
-  const vf = "crop=trunc(iw/2)*2:trunc(ih/2)*2,zscale=min=170m:rin=full:m=709:r=limited,format=yuv420p";
+  // fps comes last, so a frame is decoded and converted once and its repeats
+  // are copies of the converted picture. -t, because the list's repeated last
+  // file adds a frame of its own past the recording's end.
+  const vf = `crop=trunc(iw/2)*2:trunc(ih/2)*2,zscale=min=170m:rin=full:m=709:r=limited,format=yuv420p,fps=${fps}`;
   const tags = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
-  // veryfast, because the encoder shares four cores with the browser it records.
-  return ["-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "mjpeg", "-i", "-", "-vf", vf, ...MP4, ...tags, "-preset", "veryfast", out];
+  return ["-y", "-f", "concat", "-safe", "0", "-i", list, "-vf", vf, "-t", seconds.toFixed(3), ...MP4, ...tags, "-preset", "medium", out];
 }
 
 

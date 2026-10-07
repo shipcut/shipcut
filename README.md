@@ -76,14 +76,22 @@ frame, say `--viewport 1080x1920`. `--preset phone --scale 3` is 1170x2532.
 The run directory gets the files and a `run.json`. A scenario that throws
 leaves `failed.png` and exits 1.
 
-The video is the page's own repaints, taken from Chromium at device pixels and
-encoded as they arrive. The frame on screen is repeated until the next one, so
-the rate is a constant 30 fps and a step's offset is its place in the video.
+The video is the page's own repaints, taken from Chromium at device pixels.
+During the run each repaint is stored as a JPEG under `<out>/.frames/`, and
+nothing else runs beside the browser. When the scenario ends and the browser
+has closed, one ffmpeg pass encodes them, each frame shown until the next one
+arrived, so the rate is a constant 30 fps and a step's offset is its place in
+the video. The command therefore ends after the encode, about as long again
+as the recording for a page in constant motion, and `.frames/` holds a few
+hundred KB per repaint until then: a minute of motion is several hundred MB.
+The folder goes when the encode succeeds and stays, named in the error, when
+it fails. A video whose length differs from the recording's by more than a
+frame fails and says so.
+
 It records the one page the scenario is given. A popup or a second tab is not
 in it. Headless Chromium paints in software, so a 1080x1920 page that changes
-on every frame comes out at about 18 distinct frames a second on a 4-vCPU box
-with no GPU, and 1280x800 at about 29. A run whose file holds fewer frames
-than were sent fails and says so.
+on every frame comes out at about 26 repaints a second on a 4-vCPU box with
+no GPU; `shots measure` prints the number for a run.
 
 Where `heavy` is on PATH, `run`, `clip` and `caption` run themselves again
 under `heavy --name shots --no-lock --mem 1500M --need 800`, so the browser and

@@ -1,11 +1,10 @@
 // `shots run`: drive a scenario in headless Chromium, keep the shots and the video.
-import { execFileSync, spawn } from "node:child_process";
-import { once } from "node:events";
-import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type BrowserContext, chromium, type Page } from "playwright";
-import { contentType, FPS, framesDue, recordArgs, runId, type RunOptions, slug } from "./lib.ts";
+import { concatList, contentType, FPS, frameName, recordArgs, runId, type RunOptions, slug } from "./lib.ts";
 import type { Run, RunFile, Step } from "./types.ts";
 
 /** What a scenario's default export receives. */
@@ -71,68 +70,63 @@ function cursor(id: string) {
 }
 
 /**
- * Records `page` into `path` as H.264 at the device's pixels. Chromium's
- * screencast hands over a JPEG whenever the page repaints; each goes down a
- * pipe to ffmpeg, repeated as often as the wall clock says, so the frame rate
- * is constant and an offset in the video is an offset in the run. Playwright's
- * own `recordVideo` is the same screencast squeezed into low-bitrate VP8 at CSS
- * size, which is why it is not used.
+ * Records `page` into `<out>/video.mp4` at the device's pixels. Chromium's
+ * screencast hands over a JPEG whenever the page repaints; each is written to
+ * `<out>/.frames/` with its offset, and nothing else runs while the page does.
+ * `encode()`, after the browser has closed, turns the frames into H.264, each
+ * shown until the next arrived, so the frame rate is constant and an offset in
+ * the video is an offset in the run. Playwright's own `recordVideo` is the same
+ * screencast squeezed into low-bitrate VP8 at CSS size, which is why it is not
+ * used.
+ *
+ * A minute of motion is a few hundred MB of JPEGs until the encode ends. The
+ * folder goes when it succeeds and stays, named in the error, when it fails.
  *
  * ponytail: one page. A popup or a second tab is not in the video; record each
  * page's session when a scenario needs that.
  */
-type Recorded = { captured: number; written: number; backlog: number; seconds: number };
+type Recorded = { captured: number; seconds: number; encodeSeconds: number };
 
-async function record(context: BrowserContext, page: Page, path: string) {
-  const encoder = spawn("ffmpeg", ["-v", "error", ...recordArgs(path)], { stdio: ["pipe", "ignore", "pipe"] });
-  const closed = once(encoder, "close");
-  let complaint = "";
-  encoder.stderr.on("data", (chunk) => (complaint += chunk));
-  // A dead encoder is reported by its exit code, not by the pipe.
-  encoder.stdin.on("error", () => {});
-
+async function record(context: BrowserContext, page: Page, out: string) {
+  const frames = join(out, ".frames");
+  mkdirSync(frames, { recursive: true });
   const cdp = await context.newCDPSession(page);
   const start = Date.now();
-  let frame: Buffer | undefined;
-  const stats = { captured: 0, written: 0, backlog: 0 };
-  let ended = false;
-  const fill = (elapsed: number) => {
-    // A repaint can still arrive after the stop; writing it would destroy the
-    // pipe and take the frames queued in it along.
-    if (!frame || ended) return;
-    for (let n = framesDue(elapsed, stats.written); n > 0; n--, stats.written++) encoder.stdin.write(frame);
-    stats.backlog = Math.max(stats.backlog, encoder.stdin.writableLength);
-  };
+  const offsets: number[] = [];
+  let seconds = 0;
   cdp.on("Page.screencastFrame", (event) => {
     // Chromium sends the next frame only after this one is acknowledged.
     cdp.send("Page.screencastFrameAck", { sessionId: event.sessionId }).catch(() => {});
-    fill(Date.now() - start);
-    frame = Buffer.from(event.data, "base64");
-    stats.captured++;
+    if (seconds) return; // a repaint after the stop is not in the recording
+    writeFileSync(join(frames, frameName(offsets.length)), Buffer.from(event.data, "base64"));
+    offsets.push(Date.now() - start);
   });
   await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92 });
 
   return {
     start,
-    /** Ends the file. Call it before the context closes. */
-    async stop(): Promise<Recorded> {
+    /** Ends the capture and writes the list. Call it before the context closes. */
+    async stop(): Promise<void> {
       await cdp.send("Page.stopScreencast").catch(() => {});
-      const seconds = (Date.now() - start) / 1000;
-      fill(seconds * 1000);
-      if (frame && !stats.written) {
-        encoder.stdin.write(frame);
-        stats.written = 1;
-      }
-      ended = true;
-      encoder.stdin.end();
-      const [code] = (await closed) as [number | null];
-      if (!frame) throw new Error("the page never painted, so there is no video");
-      if (code !== 0) throw new Error(`ffmpeg failed: ${complaint.trim()}`);
-      // A frame the encoder lost shortens the video and shifts every caption after it.
-      const kept = Math.round((measure(path, "video.mp4").duration ?? 0) * FPS);
-      if (Math.abs(kept - stats.written) > 1)
-        throw new Error(`the encoder kept ${kept} of the ${stats.written} frames it was sent`);
-      return { ...stats, seconds };
+      seconds = (Date.now() - start) / 1000;
+      if (!offsets.length) throw new Error("the page never painted, so there is no video");
+      writeFileSync(join(frames, "list.ffconcat"), concatList(offsets, seconds * 1000));
+    },
+    /** Encodes the frames into the video. Call it after the browser has closed. */
+    encode(): Recorded {
+      const began = Date.now();
+      const path = join(out, "video.mp4");
+      const done = spawnSync("ffmpeg", ["-v", "error", ...recordArgs(join(frames, "list.ffconcat"), path, seconds)], {
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+      if (done.error) throw done.error;
+      if (done.status !== 0) throw new Error(`ffmpeg failed: ${done.stderr.toString().trim()}; the frames are in ${frames}`);
+      // A frame the encoder lost shortens the video and shifts every step after it.
+      const duration = measure(path, "video.mp4").duration ?? 0;
+      if (Math.abs(duration - seconds) > 1 / FPS)
+        throw new Error(`the video is ${duration}s for a ${seconds.toFixed(2)}s recording; the frames are in ${frames}`);
+      rmSync(frames, { recursive: true, force: true });
+      return { captured: offsets.length, seconds, encodeSeconds: (Date.now() - began) / 1000 };
     },
   };
 }
@@ -215,6 +209,7 @@ export async function run(o: RunOptions): Promise<void> {
   const steps: Step[] = [];
   const shots: { name: string; at: number }[] = [];
   let video: Recorded | undefined;
+  let recording: Awaited<ReturnType<typeof record>> | undefined;
   try {
     const context = await browser.newContext({
       viewport: { width, height },
@@ -228,7 +223,7 @@ export async function run(o: RunOptions): Promise<void> {
     });
     if (o.cursor) await context.addInitScript(cursor, CURSOR_ID);
     const page = await context.newPage();
-    const recording = o.video ? await record(context, page, join(out, "video.mp4")) : undefined;
+    recording = o.video ? await record(context, page, out) : undefined;
     const start = recording?.start ?? Date.now();
     const shot: ScenarioContext["shot"] = async (name, options) => {
       const file = `${String(shots.length + 1).padStart(2, "0")}-${slug(name) || "shot"}.png`;
@@ -250,10 +245,11 @@ export async function run(o: RunOptions): Promise<void> {
     } catch (error) {
       await page.screenshot({ path: join(out, "failed.png") }).catch(() => {});
       console.error(`shots: the scenario failed, the page as it was is ${join(out, "failed.png")}`);
+      if (recording) console.error(`shots: the frames captured so far are in ${join(out, ".frames")}`);
       throw error;
     } finally {
       try {
-        video = await recording?.stop();
+        await recording?.stop();
       } finally {
         await context.close();
       }
@@ -261,6 +257,8 @@ export async function run(o: RunOptions): Promise<void> {
   } finally {
     await browser.close();
   }
+  // The encode runs alone, after Chromium has given the cores back.
+  video = recording?.encode();
 
   const files: RunFile[] = shots.map((s) => ({ ...measure(join(out, s.name), s.name), at: s.at }));
   if (video) files.push(measure(join(out, "video.mp4"), "video.mp4"));
@@ -290,8 +288,8 @@ export async function run(o: RunOptions): Promise<void> {
   console.log(join(out, "run.json"));
   if (video)
     console.error(
-      `shots: video ${FPS} fps, ${video.written} frames over ${video.seconds.toFixed(2)}s from ${video.captured} repaints, ` +
-        `encoder backlog at most ${(video.backlog / 2 ** 20).toFixed(1)} MB`,
+      `shots: video ${FPS} fps, ${video.seconds.toFixed(2)}s from ${video.captured} repaints ` +
+        `(${(video.captured / video.seconds).toFixed(1)}/s), encoded in ${video.encodeSeconds.toFixed(1)}s`,
     );
   const peak = process.env.SHOTS_HEAVY ? peakMemory() : undefined;
   if (peak) console.error(`shots: peak memory ${peak} MB of the 1500 MB cap`);
