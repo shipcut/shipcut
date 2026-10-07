@@ -8,7 +8,7 @@ const USAGE = `shots run <scenario> [--base URL] [--out DIR] [--preset desktop|p
           [--mask] [--mask-selector CSS]...
 shots clip <video> [--from S] [--to S] [--speed X] [--width W] [--gif] [--out FILE]
 shots caption <run-dir> [--out FILE] [--font FILE]
-shots polish <run-dir> [--labels] [--zoom] [--zoom-factor N] [--frame] [--background SPEC] [--out FILE]
+shots polish <run-dir> [--[no-]labels] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]
 shots measure <run-dir>
 shots publish <run-dir> --project NAME [--title TEXT]
 shots list [--project NAME] [--limit N]

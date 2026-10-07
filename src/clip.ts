@@ -25,6 +25,7 @@ import {
   POINTER,
   PRESS_FRAMES,
   pointerTrack,
+  polishPlan,
   type PolishOptions,
   clickFrames,
   STORY_SAFE,
@@ -121,6 +122,7 @@ export function polish(o: PolishOptions): void {
   if (!run.events?.moves.length) throw new Error(`${o.dir} has no pointer to draw: record with \`shots run --video --pointer\``);
   if (resolve(o.out) === source) throw new Error("--out is the source video");
 
+  const plan = polishPlan(o, { width: video.width!, height: video.height! });
   const scale = run.viewport.scale;
   const px = (css: number) => String(Math.round(css * scale));
   const sprite = POINTER;
@@ -156,7 +158,7 @@ export function polish(o: PolishOptions): void {
       graph.push(`[${below}][${inputs++}:v]overlay=x=${px(x - press.hotspot.x)}:y=${px(y - press.hotspot.y)}:eof_action=pass[r${k}]`);
       below = `r${k}`;
     });
-    if (o.labels) {
+    if (plan.labels) {
       const frame = { width: video.width! / scale, height: video.height! / scale };
       const safe = run.preset === "story" ? { top: STORY_SAFE.top / scale, bottom: STORY_SAFE.bottom / scale } : undefined;
       const windows = labelWindows(run.steps, video.duration, track.from);
@@ -186,11 +188,11 @@ export function polish(o: PolishOptions): void {
       `[${below}][arrow]overlay@pointer=x=${track.start.x}:y=${track.start.y}:enable='gte(t,${track.from})*gt(1${pressing},0)':eof_action=pass[drawn]`,
     );
     const size = { width: video.width!, height: video.height!, scale, seconds: video.duration };
-    const camera = o.zoom ? zoomTrack(run.events.clicks, run.steps, size, o.zoom) : undefined;
+    const camera = plan.zoom ? zoomTrack(run.events.clicks, run.steps, size, plan.zoom) : undefined;
     graph.push(camera?.keys.length ? `[drawn]${zoomFilter(camera.keys, size)}[shot]` : "[drawn]null[shot]");
-    if (o.frame) {
+    if (plan.frame) {
       const window = frameLayout(size, run.preset);
-      writeFileSync(join(work, "background.svg"), backgroundSvg(size, window, o.frame));
+      writeFileSync(join(work, "background.svg"), backgroundSvg(size, window, plan.frame));
       writeFileSync(join(work, "mask.svg"), windowMask(window));
       graph.push(
         `${still("background.svg")}[background]`,
@@ -199,9 +201,9 @@ export function polish(o: PolishOptions): void {
         "[inner][mask]alphamerge[window]",
         `[background][window]overlay=x=${window.x}:y=${window.y}:shortest=1[out]`,
       );
-      console.error(`shots: framed at ${window.width}x${window.height} in ${size.width}x${size.height}, background ${o.frame.join(" to ")}`);
+      console.error(`shots: framed at ${window.width}x${window.height} in ${size.width}x${size.height}, background ${plan.frame.join(" to ")}`);
     } else graph.push("[shot]null[out]");
-    if (camera) console.error(`shots: ${camera.spans.length} zooms at ${o.zoom}x, ${camera.spans.map(([a, b]) => `${a}-${b}s`).join(", ") || "no click to zoom on"}`);
+    if (camera) console.error(`shots: ${camera.spans.length} zooms at ${plan.zoom}x, ${camera.spans.map(([a, b]) => `${a}-${b}s`).join(", ") || "no click to zoom on"}`);
     // The zoom's expressions run to tens of kilobytes, so the graph goes in a file.
     writeFileSync(join(work, "graph.txt"), graph.join(";\n"));
     produce(

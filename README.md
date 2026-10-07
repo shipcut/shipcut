@@ -157,7 +157,19 @@ font is used.
 shots polish out/20261002-134501-booking
 ```
 
-Draws the pointer a `--pointer` run logged over its video: an arrow on every
+On a landscape video it draws the pointer with its labels, zooms on the
+clicks and sets the result in a frame; on a portrait one, a story or a post,
+only the pointer and its labels, since their zoom and frame are not worked out
+yet. `--no-labels`, `--no-zoom` and `--no-frame` turn a part off, `--zoom` and
+`--frame` turn one on. For a video to post:
+
+```sh
+shots run flows/booking.ts --scale 2 --video --frame-by-frame --pointer --mask
+shots polish out/<run-id>
+shots clip out/<run-id>/video-polished.mp4 --width 1920
+```
+
+The pointer is the one a `--pointer` run logged: an arrow on every
 preset, and on each press a violet wave while the arrow gives for a few frames
 and springs back. Writes
 `video-polished.mp4` in the run directory unless `--out`, and adds it to
@@ -165,7 +177,7 @@ and springs back. Writes
 video's 30 fps however slowly the page itself repaints. It can be drawn again
 without a new run.
 
-`--labels` puts each step's title in a violet pill beside the pointer, below
+The labels put each step's title in a violet pill beside the pointer, below
 and to the right of the arrow's tip. A label shows from its
 step until the next one, 4 s at most, and fades in and out. It does not show
 before the pointer's first move, and `step(title, { caption: false })` keeps
@@ -174,7 +186,7 @@ of a story's safe zones. A title longer than 32 characters is cut with an
 ellipsis. The text is set in whatever fontconfig returns for Inter, named on
 stderr; where Inter is not installed, that is the system's sans.
 
-`--frame` shrinks the result into a window with rounded corners and a soft
+The frame shrinks the result into a window with rounded corners and a soft
 shadow on a still background, so the video keeps its size and the camera
 moves inside the window. The window leaves a margin of 7% of the short side
 and, in a story, stays out of the 250 px above and 340 px below that the
@@ -185,7 +197,7 @@ shows its page at 86%, so a recording meant for posting reads better at
 `--scale 2`, brought back to a feed's size with `shots clip --width 1920`.
 At 2560x1600 `polish` peaks near 1.35 GB of its 1.5 GB cap.
 
-`--zoom` also moves the camera. It closes in on a click by `--zoom-factor`
+The zoom moves the camera. It closes in on a click by `--zoom-factor`
 (1.5 unless given), finishing just before the click. Clicks less than about
 3.4 s apart share one zoom, and the camera pans to a click that falls outside
 the middle of the view. It pulls back 1.2 s after the last click of a run of

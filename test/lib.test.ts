@@ -17,6 +17,7 @@ import {
   labelWindows,
   pointerTrack,
   polishOptions,
+  polishPlan,
   zoomTrack,
   backgroundColors,
   clickFrames,
@@ -295,9 +296,6 @@ test("the camera closes in before a click, pans only to a click outside the midd
   const steps = [{ title: "a", at: 0 }, { title: "b", at: 8000, zoom: false as const }];
   assert.equal(zoomTrack([[2000, 640, 400], [9000, 640, 400]], steps, size, 2).spans.length, 1);
 
-  assert.equal(polishOptions(["out/x"]).zoom, undefined);
-  assert.equal(polishOptions(["out/x", "--zoom"]).zoom, 1.5);
-  assert.equal(polishOptions(["out/x", "--zoom", "--zoom-factor", "2"]).zoom, 2);
   assert.throws(() => polishOptions(["out/x", "--zoom-factor", "0.5"]), /above 1/);
 });
 
@@ -332,6 +330,16 @@ test("the frame centres the recording with a margin, inside a story's safe zones
   assert.deepEqual(backgroundColors("#000"), ["#000"]);
   assert.deepEqual(backgroundColors("#112233, #445566"), ["#112233", "#445566"]);
   assert.throws(() => backgroundColors("red"), /#rrggbb/);
-  assert.equal(polishOptions(["out/x"]).frame, undefined);
-  assert.deepEqual(polishOptions(["out/x", "--background", "#000"]).frame, ["#000"]);
+  assert.deepEqual(polishOptions(["out/x", "--background", "#000"]).background, ["#000"]);
+});
+
+test("polish draws labels always, and a zoom and a frame on a landscape video unless told otherwise", () => {
+  const desk = { width: 1280, height: 800 };
+  const story = { width: 1080, height: 1920 };
+  const plan = (args: string[], size: { width: number; height: number }) => polishPlan(polishOptions(["out/x", ...args]), size);
+  assert.deepEqual(plan([], desk), { labels: true, zoom: 1.5, frame: ["#E4DDFF", "#C9DCFF"] });
+  assert.deepEqual(plan([], story), { labels: true, zoom: undefined, frame: undefined });
+  assert.deepEqual(plan(["--no-zoom", "--no-labels", "--zoom-factor", "2"], desk), { labels: false, zoom: undefined, frame: ["#E4DDFF", "#C9DCFF"] });
+  assert.deepEqual(plan(["--zoom", "--zoom-factor", "1.2", "--background", "#000"], story), { labels: true, zoom: 1.2, frame: ["#000"] });
+  assert.deepEqual(plan(["--no-frame", "--background", "#000"], desk).frame, undefined);
 });

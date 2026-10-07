@@ -90,11 +90,12 @@ Do not wrap them. Exit 75 means the box is busy. Retry later.
 ## Polish
 
 ```sh
-shots polish out/<run-id> --labels --zoom --frame
+shots polish out/<run-id>
 ```
 
 Writes `video-polished.mp4`: the run's video with the pointer and a press
-wave on each click. `--labels` shows each step's title in a pill beside the pointer,
+wave on each click, and on a landscape video a zoom and a frame too; turn a
+part off with `--no-labels`, `--no-zoom` or `--no-frame`. `--labels` shows each step's title in a pill beside the pointer,
 so write titles as two to four words of what happens next. `--zoom` closes
 the camera in on the clicks and pans between them, and `--frame` sets the
 video in a rounded window on a gradient (`--background '#000'` for another);

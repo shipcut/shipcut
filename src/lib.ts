@@ -225,27 +225,48 @@ export function polishOptions(argv: string[]) {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
+    // --no-labels, --no-zoom, --no-frame turn a default off; left out, `polishPlan` decides.
+    allowNegative: true,
     options: {
       out: { type: "string" },
-      zoom: { type: "boolean", default: false },
+      zoom: { type: "boolean" },
       "zoom-factor": { type: "string" },
-      labels: { type: "boolean", default: false },
-      frame: { type: "boolean", default: false },
+      labels: { type: "boolean" },
+      frame: { type: "boolean" },
       background: { type: "string" },
     },
   });
   const [dir, ...rest] = positionals;
   if (!dir || rest.length)
-    throw new Error("usage: shots polish <run-dir> [--labels] [--zoom] [--zoom-factor N] [--frame] [--background SPEC] [--out FILE]");
+    throw new Error(
+      "usage: shots polish <run-dir> [--[no-]labels] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]",
+    );
   const factor = number("zoom-factor", values["zoom-factor"]) ?? ZOOM.factor;
   if (factor <= 1) throw new Error("--zoom-factor wants a number above 1");
   return {
     dir,
     out: values.out ?? `${dir.replace(/\/$/, "")}/video-polished.mp4`,
-    zoom: values.zoom ? factor : undefined,
+    zoom: values.zoom,
+    zoomFactor: factor,
     labels: values.labels,
-    /** Under `--frame` or `--background`: the background's colours, one for a fill, two for a gradient. */
-    frame: values.frame || values.background ? backgroundColors(values.background) : undefined,
+    frame: values.frame,
+    /** `--background`: one colour for a fill, two for a gradient. */
+    background: values.background === undefined ? undefined : backgroundColors(values.background),
+  };
+}
+
+/**
+ * What `polish` draws on a video of `size` where the flags leave it open:
+ * the labels always, the zoom and the frame on a landscape video only, since
+ * a story's frame and zoom are not worked out yet. `--background` implies the
+ * frame. `zoom` is the factor, `frame` the background's colours.
+ */
+export function polishPlan(o: PolishOptions, size: { width: number; height: number }) {
+  const landscape = size.width > size.height;
+  return {
+    labels: o.labels ?? true,
+    zoom: (o.zoom ?? landscape) ? o.zoomFactor : undefined,
+    frame: (o.frame ?? (o.background !== undefined || landscape)) ? (o.background ?? BACKGROUND) : undefined,
   };
 }
 
