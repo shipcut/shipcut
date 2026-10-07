@@ -5,12 +5,14 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import {
   BT709,
+  backgroundSvg,
   type CaptionOptions,
   captionFilter,
   captionTimeline,
   clipArgs,
   type ClipOptions,
   follow,
+  frameLayout,
   FPS,
   framesKept,
   LABEL,
@@ -26,6 +28,7 @@ import {
   type PolishOptions,
   clickFrames,
   STORY_SAFE,
+  windowMask,
   zoomFilter,
   zoomTrack,
 } from "./lib.ts";
@@ -103,7 +106,9 @@ export function measureRun(dir: string): void {
  * under the finger, while the pointer's own overlay steps aside. The sprites are SVG
  * rendered by ffmpeg's librsvg at the run's scale, so they are as sharp as the
  * page under them. With `zoom`, the camera then closes in on the clicks; the
- * pointer is drawn first, so it grows with the page.
+ * pointer is drawn first, so it grows with the page. With `frame`, the result
+ * shrinks into a rounded window with a shadow on a still background, so the
+ * camera moves inside the window.
  *
  * ponytail: one ffmpeg input per press, fine for tens of clicks. A run with
  * hundreds wants one press track built like the pointer's.
@@ -129,10 +134,19 @@ export function polish(o: PolishOptions): void {
     presses.forEach((p, k) => writeFileSync(join(work, `press${String(k).padStart(2, "0")}.svg`), p.svg));
 
     const fps = String(FPS);
-    const seconds = String(video.duration);
     const args = ["-y", "-i", source];
-    args.push("-loop", "1", "-framerate", fps, "-t", seconds, "-width", px(sprite.width), "-i", "pointer.svg");
-    let inputs = 2;
+    let inputs = 1;
+    // A still is decoded once and repeated by the loop filter: an input looped
+    // with -loop 1 has librsvg draw it again for every frame, which for a
+    // background with a blurred shadow cost two minutes on a 17 s video.
+    const frames = Math.round(video.duration * FPS);
+    const still = (file: string, width?: string) => {
+      // At 30 like the video: the background leads the last overlay, and its rate becomes the output's.
+      args.push("-framerate", fps, ...(width ? ["-width", width] : []), "-i", file);
+      // loop counts repeats after the first frame, so the still has as many frames as the video.
+      return `[${inputs++}:v]loop=loop=${frames - 1}:size=1:start=0,setpts=N/${FPS}/TB`;
+    };
+    const pointerStill = still("pointer.svg", px(sprite.width));
     const commands = [...track.commands];
     // One sendcmd at the head of the chain moves every overlay that follows the pointer.
     const graph = ["[0:v]sendcmd=f=moves.cmd[timed]"];
@@ -150,7 +164,7 @@ export function polish(o: PolishOptions): void {
       windows.forEach(({ text, from, to }, k) => {
         const label = labelSprite(text, measureInk(text, scale, join(work, `probe${k}.svg`)));
         writeFileSync(join(work, `label${k}.svg`), label.svg);
-        args.push("-loop", "1", "-framerate", fps, "-t", seconds, "-width", px(label.width), "-i", `label${k}.svg`);
+        const labelStill = still(`label${k}.svg`, px(label.width));
         const place = (x: number, y: number) => {
           const at = labelPlace({ x, y }, label.pill, frame, safe);
           return { x: Math.round((at.x - label.hotspot.x) * scale), y: Math.round((at.y - label.hotspot.y) * scale) };
@@ -158,7 +172,7 @@ export function polish(o: PolishOptions): void {
         commands.push(...follow(run.events!.moves, `overlay@label${k}`, from, to, place));
         const fade = LABEL.fade;
         graph.push(
-          `[${inputs++}:v]format=rgba,fade=t=in:st=${from}:d=${fade}:alpha=1,fade=t=out:st=${(to - fade).toFixed(3)}:d=${fade}:alpha=1[label${k}]`,
+          `${labelStill},format=rgba,fade=t=in:st=${from}:d=${fade}:alpha=1,fade=t=out:st=${(to - fade).toFixed(3)}:d=${fade}:alpha=1[label${k}]`,
           `[${below}][label${k}]overlay@label${k}=x=-9999:y=-9999:enable='between(t,${from},${to})':eof_action=pass[l${k}]`,
         );
         below = `l${k}`;
@@ -168,11 +182,25 @@ export function polish(o: PolishOptions): void {
     // The pointer steps aside while a press sprite draws the arrow for it.
     const pressing = run.events.clicks.map(([at]) => `-gte(t,${at / 1000})*lt(t,${(at / 1000 + PRESS_FRAMES / FPS).toFixed(4)})`).join("");
     graph.push(
-      `[${below}][1:v]overlay@pointer=x=${track.start.x}:y=${track.start.y}:enable='gte(t,${track.from})*gt(1${pressing},0)':eof_action=pass[drawn]`,
+      `${pointerStill}[arrow]`,
+      `[${below}][arrow]overlay@pointer=x=${track.start.x}:y=${track.start.y}:enable='gte(t,${track.from})*gt(1${pressing},0)':eof_action=pass[drawn]`,
     );
     const size = { width: video.width!, height: video.height!, scale, seconds: video.duration };
     const camera = o.zoom ? zoomTrack(run.events.clicks, run.steps, size, o.zoom) : undefined;
-    graph.push(camera?.keys.length ? `[drawn]${zoomFilter(camera.keys, size)}[out]` : "[drawn]null[out]");
+    graph.push(camera?.keys.length ? `[drawn]${zoomFilter(camera.keys, size)}[shot]` : "[drawn]null[shot]");
+    if (o.frame) {
+      const window = frameLayout(size, run.preset);
+      writeFileSync(join(work, "background.svg"), backgroundSvg(size, window, o.frame));
+      writeFileSync(join(work, "mask.svg"), windowMask(window));
+      graph.push(
+        `${still("background.svg")}[background]`,
+        `${still("mask.svg")},format=gray[mask]`,
+        `[shot]scale=${window.width}:${window.height}:flags=lanczos,format=yuva420p[inner]`,
+        "[inner][mask]alphamerge[window]",
+        `[background][window]overlay=x=${window.x}:y=${window.y}:shortest=1[out]`,
+      );
+      console.error(`shots: framed at ${window.width}x${window.height} in ${size.width}x${size.height}, background ${o.frame.join(" to ")}`);
+    } else graph.push("[shot]null[out]");
     if (camera) console.error(`shots: ${camera.spans.length} zooms at ${o.zoom}x, ${camera.spans.map(([a, b]) => `${a}-${b}s`).join(", ") || "no click to zoom on"}`);
     // The zoom's expressions run to tens of kilobytes, so the graph goes in a file.
     writeFileSync(join(work, "graph.txt"), graph.join(";\n"));

@@ -18,7 +18,9 @@ import {
   pointerTrack,
   polishOptions,
   zoomTrack,
+  backgroundColors,
   clickFrames,
+  frameLayout,
   framesKept,
   measureLines,
   indexEntry,
@@ -316,4 +318,20 @@ test("a label says its step's words beside the pointer, flips at the right edge 
   assert.deepEqual(labelPlace({ x: 400, y: 790 }, pill, desk), { x: 414, y: 766 });
   const story = { width: 360, height: 640 };
   assert.deepEqual(labelPlace({ x: 100, y: 630 }, pill, story, { top: 250 / 3, bottom: 340 / 3 }), { x: 114, y: 640 - 340 / 3 - 8 - 26 });
+});
+
+test("the frame centres the recording with a margin, inside a story's safe zones, on the background asked for", () => {
+  assert.deepEqual(frameLayout({ width: 1280, height: 800 }), { width: 1100, height: 688, x: 90, y: 56, radius: 20 });
+  // A story: 250 px above and 340 below belong to the feed.
+  const story = frameLayout({ width: 1080, height: 1920 }, "story");
+  assert.ok(story.y >= 250 && story.y + story.height <= 1920 - 340);
+  assert.equal(story.x * 2 + story.width, 1080);
+  assert.equal(story.width % 2 + story.height % 2, 0);
+
+  assert.deepEqual(backgroundColors(undefined), ["#E4DDFF", "#C9DCFF"]);
+  assert.deepEqual(backgroundColors("#000"), ["#000"]);
+  assert.deepEqual(backgroundColors("#112233, #445566"), ["#112233", "#445566"]);
+  assert.throws(() => backgroundColors("red"), /#rrggbb/);
+  assert.equal(polishOptions(["out/x"]).frame, undefined);
+  assert.deepEqual(polishOptions(["out/x", "--background", "#000"]).frame, ["#000"]);
 });

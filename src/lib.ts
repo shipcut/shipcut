@@ -230,10 +230,13 @@ export function polishOptions(argv: string[]) {
       zoom: { type: "boolean", default: false },
       "zoom-factor": { type: "string" },
       labels: { type: "boolean", default: false },
+      frame: { type: "boolean", default: false },
+      background: { type: "string" },
     },
   });
   const [dir, ...rest] = positionals;
-  if (!dir || rest.length) throw new Error("usage: shots polish <run-dir> [--labels] [--zoom] [--zoom-factor N] [--out FILE]");
+  if (!dir || rest.length)
+    throw new Error("usage: shots polish <run-dir> [--labels] [--zoom] [--zoom-factor N] [--frame] [--background SPEC] [--out FILE]");
   const factor = number("zoom-factor", values["zoom-factor"]) ?? ZOOM.factor;
   if (factor <= 1) throw new Error("--zoom-factor wants a number above 1");
   return {
@@ -241,6 +244,8 @@ export function polishOptions(argv: string[]) {
     out: values.out ?? `${dir.replace(/\/$/, "")}/video-polished.mp4`,
     zoom: values.zoom ? factor : undefined,
     labels: values.labels,
+    /** Under `--frame` or `--background`: the background's colours, one for a fill, two for a gradient. */
+    frame: values.frame || values.background ? backgroundColors(values.background) : undefined,
   };
 }
 
@@ -673,3 +678,61 @@ export function markdown(m: Manifest): string {
   }
   return lines.join("\n").trimEnd();
 }
+
+/** The background `--frame` paints unless `--background` says otherwise: lavender into pale blue. */
+export const BACKGROUND = ["#E4DDFF", "#C9DCFF"];
+
+/** `--background`: one `#rgb` or `#rrggbb` colour for a fill, two joined by a comma for a diagonal gradient. */
+export function backgroundColors(spec: string | undefined): string[] {
+  if (spec === undefined) return BACKGROUND;
+  const colors = spec.split(",").map((c) => c.trim());
+  if (colors.length > 2 || !colors.every((c) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)))
+    throw new Error(`--background wants #rrggbb or #rrggbb,#rrggbb, got "${spec}"`);
+  return colors;
+}
+
+/**
+ * Where `--frame` puts the recording in a video of `size` pixels: scaled
+ * down to leave a margin of 7% of the short side, centred, and for a story
+ * inside its safe zones. The window keeps the recording's shape and even
+ * dimensions; its corners round by 2.5% of the short side.
+ */
+export function frameLayout(size: { width: number; height: number }, preset?: string) {
+  const short = Math.min(size.width, size.height);
+  const margin = 0.07 * short;
+  const safe = preset === "story" ? STORY_SAFE : { top: 0, bottom: 0 };
+  const room = { width: size.width - 2 * margin, height: size.height - safe.top - safe.bottom - 2 * margin };
+  const fit = Math.min(room.width / size.width, room.height / size.height);
+  const even = (n: number) => 2 * Math.round(n / 2);
+  const width = even(size.width * fit);
+  const height = even(size.height * fit);
+  return {
+    width,
+    height,
+    x: even((size.width - width) / 2),
+    y: even(safe.top + (size.height - safe.top - safe.bottom - height) / 2),
+    radius: Math.round(0.025 * short),
+  };
+}
+
+/** The still behind the window: the background and the window's soft shadow, at the video's size. */
+export function backgroundSvg(size: { width: number; height: number }, window: ReturnType<typeof frameLayout>, colors: string[]) {
+  const short = Math.min(size.width, size.height);
+  const fill = colors.length === 1 ? colors[0]! : "url(#g)";
+  const gradient =
+    colors.length === 2
+      ? `<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${colors[0]}"/><stop offset="1" stop-color="${colors[1]}"/></linearGradient>`
+      : "";
+  const blur = `<filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${(0.025 * short).toFixed(1)}"/></filter>`;
+  const { x, y, width, height, radius } = window;
+  return svg(
+    size.width,
+    size.height,
+    `<defs>${gradient}${blur}</defs><rect width="${size.width}" height="${size.height}" fill="${fill}"/>` +
+      `<rect x="${x}" y="${y + Math.round(0.012 * short)}" width="${width}" height="${height}" rx="${radius}" fill="#000" fill-opacity=".35" filter="url(#b)"/>`,
+  );
+}
+
+/** The window's alpha: white where the recording shows, a rounded rectangle on black. */
+export const windowMask = (window: ReturnType<typeof frameLayout>) =>
+  svg(window.width, window.height, `<rect width="${window.width}" height="${window.height}"/><rect width="${window.width}" height="${window.height}" rx="${window.radius}" fill="#fff"/>`);

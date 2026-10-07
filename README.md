@@ -174,6 +174,17 @@ of a story's safe zones. A title longer than 32 characters is cut with an
 ellipsis. The text is set in whatever fontconfig returns for Inter, named on
 stderr; where Inter is not installed, that is the system's sans.
 
+`--frame` shrinks the result into a window with rounded corners and a soft
+shadow on a still background, so the video keeps its size and the camera
+moves inside the window. The window leaves a margin of 7% of the short side
+and, in a story, stays out of the 250 px above and 340 px below that the
+feed's own controls cover. The background is lavender into pale blue unless
+`--background` gives one colour (`#0b0b0f`) or two for a diagonal gradient
+(`#e4ddff,#c9dcff`); `--background` implies `--frame`. A framed desktop video
+shows its page at 86%, so a recording meant for posting reads better at
+`--scale 2`, brought back to a feed's size with `shots clip --width 1920`.
+At 2560x1600 `polish` peaks near 1.35 GB of its 1.5 GB cap.
+
 `--zoom` also moves the camera. It closes in on a click by `--zoom-factor`
 (1.5 unless given), finishing just before the click. Clicks less than about
 3.4 s apart share one zoom, and the camera pans to a click that falls outside
