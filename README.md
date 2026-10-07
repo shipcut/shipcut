@@ -157,12 +157,22 @@ font is used.
 shots polish out/20261002-134501-booking
 ```
 
-Draws the pointer a `--pointer` run logged over its video: an arrow on a
-desktop, a fingertip on a touch preset, and a ring where it pressed. Writes
+Draws the pointer a `--pointer` run logged over its video: an arrow on every
+preset, and on each press a violet wave while the arrow gives for a few frames
+and springs back. Writes
 `video-polished.mp4` in the run directory unless `--out`, and adds it to
 `run.json`. The page draws nothing during the run, so the pointer moves at the
 video's 30 fps however slowly the page itself repaints. It can be drawn again
 without a new run.
+
+`--labels` puts each step's title in a violet pill beside the pointer, below
+and to the right of the arrow's tip. A label shows from its
+step until the next one, 4 s at most, and fades in and out. It does not show
+before the pointer's first move, and `step(title, { caption: false })` keeps
+one out. A label flips to the pointer's left near the right edge and stays out
+of a story's safe zones. A title longer than 32 characters is cut with an
+ellipsis. The text is set in whatever fontconfig returns for Inter, named on
+stderr; where Inter is not installed, that is the system's sans.
 
 `--zoom` also moves the camera. It closes in on a click by `--zoom-factor`
 (1.5 unless given), finishing just before the click. Clicks less than about

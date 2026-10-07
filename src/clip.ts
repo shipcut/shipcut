@@ -10,14 +10,22 @@ import {
   captionTimeline,
   clipArgs,
   type ClipOptions,
+  follow,
   FPS,
   framesKept,
+  LABEL,
+  labelPlace,
+  labelProbe,
+  labelSprite,
+  labelWindows,
   MP4,
   measureLines,
-  pointerSprite,
+  POINTER,
+  PRESS_FRAMES,
   pointerTrack,
   type PolishOptions,
-  ringFrames,
+  clickFrames,
+  STORY_SAFE,
   zoomFilter,
   zoomTrack,
 } from "./lib.ts";
@@ -89,15 +97,16 @@ export function measureRun(dir: string): void {
 }
 
 /**
- * Draws the pointer `run --pointer` logged over the run's video: the sprite
- * moved frame by frame through `sendcmd`, and a ring for each press, each one
- * the same sequence of SVG frames shifted to its moment. The sprites are SVG
+ * Draws the pointer `run --pointer` logged over the run's video: the arrow
+ * moved frame by frame through `sendcmd`, and for each press the same
+ * sequence of SVG frames shifted to its moment, a wave with the arrow giving
+ * under the finger, while the pointer's own overlay steps aside. The sprites are SVG
  * rendered by ffmpeg's librsvg at the run's scale, so they are as sharp as the
  * page under them. With `zoom`, the camera then closes in on the clicks; the
  * pointer is drawn first, so it grows with the page.
  *
  * ponytail: one ffmpeg input per press, fine for tens of clicks. A run with
- * hundreds wants one ring track built like the pointer's.
+ * hundreds wants one press track built like the pointer's.
  */
 export function polish(o: PolishOptions): void {
   const run = JSON.parse(readFileSync(join(o.dir, "run.json"), "utf8")) as Run;
@@ -109,30 +118,57 @@ export function polish(o: PolishOptions): void {
 
   const scale = run.viewport.scale;
   const px = (css: number) => String(Math.round(css * scale));
-  const sprite = pointerSprite(Boolean(run.mobile));
+  const sprite = POINTER;
   const track = pointerTrack(run.events.moves, video.duration, scale, sprite.hotspot)!;
-  const rings = ringFrames();
-  const ring = rings[0]!;
+  const presses = clickFrames();
+  const press = presses[0]!;
 
   const work = mkdtempSync(join(tmpdir(), "shots-polish-"));
   try {
     writeFileSync(join(work, "pointer.svg"), sprite.svg);
-    writeFileSync(join(work, "pointer.cmd"), track.commands);
-    rings.forEach((r, k) => writeFileSync(join(work, `ring${String(k).padStart(2, "0")}.svg`), r.svg));
+    presses.forEach((p, k) => writeFileSync(join(work, `press${String(k).padStart(2, "0")}.svg`), p.svg));
 
     const fps = String(FPS);
+    const seconds = String(video.duration);
     const args = ["-y", "-i", source];
-    args.push("-loop", "1", "-framerate", fps, "-t", String(video.duration), "-width", px(sprite.width), "-i", "pointer.svg");
-    const graph: string[] = [];
-    let below = "0:v";
+    args.push("-loop", "1", "-framerate", fps, "-t", seconds, "-width", px(sprite.width), "-i", "pointer.svg");
+    let inputs = 2;
+    const commands = [...track.commands];
+    // One sendcmd at the head of the chain moves every overlay that follows the pointer.
+    const graph = ["[0:v]sendcmd=f=moves.cmd[timed]"];
+    let below = "timed";
     run.events.clicks.forEach(([at, x, y], k) => {
-      args.push("-itsoffset", (at / 1000).toFixed(3), "-framerate", fps, "-width", px(ring.width), "-i", "ring%02d.svg");
-      graph.push(`[${below}][${k + 2}:v]overlay=x=${px(x - ring.hotspot.x)}:y=${px(y - ring.hotspot.y)}:eof_action=pass[r${k}]`);
+      args.push("-itsoffset", (at / 1000).toFixed(3), "-framerate", fps, "-width", px(press.width), "-i", "press%02d.svg");
+      graph.push(`[${below}][${inputs++}:v]overlay=x=${px(x - press.hotspot.x)}:y=${px(y - press.hotspot.y)}:eof_action=pass[r${k}]`);
       below = `r${k}`;
     });
+    if (o.labels) {
+      const frame = { width: video.width! / scale, height: video.height! / scale };
+      const safe = run.preset === "story" ? { top: STORY_SAFE.top / scale, bottom: STORY_SAFE.bottom / scale } : undefined;
+      const windows = labelWindows(run.steps, video.duration, track.from);
+      console.error(`shots: ${windows.length} labels in ${labelFont()}`);
+      windows.forEach(({ text, from, to }, k) => {
+        const label = labelSprite(text, measureInk(text, scale, join(work, `probe${k}.svg`)));
+        writeFileSync(join(work, `label${k}.svg`), label.svg);
+        args.push("-loop", "1", "-framerate", fps, "-t", seconds, "-width", px(label.width), "-i", `label${k}.svg`);
+        const place = (x: number, y: number) => {
+          const at = labelPlace({ x, y }, label.pill, frame, safe);
+          return { x: Math.round((at.x - label.hotspot.x) * scale), y: Math.round((at.y - label.hotspot.y) * scale) };
+        };
+        commands.push(...follow(run.events!.moves, `overlay@label${k}`, from, to, place));
+        const fade = LABEL.fade;
+        graph.push(
+          `[${inputs++}:v]format=rgba,fade=t=in:st=${from}:d=${fade}:alpha=1,fade=t=out:st=${(to - fade).toFixed(3)}:d=${fade}:alpha=1[label${k}]`,
+          `[${below}][label${k}]overlay@label${k}=x=-9999:y=-9999:enable='between(t,${from},${to})':eof_action=pass[l${k}]`,
+        );
+        below = `l${k}`;
+      });
+    }
+    writeFileSync(join(work, "moves.cmd"), `${commands.join("\n")}\n`);
+    // The pointer steps aside while a press sprite draws the arrow for it.
+    const pressing = run.events.clicks.map(([at]) => `-gte(t,${at / 1000})*lt(t,${(at / 1000 + PRESS_FRAMES / FPS).toFixed(4)})`).join("");
     graph.push(
-      `[${below}]sendcmd=f=pointer.cmd[moved]`,
-      `[moved][1:v]overlay@pointer=x=${track.start.x}:y=${track.start.y}:enable='gte(t,${track.from})':eof_action=pass[drawn]`,
+      `[${below}][1:v]overlay@pointer=x=${track.start.x}:y=${track.start.y}:enable='gte(t,${track.from})*gt(1${pressing},0)':eof_action=pass[drawn]`,
     );
     const size = { width: video.width!, height: video.height!, scale, seconds: video.duration };
     const camera = o.zoom ? zoomTrack(run.events.clicks, run.steps, size, o.zoom) : undefined;
@@ -149,4 +185,26 @@ export function polish(o: PolishOptions): void {
     rmSync(work, { recursive: true, force: true });
   }
   reportPeak();
+}
+
+/** The ink of a label's text in CSS pixels, found by rendering it with ffmpeg's librsvg and reading the `bbox` filter. */
+function measureInk(text: string, scale: number, file: string): { left: number; width: number } {
+  const probe = labelProbe(text);
+  writeFileSync(file, probe.svg);
+  const width = String(Math.round(probe.width * scale));
+  const done = spawnSync("ffmpeg", ["-v", "info", "-width", width, "-i", file, "-vf", "bbox=min_val=64", "-frames:v", "1", "-f", "null", "-"], {
+    encoding: "utf8",
+  });
+  const box = /x1:(\d+) x2:(\d+)/.exec(done.stderr);
+  if (!box) throw new Error(`could not measure the label "${text}": ${done.stderr.trim().split("\n").at(-1)}`);
+  return { left: Number(box[1]) / scale - LABEL.padX, width: (Number(box[2]) - Number(box[1]) + 1) / scale };
+}
+
+/** The face fontconfig gives a label, named so a run says what it drew with. */
+function labelFont(): string {
+  try {
+    return execFileSync("fc-match", ["-f", "%{fullname}", "Inter:weight=600"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }) || "the default font";
+  } catch {
+    return "the default font";
+  }
 }

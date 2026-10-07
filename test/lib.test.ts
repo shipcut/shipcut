@@ -12,10 +12,13 @@ import {
   concatList,
   glideMs,
   glidePath,
+  labelPlace,
+  labelText,
+  labelWindows,
   pointerTrack,
   polishOptions,
   zoomTrack,
-  ringFrames,
+  clickFrames,
   framesKept,
   measureLines,
   indexEntry,
@@ -245,7 +248,7 @@ test("polish places the pointer's corner on each frame it moves, in video pixels
   assert.equal(track.from, 0.5);
   assert.deepEqual(track.start, { x: 240, y: 540 });
   // Frame 15 is at 500 ms, frame 16 at 533 ms, where the 520 ms point is the latest; 540 ms falls in frame 17.
-  assert.deepEqual(track.commands.trim().split("\n"), [
+  assert.deepEqual(track.commands, [
     "0.4833 overlay@pointer x 240, overlay@pointer y 540;",
     "0.5167 overlay@pointer x 270, overlay@pointer y 540;",
     "0.5500 overlay@pointer x 300, overlay@pointer y 540;",
@@ -253,10 +256,12 @@ test("polish places the pointer's corner on each frame it moves, in video pixels
   ]);
   assert.equal(pointerTrack([], 3, 1, { x: 0, y: 0 }), undefined);
 
-  const rings = ringFrames();
-  assert.equal(rings.length, 14);
-  assert.match(rings[0]!.svg, /scale\(1\.000\)" opacity="1\.000"/);
-  assert.match(rings.at(-1)!.svg, /scale\(3\.000\)" opacity="0\.000"/);
+  // A press: the wave fades out over 450 ms, and the arrow is in the first six frames only.
+  const presses = clickFrames();
+  assert.equal(presses.length, 14);
+  assert.match(presses[0]!.svg, /stroke-opacity="1\.000"/);
+  assert.match(presses.at(-1)!.svg, /stroke-opacity="0\.000"/);
+  assert.deepEqual(presses.map((p) => p.svg.includes("<path")), [...Array(6).fill(true), ...Array(8).fill(false)]);
 });
 
 test("the camera closes in before a click, pans only to a click outside the middle, and pulls back after a pause", () => {
@@ -292,4 +297,23 @@ test("the camera closes in before a click, pans only to a click outside the midd
   assert.equal(polishOptions(["out/x", "--zoom"]).zoom, 1.5);
   assert.equal(polishOptions(["out/x", "--zoom", "--zoom-factor", "2"]).zoom, 2);
   assert.throws(() => polishOptions(["out/x", "--zoom-factor", "0.5"]), /above 1/);
+});
+
+test("a label says its step's words beside the pointer, flips at the right edge and stays out of a story's safe zones", () => {
+  assert.equal(labelText("  Vybrať   čas "), "Vybrať čas");
+  assert.equal(labelText("x".repeat(40)), `${"x".repeat(31)}…`);
+
+  const steps = [{ title: "Úvod", at: 0 }, { title: "skryté", at: 2000, caption: false as const }, { title: "Čas", at: 3000 }, { title: "Koniec", at: 9800 }];
+  assert.deepEqual(labelWindows(steps, 10, 1), [
+    { text: "Úvod", from: 1, to: 2 },
+    { text: "Čas", from: 3, to: 7 },
+  ]);
+
+  const pill = { width: 100, height: 26 };
+  const desk = { width: 1280, height: 800 };
+  assert.deepEqual(labelPlace({ x: 400, y: 300 }, pill, desk), { x: 414, y: 320 });
+  assert.deepEqual(labelPlace({ x: 1200, y: 300 }, pill, desk), { x: 1086, y: 320 });
+  assert.deepEqual(labelPlace({ x: 400, y: 790 }, pill, desk), { x: 414, y: 766 });
+  const story = { width: 360, height: 640 };
+  assert.deepEqual(labelPlace({ x: 100, y: 630 }, pill, story, { top: 250 / 3, bottom: 340 / 3 }), { x: 114, y: 640 - 340 / 3 - 8 - 26 });
 });

@@ -225,13 +225,23 @@ export function polishOptions(argv: string[]) {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
-    options: { out: { type: "string" }, zoom: { type: "boolean", default: false }, "zoom-factor": { type: "string" } },
+    options: {
+      out: { type: "string" },
+      zoom: { type: "boolean", default: false },
+      "zoom-factor": { type: "string" },
+      labels: { type: "boolean", default: false },
+    },
   });
   const [dir, ...rest] = positionals;
-  if (!dir || rest.length) throw new Error("usage: shots polish <run-dir> [--zoom] [--zoom-factor N] [--out FILE]");
+  if (!dir || rest.length) throw new Error("usage: shots polish <run-dir> [--labels] [--zoom] [--zoom-factor N] [--out FILE]");
   const factor = number("zoom-factor", values["zoom-factor"]) ?? ZOOM.factor;
   if (factor <= 1) throw new Error("--zoom-factor wants a number above 1");
-  return { dir, out: values.out ?? `${dir.replace(/\/$/, "")}/video-polished.mp4`, zoom: values.zoom ? factor : undefined };
+  return {
+    dir,
+    out: values.out ?? `${dir.replace(/\/$/, "")}/video-polished.mp4`,
+    zoom: values.zoom ? factor : undefined,
+    labels: values.labels,
+  };
 }
 
 /**
@@ -327,70 +337,155 @@ const svg = (width: number, height: number, body: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`;
 const SHADOW = '<defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dy="1" stdDeviation="1" flood-opacity=".4"/></filter></defs>';
 
-/** The pointer: an arrow on a desktop, a fingertip where the run was a touch device. */
-export function pointerSprite(touch: boolean): Sprite {
-  if (touch)
-    return {
-      width: 40,
-      hotspot: { x: 20, y: 20 },
-      svg: svg(40, 40, `${SHADOW}<circle cx="20" cy="20" r="14.25" fill="#fff" fill-opacity=".55" stroke="#000" stroke-opacity=".3" stroke-width="1.5" filter="url(#s)"/>`),
-    };
-  // The tip is the hotspot; the arrow is a 14x21 drawing at 18x27.
-  return {
-    width: 24,
-    hotspot: { x: 4.3, y: 4.3 },
-    svg: svg(
-      24,
-      33,
-      `${SHADOW}<path transform="translate(3 3) scale(1.2857)" d="M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z" ` +
-        'fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round" filter="url(#s)"/>',
-    ),
-  };
-}
+/** An arrow with its tip at `x`, `y`, `size` times its usual 18x27: a 14x21 drawing whose tip sits at 1, 1. */
+const arrow = (x: number, y: number, size = 1) =>
+  `<path transform="translate(${x} ${y}) scale(${(1.2857 * size).toFixed(4)}) translate(-1 -1)" d="M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z" ` +
+  'fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round" filter="url(#s)"/>';
 
-/** The ring a press leaves, one sprite per video frame: it grows to three times its size and fades out over 450 ms. */
-export function ringFrames(fps = FPS): Sprite[] {
+/** The pointer, an arrow on every preset; the tip is the hotspot. */
+export const POINTER: Sprite = { width: 24, hotspot: { x: 4.3, y: 4.3 }, svg: svg(24, 33, `${SHADOW}${arrow(4.3, 4.3)}`) };
+
+/** How the arrow sizes through a press, one value a frame: it gives under the finger and springs back. */
+const PRESS = [0.92, 0.86, 0.85, 0.9, 0.96, 1];
+/** The frames of a press in which the click sprite draws the arrow, so the pointer itself is hidden for them. */
+export const PRESS_FRAMES = PRESS.length;
+
+/**
+ * What a press shows, one sprite per video frame over 450 ms, centred on the
+ * click: a wave in the labels' colour that grows and fades, and for its first
+ * frames the arrow giving under the finger. The arrow is drawn here rather
+ * than by the pointer's own overlay because it changes size frame by frame.
+ */
+export function clickFrames(fps = FPS): Sprite[] {
   const count = Math.round(0.45 * fps);
   return Array.from({ length: count }, (_, k) => {
     const p = k / (count - 1);
-    const grow = 1 + 2 * (1 - (1 - p) ** 2);
-    return {
-      width: 74,
-      hotspot: { x: 37, y: 37 },
-      svg: svg(
-        74,
-        74,
-        `<g transform="translate(37 37) scale(${grow.toFixed(3)})" opacity="${(1 - p).toFixed(3)}" fill="none">` +
-          '<circle r="11.5" stroke="#000" stroke-opacity=".35"/><circle r="10" stroke="#fff" stroke-width="2"/></g>',
-      ),
-    };
+    const radius = 6 + 22 * (1 - (1 - p) ** 2);
+    const wave =
+      `<circle cx="37" cy="37" r="${radius.toFixed(2)}" fill="${LABEL.color}" fill-opacity="${(0.25 * (1 - p)).toFixed(3)}" ` +
+      `stroke="${LABEL.color}" stroke-opacity="${(1 - p).toFixed(3)}" stroke-width="2"/>`;
+    const press = PRESS[k];
+    return { width: 74, hotspot: { x: 37, y: 37 }, svg: svg(74, 74, `${SHADOW}${wave}${press ? arrow(37, 37, press) : ""}`) };
   });
 }
 
 /**
- * Where the pointer sprite's top-left corner goes, in video pixels, from the
- * first move on: `start` and `from` (seconds) place it, and `commands` are
- * ffmpeg `sendcmd` lines for the overlay named `pointer`, one for each frame
- * in which it moved. Each fires half a frame early, so a rounded timestamp
- * cannot land it on the next frame.
+ * ffmpeg `sendcmd` lines that move the overlay `target` with the pointer: one
+ * for each frame from `from` to `to` seconds in which its place changes.
+ * `place` turns the pointer's position (CSS pixels) into the overlay's
+ * top-left corner (video pixels). Each line fires half a frame early, so a
+ * rounded timestamp cannot land it on the next frame.
  */
-export function pointerTrack(moves: Point[], seconds: number, scale: number, hotspot: { x: number; y: number }, fps = FPS) {
-  const first = moves[0];
-  if (!first) return undefined;
-  const corner = (p: Point) => ({ x: Math.round((p[1] - hotspot.x) * scale), y: Math.round((p[2] - hotspot.y) * scale) });
+export function follow(
+  moves: Point[],
+  target: string,
+  from: number,
+  to: number,
+  place: (x: number, y: number) => { x: number; y: number },
+  fps = FPS,
+): string[] {
   const lines: string[] = [];
   let i = 0;
   let last = "";
-  for (let frame = 0; frame < Math.round(seconds * fps); frame++) {
+  for (let frame = Math.max(0, Math.floor(from * fps)); frame < Math.round(to * fps); frame++) {
     const ms = (frame * 1000) / fps;
     while (i < moves.length - 1 && moves[i + 1]![0] <= ms) i++;
-    if (moves[i]![0] > ms) continue;
-    const { x, y } = corner(moves[i]!);
+    if (!moves[i] || moves[i]![0] > ms) continue;
+    const { x, y } = place(moves[i]![1], moves[i]![2]);
     if (`${x},${y}` === last) continue;
     last = `${x},${y}`;
-    lines.push(`${Math.max(0, (frame - 0.5) / fps).toFixed(4)} overlay@pointer x ${x}, overlay@pointer y ${y};`);
+    lines.push(`${Math.max(0, (frame - 0.5) / fps).toFixed(4)} ${target} x ${x}, ${target} y ${y};`);
   }
-  return { from: first[0] / 1000, start: corner(first), commands: `${lines.join("\n")}\n` };
+  return lines;
+}
+
+/** The pointer sprite's track from its first move on: `from` (seconds) and `start` place it, `commands` move it. */
+export function pointerTrack(moves: Point[], seconds: number, scale: number, hotspot: { x: number; y: number }, fps = FPS) {
+  const first = moves[0];
+  if (!first) return undefined;
+  const corner = (x: number, y: number) => ({ x: Math.round((x - hotspot.x) * scale), y: Math.round((y - hotspot.y) * scale) });
+  return {
+    from: first[0] / 1000,
+    start: corner(first[1], first[2]),
+    commands: follow(moves, "overlay@pointer", 0, seconds, corner, fps),
+  };
+}
+
+/**
+ * The label beside the pointer under `polish --labels`, in CSS pixels: a pill
+ * in the step's words, as wide as its text, in the colour presses wave in. It shows from the step until the
+ * next, for `seconds` at most, fading in and out. These numbers are the knob.
+ */
+export const LABEL = { size: 14, padX: 10, padY: 6, radius: 8, margin: 4, color: "#6C5CE7", chars: 32, seconds: 4, fade: 0.2 };
+
+/** What a `story`'s feed covers with its own controls, in its 1080x1920 pixels. */
+export const STORY_SAFE = { top: 250, bottom: 340 };
+
+const LABEL_FONT = `font-family="Inter, sans-serif" font-weight="600" font-size="${LABEL.size}"`;
+const xml = (text: string) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+/** A step's title as its label shows it: one line, cut with an ellipsis past `LABEL.chars`. */
+export function labelText(title: string): string {
+  const text = title.trim().replace(/\s+/g, " ");
+  return text.length > LABEL.chars ? `${text.slice(0, LABEL.chars - 1).trimEnd()}…` : text;
+}
+
+/** The label windows: each captioned step's title, from the step (or the pointer's first move) to the next step, `LABEL.seconds` at most. */
+export function labelWindows(steps: Step[], seconds: number, pointerFrom: number) {
+  return captionTimeline(steps, seconds).flatMap(({ title, from, to }) => {
+    const start = Math.max(from, pointerFrom);
+    const end = Math.min(to, start + LABEL.seconds);
+    return end - start >= 0.5 ? [{ text: labelText(title), from: start, to: end }] : [];
+  });
+}
+
+/** An SVG of a label's text alone, white on black, starting `LABEL.padX` in: ffmpeg's `bbox` finds its ink, since nothing here knows the font's metrics. */
+export function labelProbe(text: string) {
+  const width = Math.ceil(text.length * LABEL.size * 0.8 + 2 * LABEL.padX);
+  const body = `<rect width="${width}" height="${LABEL.size * 2}"/><text x="${LABEL.padX}" y="${LABEL.size * 1.4}" fill="#fff" ${LABEL_FONT}>${xml(text)}</text>`;
+  return { width, svg: svg(width, LABEL.size * 2, body) };
+}
+
+/**
+ * The label's sprite: a pill as wide as the text's ink plus padding, with a
+ * shadow in the margin around it. `ink` is in CSS pixels, `left` measured
+ * from where the text starts. The hotspot is the pill's top-left corner.
+ */
+export function labelSprite(text: string, ink: { left: number; width: number }): Sprite & { pill: { width: number; height: number } } {
+  const width = Math.ceil(ink.width + 2 * LABEL.padX);
+  const height = LABEL.size + 2 * LABEL.padY;
+  const m = LABEL.margin;
+  // Capitals take about 0.72 of the size: this baseline centres them.
+  const baseline = (height + 0.72 * LABEL.size) / 2;
+  return {
+    width: width + 2 * m,
+    hotspot: { x: m, y: m },
+    pill: { width, height },
+    svg: svg(
+      width + 2 * m,
+      height + 2 * m,
+      `${SHADOW}<rect x="${m}" y="${m}" width="${width}" height="${height}" rx="${LABEL.radius}" fill="${LABEL.color}" filter="url(#s)"/>` +
+        `<text x="${(m + LABEL.padX - ink.left).toFixed(2)}" y="${(m + baseline).toFixed(2)}" fill="#fff" ${LABEL_FONT}>${xml(text)}</text>`,
+    ),
+  };
+}
+
+/**
+ * Where a label's pill goes for a pointer at `p`, all in CSS pixels: below and
+ * right of the arrow's tip, on its left where the right edge is near, and
+ * never outside the frame or in its `safe` zones.
+ */
+export function labelPlace(
+  p: { x: number; y: number },
+  pill: { width: number; height: number },
+  frame: { width: number; height: number },
+  safe = { top: 0, bottom: 0 },
+) {
+  const gap = { x: 14, y: 20 };
+  let x = p.x + gap.x;
+  if (x + pill.width > frame.width - 8) x = p.x - gap.x - pill.width;
+  const y = Math.min(Math.max(p.y + gap.y, safe.top + 8), frame.height - safe.bottom - 8 - pill.height);
+  return { x: Math.max(8, x), y };
 }
 
 
