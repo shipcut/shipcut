@@ -262,8 +262,9 @@ CDN can keep serving a deleted file for a few minutes.
 
 ## Data layout
 
-One public Blob store in fra1, the Vercel project `shipcut`'s. No database: the web UI reads
-these.
+One public Blob store. No database: the web UI reads these. No store is
+connected since 2026-10-08, while the store moves to R2, so `publish`, `list`
+and `rm` stop at the missing token.
 
 ```
 <project>/index.json               IndexEntry[], newest first    max-age 60

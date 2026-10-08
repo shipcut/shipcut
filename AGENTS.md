@@ -7,8 +7,11 @@ is a single `@` import of this file.
 
 One name everywhere: the command, the product, the repository
 `shipcut/shipcut`, the checkout `~/projects/shipcut` and the Vercel project
-`shipcut`, whose Blob store holds what `publish` uploads. The old name `shots`
-is gone, and nothing reads it.
+`shipcut`. The old name `shots` is gone, and nothing reads it.
+
+There is no store behind `publish`, `list` and `rm` since 2026-10-08: the
+Blob store was deleted ahead of the move to R2, and until then they stop at
+the missing token.
 
 What the product is and is not: `PRODUCT.md`. The order of work: `ROADMAP.md`.
 The current stage in detail: `docs/prd/<nn>-*.md`, the one `ROADMAP.md` names.
