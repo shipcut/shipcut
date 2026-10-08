@@ -5,13 +5,10 @@ Chromium and publishes them to Vercel Blob with a manifest. Other projects
 keep the scenarios; this repo records, clips and publishes. `.claude/CLAUDE.md`
 is a single `@` import of this file.
 
-The command and the product are `shipcut` since 2026-10-07, and the
-repository is `shipcut/shipcut` on GitHub (moved from `RomanDenysov/shots`,
-which redirects). The old name `shots` stays where renaming would break
-something real: the local directory `~/projects/shots`, which Heystol's
-scenario imports from, the Vercel project, the Blob store `shots-media`,
-Heystol's `.agents/shots/`, and `~/.config/shots/env`, which is still read
-after `~/.config/shipcut/env`.
+One name everywhere: the command, the product, the repository
+`shipcut/shipcut`, the checkout `~/projects/shipcut` and the Vercel project
+`shipcut`, whose Blob store holds what `publish` uploads. The old name `shots`
+is gone, and nothing reads it.
 
 What the product is and is not: `PRODUCT.md`. The order of work: `ROADMAP.md`.
 The current stage in detail: `docs/prd/<nn>-*.md`, the one `ROADMAP.md` names.

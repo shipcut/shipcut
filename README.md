@@ -22,7 +22,7 @@ Playwright's Chromium
 
 Publishing needs `BLOB_READ_WRITE_TOKEN`, from the environment or else from
 `~/.config/shipcut/env` (a `KEY=value` file; a link to this repo's `.env.local`
-works). `~/.config/shots/env`, from before the rename, is still read.
+works).
 
 ## Commands
 
@@ -262,7 +262,7 @@ CDN can keep serving a deleted file for a few minutes.
 
 ## Data layout
 
-One public Blob store (`shots-media`, fra1). No database: the web UI reads
+One public Blob store in fra1, the Vercel project `shipcut`'s. No database: the web UI reads
 these.
 
 ```

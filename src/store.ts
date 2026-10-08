@@ -12,16 +12,13 @@ const YEAR = 31_536_000;
 // Blob's minimum. The manifest and the index are the only paths ever rewritten.
 const MINUTE = 60;
 
-/** The store's token: the environment, else `~/.config/shipcut/env`, else the `~/.config/shots/env` of before the rename. Never printed. */
+/** The store's token: the environment, else `~/.config/shipcut/env`. Never printed. */
 function token(): string {
   const fromEnv = process.env.BLOB_READ_WRITE_TOKEN;
   if (fromEnv) return fromEnv;
-  for (const dir of ["shipcut", "shots"]) {
-    const file = join(homedir(), `.config/${dir}/env`);
-    if (!existsSync(file)) continue;
-    const found = /^BLOB_READ_WRITE_TOKEN=["']?([^"'\n]+)/m.exec(readFileSync(file, "utf8"));
-    if (found?.[1]) return found[1];
-  }
+  const file = join(homedir(), ".config/shipcut/env");
+  const found = existsSync(file) ? /^BLOB_READ_WRITE_TOKEN=["']?([^"'\n]+)/m.exec(readFileSync(file, "utf8")) : null;
+  if (found?.[1]) return found[1];
   throw new Error("no BLOB_READ_WRITE_TOKEN in the environment or in ~/.config/shipcut/env");
 }
 
