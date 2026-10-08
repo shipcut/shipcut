@@ -104,7 +104,12 @@ run.
 draws a frame only when asked, and before each one the page's clock moves on
 by exactly 1/30 s, standing still while a request is pending. Every frame of
 every animation is in the video, the page's timers keep video time, and a
-request looks instant. Steps, shots, the pointer's events and the scenario's
+request looks instant. A response the page reads piece by piece as it streams
+in takes about as long in the video as it took to arrive. After each frame
+Chromium gets a second one that draws nothing, since without it no response
+reaches the page. So `requestAnimationFrame` runs twice a frame, and an
+animation that counts its callbacks instead of reading their time runs twice
+as fast. Steps, shots, the pointer's events and the scenario's
 `page.waitForTimeout` and typing delays all count video time, so two runs of
 the same scenario come out the same length to within a frame. Recording takes
 longer than the video: about 3 times at 1280x800 and 4 at 1080x1920 here. A

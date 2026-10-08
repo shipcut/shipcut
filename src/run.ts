@@ -305,6 +305,8 @@ async function screencast(context: BrowserContext, page: Page, out: string): Pro
 const FRAME_MS = 1000 / FPS;
 /** How long one frame may wait for the page's requests before the clock runs past them. */
 const STUCK_MS = 5000;
+/** How much later than its frame the flush after it is stamped: a BeginFrame at the last one's time never finishes. */
+const FLUSH_LAG_MS = 0.001;
 
 /**
  * Under `--frame-by-frame`, Chromium draws a frame only when asked, and the
@@ -383,6 +385,16 @@ async function frameByFrame(context: BrowserContext, out: string): Promise<Recor
           screenshot: { format: "jpeg", quality: 92 },
         });
         if (frame.screenshotData) store.add(Buffer.from(frame.screenshotData, "base64"), frames * FRAME_MS);
+        // After a frame that took a screenshot, Chromium hands the page no
+        // network response until the next BeginFrame, and the next frame waits
+        // for the clock, which waits for the response. A frame that draws
+        // nothing, stamped a hair later, lets the responses through; the page's
+        // requestAnimationFrame runs once more for it.
+        await cdp.send("HeadlessExperimental.beginFrame", {
+          frameTimeTicks: virtualTimeTicksBase + (frames + 1) * FRAME_MS + FLUSH_LAG_MS,
+          interval: FRAME_MS,
+          noDisplayUpdates: true,
+        });
         frames++;
         settle();
       }
