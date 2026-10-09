@@ -69,29 +69,29 @@ offset are kept, and `shipcut caption` burns them into the video.
 `{ zoom: false }` one whose clicks `polish --zoom` leaves alone. Type it with
 `import type { Scenario } from "<this repo>/src/run.ts"` if you want the types.
 
-| Flag | |
-|---|---|
-| `--base URL` | handed to the scenario, default `http://localhost:3000` |
-| `--out DIR` | default `./out/<run-id>/` |
-| `--preset` | `desktop` (default), `phone`, `post`, `story`; sizes below |
-| `--viewport WxH` | CSS pixels, instead of a preset; no touch, scale 1 |
-| `--scale N` | device pixel ratio; multiplies the shots and the video alike |
-| `--video` | records the run as `video.mp4` (H.264, yuv420p, 30 fps, faststart) |
-| `--frame-by-frame` | records every frame of the page's animations however slowly it paints, on a virtual clock; slower to record. Needs `--video`, excludes `--slow` |
-| `--pointer` | glides a pointer to each element before the scenario acts on it and logs the path and the clicks in `run.json`; `shipcut polish` draws it. Needs `--video` |
-| `--cursor` | the older pointer, drawn by the page itself from the mouse events; it jumps rather than glides. Excludes `--pointer` |
-| `--slow MS` | pause between browser actions, so a video can be followed |
-| `--storage-state FILE` | a Playwright storage state, to start signed in |
-| `--mask` | blurs the text in email, phone and password fields and every email address and `+`-prefixed phone number on the page, in the video and the shots alike. A venue's public number is blurred too |
-| `--mask-selector CSS` | also blurs what the selector matches, e.g. `input[name=name]`; repeatable, implies `--mask` |
-| `--locale xx`, `--dark` | browser locale, dark colour scheme |
+| Flag                    |                                                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--base URL`            | handed to the scenario, default `http://localhost:3000`                                                                                                                                        |
+| `--out DIR`             | default `./out/<run-id>/`                                                                                                                                                                      |
+| `--preset`              | `desktop` (default), `phone`, `post`, `story`; sizes below                                                                                                                                     |
+| `--viewport WxH`        | CSS pixels, instead of a preset; no touch, scale 1                                                                                                                                             |
+| `--scale N`             | device pixel ratio; multiplies the shots and the video alike                                                                                                                                   |
+| `--video`               | records the run as `video.mp4` (H.264, yuv420p, 30 fps, faststart)                                                                                                                             |
+| `--frame-by-frame`      | records every frame of the page's animations however slowly it paints, on a virtual clock; slower to record. Needs `--video`, excludes `--slow`                                                |
+| `--pointer`             | glides a pointer to each element before the scenario acts on it and logs the path and the clicks in `run.json`; `shipcut polish` draws it. Needs `--video`                                     |
+| `--cursor`              | the older pointer, drawn by the page itself from the mouse events; it jumps rather than glides. Excludes `--pointer`                                                                           |
+| `--slow MS`             | pause between browser actions, so a video can be followed                                                                                                                                      |
+| `--storage-state FILE`  | a Playwright storage state, to start signed in                                                                                                                                                 |
+| `--mask`                | blurs the text in email, phone and password fields and every email address and `+`-prefixed phone number on the page, in the video and the shots alike. A venue's public number is blurred too |
+| `--mask-selector CSS`   | also blurs what the selector matches, e.g. `input[name=name]`; repeatable, implies `--mask`                                                                                                    |
+| `--locale xx`, `--dark` | browser locale, dark colour scheme                                                                                                                                                             |
 
-| Preset | CSS viewport | Scale | Shots and video | Layout |
-|---|---|---|---|---|
-| `desktop` | 1280x800 | 1 | 1280x800 | desktop |
-| `phone` | 390x844 | 1 | 390x844 | phone: touch, mobile viewport |
-| `post` | 360x450 | 3 | 1080x1350 | phone |
-| `story` | 360x640 | 3 | 1080x1920 | phone |
+| Preset    | CSS viewport | Scale | Shots and video | Layout                        |
+| --------- | ------------ | ----- | --------------- | ----------------------------- |
+| `desktop` | 1280x800     | 1     | 1280x800        | desktop                       |
+| `phone`   | 390x844      | 1     | 390x844         | phone: touch, mobile viewport |
+| `post`    | 360x450      | 3     | 1080x1350       | phone                         |
+| `story`   | 360x640      | 3     | 1080x1920       | phone                         |
 
 A site picks its layout by CSS width, so `post` and `story` are a phone 360
 wide, multiplied up to the 1080 a feed wants. For a desktop page in a tall
@@ -306,13 +306,24 @@ Two things a reader should know:
 
 ## The landing
 
-`web/` is shipcut.dev: one HTML page and the waitlist function
-`web/api/waitlist.ts`, deployed by Vercel with `web` as the project root, so
-a push to `main` goes live. The function needs `RESEND_API_KEY`,
-`WAITLIST_FROM` and `WAITLIST_TO` in the project's environment.
+`web/` is shipcut.dev, a Next.js app deployed by Vercel with `web` as the
+project root, so a push to `main` goes live. The waitlist is a server action,
+`web/src/app/waitlist.ts`, that mails each address through Resend; it needs
+`RESEND_API_KEY`, `WAITLIST_FROM` and `WAITLIST_TO` in the project's
+environment.
+
+```sh
+pnpm -F @shipcut/web dev   # http://localhost:3005
+```
 
 ## Check
 
 ```sh
-pnpm check   # tsc, oxlint, node --test
+pnpm check   # tsc, oxlint, oxfmt --check, node --test
+pnpm fix     # oxlint --fix, oxfmt
 ```
+
+## License
+
+MIT, in `LICENSE`. The Inter fonts in `fonts/` are under the SIL Open Font
+License, in `fonts/LICENSE.txt`.

@@ -84,27 +84,31 @@ true when a flag or a stored shape changes.
   run file for a year. Do not read back through the public URL something you
   just wrote and build on it. The S3 API's listing is the truth
   (`currentIndex` in `src/store.ts`).
-- `web/` is the landing at shipcut.dev: the Vercel project `shipcut` has its
-  root there, so a push to `main` deploys it and a branch gets a preview.
-  Nothing outside `web/` is served.
+- `web/` is the landing at shipcut.dev, a Next.js app and the workspace
+  package `@shipcut/web`: Tailwind, shadcn in the `base-vega` style (Base UI),
+  the same stack as Heystol. The Vercel project `shipcut` has its root there,
+  so a push to `main` deploys it and a branch gets a preview. Nothing outside
+  `web/` is served. `pnpm -F @shipcut/web dev` serves it on port 3005.
+- Satoshi, the landing's font, loads from Fontshare's API. Its licence
+  forbids the font file in a public repository, so it never goes in `web/`.
 
 ## Words
 
 Use these in code, commits and documents. Russian for prose, the code column
 for identifiers.
 
-| Термин | In code | Meaning |
-|---|---|---|
-| Сценарий | scenario | The TypeScript file that drives the page |
-| Прогон | run | One execution of a scenario, with its output directory |
-| Снимок | shot | A PNG saved by a `shot()` call |
-| Кадр | frame | One picture of the video |
-| Глава | step | A timestamped mark from a `step()` call |
-| Титр | caption | A step's title burnt into the video |
-| Пресет | preset | A named viewport size and scale |
-| Журнал событий | events | Clicks, pointer moves and steps with offsets, in `run.json` |
-| Оформление | polish | Building the final video from raw frames and the events |
-| Манифест | manifest | The description of a published run in the store |
+| Термин         | In code  | Meaning                                                     |
+| -------------- | -------- | ----------------------------------------------------------- |
+| Сценарий       | scenario | The TypeScript file that drives the page                    |
+| Прогон         | run      | One execution of a scenario, with its output directory      |
+| Снимок         | shot     | A PNG saved by a `shot()` call                              |
+| Кадр           | frame    | One picture of the video                                    |
+| Глава          | step     | A timestamped mark from a `step()` call                     |
+| Титр           | caption  | A step's title burnt into the video                         |
+| Пресет         | preset   | A named viewport size and scale                             |
+| Журнал событий | events   | Clicks, pointer moves and steps with offsets, in `run.json` |
+| Оформление     | polish   | Building the final video from raw frames and the events     |
+| Манифест       | manifest | The description of a published run in the store             |
 
 ## Heavy
 
@@ -115,7 +119,9 @@ skip it. Exit 75 means wait and retry.
 
 ## Check
 
-`pnpm check` before handing over: `tsc --noEmit`, oxlint, `node --test`.
+`pnpm check` before handing over: `tsc --noEmit` for the CLI and the web app,
+oxlint with Ultracite's presets and `@shadcn/lint`, `oxfmt --check`, and
+`node --test`. `pnpm fix` applies oxlint's fixes and formats.
 A change to `run.ts` or `clip.ts` also wants a real run:
 
 ```sh

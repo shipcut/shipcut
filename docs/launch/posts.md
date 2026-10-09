@@ -8,24 +8,39 @@
   `utm_source`: `x`, `threads`, `ih`, `reddit`, `playwright`.
 - Репозиторий `https://github.com/shipcut/shipcut` открывается в день первого
   поста. Почта для связи `hello@shipcut.dev`.
-- Ролики по именам, файлы из таблицы "Ролики, 2026-10-08":
-  - booking: `out/demand-booking-3/video-polished-clip.mp4`, 18.00 с;
-  - board: `out/demand-board/video-polished-clip.mp4`, 17.17 с;
-  - events: `out/demand-events/video-polished-clip.mp4`, 20.83 с;
-  - setup: `out/demand-setup/video-polished-clip.mp4`, 23.40 с.
+- Ролики по именам. Это файлы из таблицы "Ролики, 2026-10-08", выложенные в
+  R2, так что их можно скачать на телефон и загрузить в пост:
+  - booking, 18.00 с:
+    https://media.shipcut.dev/heystol/20261008-120850-booking/video-polished-clip.mp4
+  - board, 17.17 с:
+    https://media.shipcut.dev/heystol/20261008-085616-board/video-polished-clip.mp4
+  - events, 20.83 с:
+    https://media.shipcut.dev/heystol/20261008-140834-events/video-polished-clip.mp4
+  - setup, 23.40 с:
+    https://media.shipcut.dev/heystol/20261008-092738-setup/video-polished-clip.mp4
+  - booking в `story`, для Threads и сторис, 17.60 с:
+    https://media.shipcut.dev/heystol/20261008-121515-booking/video-polished-clip.mp4
 - Последняя строка каждого поста, кроме вопроса в r/SaaS, это
   `want to run it on your app? reply`. Сигнал считается по ответам на нее.
 - Посты от первого лица Романа, с личных X и Threads.
 
 ## Проверить один раз, до первого поста
 
+На 2026-10-09 сделаны первые два пункта, остальные за Романом.
+
 - Лендинг открывается по домену, ролик играет на телефоне и на десктопе.
+  Сделано 2026-10-09, проверено в headless Chromium.
 - Тестовое письмо из формы списка ожидания дошло, и письмо снаружи на
-  `hello@shipcut.dev` тоже: адрес стоит в ответе "как поставить".
-- Визит виден в Vercel Web Analytics, и тариф показывает разбивку по
-  `utm_source`. Если нет, считать по реферерам.
-- Репозиторий открыт, README ставит CLI без локальных путей (`heavy`,
-  `~/.local/bin`).
+  `hello@shipcut.dev` тоже: адрес стоит в ответе "как поставить". Сделано
+  2026-10-09.
+- Визит виден в Vercel Web Analytics. Тариф Pro не показывает `utm_source`,
+  для этого нужен аддон Web Analytics Plus за 10 USD в месяц. Поэтому лендинг сам шлет
+  custom event `Visit` со свойством `source`, когда в адресе есть
+  `utm_source`, и `Waitlist` с тем же `source` после записи. Источники
+  смотреть в Analytics, вкладка Events.
+- Репозиторий открыт, у него есть лицензия, README ставит CLI без локальных
+  путей (`heavy`, `~/.local/bin`). Пост в Indie Hackers называет CLI open
+  source, а без лицензии это неправда.
 - Чек-лист Романа из среза 6 этапа 1 заполнен: четыре ролика играют в Safari,
   X и Threads, подписи читаются на телефоне, почта и телефон не читаются.
 
@@ -34,15 +49,15 @@
 Четыре места раз в два дня, как в PRD, затем остальные три поста в X. Даты
 это предложение, двигать можно.
 
-| Дата | Где | Ролик |
-|---|---|---|
-| 2026-10-14, ср | X и Threads, пост 1, запуск | booking |
-| 2026-10-16, пт | Indie Hackers | booking |
-| 2026-10-18, вс | r/SaaS | без ролика |
-| 2026-10-20, вт | Сообщество Playwright | events |
-| 2026-10-22, чт | X и Threads, пост 2 | board |
-| 2026-10-24, сб | X и Threads, пост 3 | events |
-| 2026-10-26, пн | X и Threads, пост 4 | setup |
+| Дата           | Где                         | Ролик      |
+| -------------- | --------------------------- | ---------- |
+| 2026-10-14, ср | X и Threads, пост 1, запуск | booking    |
+| 2026-10-16, пт | Indie Hackers               | booking    |
+| 2026-10-18, вс | r/SaaS                      | без ролика |
+| 2026-10-20, вт | Сообщество Playwright       | events     |
+| 2026-10-22, чт | X и Threads, пост 2         | board      |
+| 2026-10-24, сб | X и Threads, пост 3         | events     |
+| 2026-10-26, пн | X и Threads, пост 4         | setup      |
 
 Окно 14 дней кончается 2026-10-28. Посты 2-4 можно вставить и в промежутки
 первой недели, если ответов на первые места мало.
