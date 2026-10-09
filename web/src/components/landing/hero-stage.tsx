@@ -87,11 +87,8 @@ export function HeroStage() {
   const label = STEPS[step];
 
   return (
-    <figure className="m-0">
-      <div
-        ref={area}
-        className="relative grid place-items-center px-2 py-12 sm:px-10 sm:py-16"
-      >
+    <figure className="mx-auto w-full max-w-md lg:max-w-none">
+      <div ref={area} className="relative py-6">
         <Card
           plan={plan}
           price={price}
@@ -129,7 +126,7 @@ export function HeroStage() {
           </span>
         </div>
       </div>
-      <figcaption className="flex items-center gap-4">
+      <figcaption className="mt-4 flex items-center gap-4">
         <ol className="flex flex-1 gap-1.5" aria-label="Chapters">
           {STEPS.map((title, i) => (
             <li
@@ -166,7 +163,7 @@ function Card({
   upgradeRef: RefObject<HTMLButtonElement | null>;
 }) {
   return (
-    <div className="bg-paper w-full max-w-md rounded-3xl p-6 text-base text-[#16131f] shadow-[0_30px_80px_-30px_rgb(108_92_231/0.55)] sm:p-8">
+    <div className="bg-paper rounded-3xl p-6 text-base text-[#16131f] shadow-[0_30px_80px_-30px_rgb(108_92_231/0.55)] sm:p-8">
       <div className="flex items-baseline justify-between gap-4">
         <span className="text-2xl font-bold tracking-tight">Team plan</span>
         <span className="text-[#77738a] tabular-nums">${price}/seat/mo</span>
@@ -313,13 +310,13 @@ function place(parts: Parts, x: number, y: number) {
   );
 }
 
-/** Puts the pointer on `target`, or at rest low on the right when there is none. */
+/** Puts the pointer on `target`, or at rest on the card's bottom right corner when there is none. */
 function park(parts: Parts, target: RefObject<HTMLElement | null> | undefined) {
   const area = parts.area.current;
   if (!area) return;
   const point = target
     ? centre(parts, target)
-    : { x: area.offsetWidth * 0.86, y: area.offsetHeight * 0.88 };
+    : { x: area.offsetWidth - 32, y: area.offsetHeight - 30 };
   place(parts, point.x, point.y);
 }
 

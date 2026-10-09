@@ -32,7 +32,7 @@ export function Waitlist({
       <DialogTrigger render={<Button size={size} className={className} />}>
         Join the waitlist
       </DialogTrigger>
-      <DialogContent className="border-line gap-5 border p-7 sm:max-w-sm">
+      <DialogContent className="border-line gap-5 border p-6 sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold tracking-tight">
             Join the waitlist
@@ -86,13 +86,15 @@ function WaitlistForm() {
       >
         {pending ? "Joining" : "Join"}
       </Button>
-      <p
-        id="waitlist-answer"
-        aria-live="polite"
-        className="text-destructive min-h-5 text-sm"
-      >
-        {state.message}
-      </p>
+      {state.message && (
+        <p
+          id="waitlist-answer"
+          role="alert"
+          className="text-destructive text-sm"
+        >
+          {state.message}
+        </p>
+      )}
     </form>
   );
 }

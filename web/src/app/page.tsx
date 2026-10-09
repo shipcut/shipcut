@@ -13,7 +13,7 @@ export default function Home() {
       <header className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-5 sm:px-8">
         <Link
           href="/"
-          className="flex items-center gap-2 text-xl font-bold tracking-tight"
+          className="mr-auto flex items-center gap-2 text-xl font-bold tracking-tight"
         >
           <svg viewBox="0 0 16 22" className="w-3.5" aria-hidden>
             <path
@@ -25,22 +25,19 @@ export default function Home() {
           </svg>
           shipcut
         </Link>
-        <a
-          href={REPO}
-          className="text-haze hover:text-paper ml-auto hidden sm:block"
-        >
+        <a href={REPO} className="text-haze hover:text-paper hidden sm:block">
           GitHub
         </a>
-        <Waitlist size="default" />
+        <Waitlist size="default" className="h-10 px-4" />
       </header>
 
       <main>
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-10 pb-20 sm:px-8 lg:grid-cols-[1fr_1.15fr] lg:gap-16 lg:pt-20">
+        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-8 pb-16 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:pt-20 lg:pb-24">
           <div className="flex flex-col items-start gap-7">
-            <h1 className="text-[clamp(2.75rem,5.4vw,4.5rem)] leading-[0.98] font-black tracking-[-0.035em]">
+            <h1 className="text-[clamp(2.75rem,5.4vw,4.5rem)] leading-[0.98] font-black tracking-[-0.035em] text-balance lg:text-wrap">
               A demo video that updates with every deploy.
             </h1>
-            <p className="text-haze max-w-[36ch] text-xl leading-relaxed">
+            <p className="text-haze max-w-[36ch] text-xl leading-relaxed text-pretty">
               Your coding agent writes a Playwright script. shipcut records it
               frame by frame and edits it like a person would.
             </p>
@@ -48,7 +45,7 @@ export default function Home() {
               <Waitlist className="h-12 px-6 text-base" />
               <a
                 href="#how"
-                className="text-lavender font-medium underline-offset-4 hover:underline"
+                className="text-lavender inline-flex h-12 items-center font-medium underline-offset-4 hover:underline"
               >
                 How it works
               </a>
@@ -62,11 +59,11 @@ export default function Home() {
         <section
           id="how"
           aria-labelledby="how-title"
-          className="mx-auto max-w-6xl px-4 py-24 sm:px-8"
+          className="mx-auto max-w-6xl px-4 py-16 sm:px-8 lg:py-24"
         >
           <h2
             id="how-title"
-            className="max-w-[18ch] text-4xl leading-tight font-black tracking-tight sm:text-5xl"
+            className="max-w-[18ch] text-4xl leading-tight font-black tracking-tight text-balance sm:text-5xl"
           >
             From a push to a video in your PR.
           </h2>
@@ -74,12 +71,12 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-line mx-auto flex max-w-6xl flex-col gap-8 border-t px-4 py-16 sm:flex-row sm:items-center sm:px-8">
+      <footer className="border-line mx-auto flex max-w-6xl flex-col gap-8 border-t px-4 py-12 sm:flex-row sm:flex-wrap sm:items-center sm:px-8 lg:py-16">
         <p className="text-3xl font-bold tracking-tight">
           Want it on your app?
         </p>
         <Waitlist className="h-12 px-6 text-base" />
-        <p className="text-haze sm:ml-auto">
+        <p className="text-haze basis-full lg:ml-auto lg:basis-auto">
           Or write to{" "}
           <a
             href="mailto:hello@shipcut.dev"

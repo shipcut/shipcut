@@ -22,20 +22,20 @@ export function Features() {
   return (
     <section
       aria-labelledby="features"
-      className="mx-auto max-w-6xl px-4 py-24 sm:px-8"
+      className="mx-auto max-w-6xl px-4 py-16 sm:px-8 lg:py-24"
     >
       <h2 id="features" className="sr-only">
         What shipcut does
       </h2>
-      <ul className="grid gap-y-14 md:grid-cols-3">
+      <ul className="grid gap-y-14 md:grid-cols-3 md:gap-x-10 md:gap-y-5 lg:gap-x-16">
         {FEATURES.map((f) => (
           <li
             key={f.title}
-            className="md:border-line flex flex-col gap-5 md:border-l md:px-8 md:first:border-l-0 md:first:pl-0"
+            className="md:border-line flex flex-col gap-5 md:row-span-3 md:-ml-5 md:grid md:grid-rows-subgrid md:border-l md:pl-5 md:first:ml-0 md:first:border-l-0 md:first:pl-0 lg:-ml-8 lg:pl-8"
           >
             <div className="h-36">{f.picture}</div>
             <h3 className="text-2xl font-bold tracking-tight">{f.title}</h3>
-            <p className="text-haze max-w-[34ch] text-lg leading-relaxed">
+            <p className="text-haze max-w-[34ch] text-lg leading-relaxed text-pretty">
               {f.text}
             </p>
           </li>
@@ -93,7 +93,7 @@ function Polish() {
 /** The two lines of a scenario that made the hero's second chapter. */
 function Script() {
   return (
-    <pre className="border-line flex h-full flex-col justify-center overflow-hidden rounded-xl border px-4 font-mono text-[13px] leading-6">
+    <pre className="border-line flex h-full flex-col justify-center overflow-hidden rounded-xl border px-4 font-mono text-[13px] leading-6 md:text-xs lg:text-[13px]">
       <code>
         <span className="text-lavender">step</span>(
         <span className="text-sky">&quot;Add two seats&quot;</span>);

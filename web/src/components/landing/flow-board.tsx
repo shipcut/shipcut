@@ -104,10 +104,12 @@ export function FlowBoard() {
 
   const text = shown === 1 ? `frame ${frame} of ${FRAMES}` : LANES[shown]?.card;
 
+  // The tilt moves the board's visible top down, and the isometric view is
+  // taller than its layout box, so the wrapper's heights are what fits the drawing.
   return (
     <div
       ref={board}
-      className="flex justify-center overflow-hidden pt-14 pb-20 md:py-32"
+      className="-mt-6 flex items-center justify-center pb-2 md:mt-8 md:h-[400px] md:pb-0 lg:h-[520px]"
     >
       <div className="iso-plane relative grid w-[min(300px,78vw)] grid-cols-1 gap-3 md:w-[880px] md:grid-cols-4 md:gap-4">
         {LANES.map((l, i) => (
