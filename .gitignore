@@ -6,3 +6,6 @@ out
 .next
 next-env.d.ts
 *.tsbuildinfo
+
+# Satoshi, fetched by web/scripts/satoshi.ts: its licence forbids the file in a public repository.
+web/src/fonts/

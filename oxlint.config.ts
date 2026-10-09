@@ -147,6 +147,11 @@ export default defineConfig({
       },
     },
     {
+      // Satori draws these images without the stylesheet, so colours are literal.
+      files: ["web/src/app/opengraph-image.tsx", "web/src/app/apple-icon.tsx"],
+      rules: { "shadcn/no-raw-colors": "off" },
+    },
+    {
       // The app the hero records wears its own light colours, not ours.
       files: ["web/src/components/landing/hero-stage.tsx"],
       rules: {
