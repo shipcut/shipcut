@@ -1,4 +1,4 @@
-// The stored data. A web UI reads these shapes straight from Blob, so a change
+// The stored data. A web UI reads these shapes straight from the bucket, so a change
 // here is a change to every manifest already published.
 
 /** One file of a run, as measured on disk. */

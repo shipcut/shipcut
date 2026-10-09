@@ -1,4 +1,6 @@
-// The pure parts: ids, flags, ffmpeg arguments, the index and the Markdown.
+// The pure parts: ids, flags, ffmpeg arguments, the index, the Markdown, and
+// the S3 signature and listing the store talks to R2 with.
+import { createHash, createHmac } from "node:crypto";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
 import type { IndexEntry, Manifest, Point, Run, Step } from "./types.ts";
@@ -700,6 +702,75 @@ export function markdown(m: Manifest): string {
     lines.push(`[${f.name}${seconds}](${f.url})`, "");
   }
   return lines.join("\n").trimEnd();
+}
+
+/** Percent-encoding as Signature Version 4 wants it: every UTF-8 byte but `A-Za-z0-9-._~`. */
+export const uriEncode = (text: string) =>
+  encodeURIComponent(text).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+
+/** An object key as a URL path: each segment encoded once, as S3 wants, the slashes kept. */
+export const keyPath = (key: string) => key.split("/").map(uriEncode).join("/");
+
+/** A query string in SigV4's canonical form, sorted by name. It is also the one sent, so the two never differ. */
+export const canonicalQuery = (query: Record<string, string>) =>
+  Object.entries(query)
+    .map(([k, v]) => `${uriEncode(k)}=${uriEncode(v)}`)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    .join("&");
+
+export const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
+
+/** A request as SigV4 signs it: `path` already encoded, header names lowercase, `host` among them. */
+export type S3Request = {
+  method: string;
+  path: string;
+  query: Record<string, string>;
+  headers: Record<string, string>;
+  /** Hex SHA-256 of the body, the same value as the `x-amz-content-sha256` header. */
+  payloadHash: string;
+};
+
+export function canonicalRequest(r: S3Request): string {
+  const names = Object.keys(r.headers).sort();
+  const headers = names.map((n) => `${n}:${r.headers[n]!.trim().replace(/\s+/g, " ")}`);
+  return [r.method, r.path, canonicalQuery(r.query), ...headers, "", names.join(";"), r.payloadHash].join("\n");
+}
+
+/**
+ * The `Authorization` header that signs `r` with AWS Signature Version 4.
+ * `amzDate` is `20130524T000000Z`, the same value as the `x-amz-date` header.
+ */
+export function authorization(
+  r: S3Request,
+  key: { id: string; secret: string; region: string; service: string },
+  amzDate: string,
+): string {
+  const scope = [amzDate.slice(0, 8), key.region, key.service, "aws4_request"];
+  const signingKey = scope.reduce((k: Buffer, part) => createHmac("sha256", k).update(part).digest(), Buffer.from(`AWS4${key.secret}`));
+  const toSign = ["AWS4-HMAC-SHA256", amzDate, scope.join("/"), sha256(canonicalRequest(r))].join("\n");
+  const signature = createHmac("sha256", signingKey).update(toSign).digest("hex");
+  const signed = Object.keys(r.headers).sort().join(";");
+  return `AWS4-HMAC-SHA256 Credential=${key.id}/${scope.join("/")}, SignedHeaders=${signed}, Signature=${signature}`;
+}
+
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+
+/**
+ * One page of a ListObjectsV2 answer: the object keys, the folders folded
+ * under `delimiter`, and the token for the next page while there is one.
+ */
+export function parseListing(xml: string) {
+  const text = (block: string, tag: string) => {
+    const found = new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(block)?.[1];
+    return found?.replace(/&(amp|lt|gt|quot|apos);/g, (_, name: string) => ENTITIES[name] ?? name);
+  };
+  const each = (block: string, tag: string) =>
+    [...xml.matchAll(new RegExp(`<${block}>([\\s\\S]*?)</${block}>`, "g"))].flatMap((m) => text(m[1]!, tag) ?? []);
+  return {
+    keys: each("Contents", "Key"),
+    prefixes: each("CommonPrefixes", "Prefix"),
+    next: /<IsTruncated>true<\/IsTruncated>/.test(xml) ? text(xml, "NextContinuationToken") : undefined,
+  };
 }
 
 /** The background `--frame` paints unless `--background` says otherwise: lavender into pale blue. */

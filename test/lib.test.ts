@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  authorization,
   buildIndex,
+  canonicalQuery,
+  canonicalRequest,
+  keyPath,
+  parseListing,
+  sha256,
+  uriEncode,
   captionFilter,
   captionLayout,
   captionOptions,
@@ -341,4 +348,134 @@ test("polish draws labels always, and a zoom and a frame on a landscape video un
   assert.deepEqual(plan(["--no-zoom", "--no-labels", "--zoom-factor", "2"], desk), { labels: false, zoom: undefined, frame: ["#E4DDFF", "#C9DCFF"] });
   assert.deepEqual(plan(["--zoom", "--zoom-factor", "1.2", "--background", "#000"], story), { labels: true, zoom: 1.2, frame: ["#000"] });
   assert.deepEqual(plan(["--no-frame", "--background", "#000"], desk).frame, undefined);
+});
+
+// The vectors are the examples in the AWS S3 API Reference, "Signature Calculations for the
+// Authorization Header: Transferring Payload in a Single Chunk (AWS Signature Version 4)":
+// GET Object, PUT Object and GET Bucket (List Objects).
+test("SigV4 signs the S3 documentation's GET Object, PUT Object and List Objects examples", () => {
+  const key = { id: "AKIAIOSFODNN7EXAMPLE", secret: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", region: "us-east-1", service: "s3" };
+  const date = "20130524T000000Z";
+  const empty = sha256("");
+  assert.equal(empty, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+  const credential = "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request";
+
+  const host = "examplebucket.s3.amazonaws.com";
+  const get = {
+    method: "GET",
+    path: "/test.txt",
+    query: {},
+    headers: { host, range: "bytes=0-9", "x-amz-content-sha256": empty, "x-amz-date": date },
+    payloadHash: empty,
+  };
+  assert.equal(
+    canonicalRequest(get),
+    `GET\n/test.txt\n\nhost:${host}\nrange:bytes=0-9\nx-amz-content-sha256:${empty}\nx-amz-date:${date}\n\n` +
+      `host;range;x-amz-content-sha256;x-amz-date\n${empty}`,
+  );
+  assert.equal(sha256(canonicalRequest(get)), "7344ae5b7ee6c3e7e6b0fe0640412a37625d1fbfff95c48bbb2dc43964946972");
+  assert.equal(
+    authorization(get, key, date),
+    `${credential}, SignedHeaders=host;range;x-amz-content-sha256;x-amz-date, ` +
+      "Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41",
+  );
+
+  // A body, a key with a character to encode, and headers beside the x-amz ones.
+  const body = sha256("Welcome to Amazon S3.");
+  assert.equal(body, "44ce7dd67c959e0d3524ffac1771dfbba87d2b6b4b4e99e42034a8b803f8b072");
+  const put = {
+    method: "PUT",
+    path: `/${keyPath("test$file.text")}`,
+    query: {},
+    headers: {
+      date: "Fri, 24 May 2013 00:00:00 GMT",
+      host,
+      "x-amz-content-sha256": body,
+      "x-amz-date": date,
+      "x-amz-storage-class": "REDUCED_REDUNDANCY",
+    },
+    payloadHash: body,
+  };
+  assert.equal(put.path, "/test%24file.text");
+  assert.equal(
+    authorization(put, key, date),
+    `${credential}, SignedHeaders=date;host;x-amz-content-sha256;x-amz-date;x-amz-storage-class, ` +
+      "Signature=98ad721746da40c64f1a55b78f14c238d841ea1380cd77a1b5971af0ece108bd",
+  );
+
+  const list = {
+    method: "GET",
+    path: "/",
+    query: { prefix: "J", "max-keys": "2" },
+    headers: { host, "x-amz-content-sha256": empty, "x-amz-date": date },
+    payloadHash: empty,
+  };
+  assert.equal(canonicalRequest(list).split("\n")[2], "max-keys=2&prefix=J");
+  assert.equal(
+    authorization(list, key, date),
+    `${credential}, SignedHeaders=host;x-amz-content-sha256;x-amz-date, ` +
+      "Signature=34b48302e7b5fa45bde8084f4b7868a86f0a534bc59db6670ed5711ef69dc6f7",
+  );
+});
+
+test("the query and a key's path are encoded as SigV4 signs them", () => {
+  // What a listing sends. A continuation token is opaque and may hold `+`, `/` and `=`.
+  assert.equal(
+    canonicalQuery({ "list-type": "2", prefix: "heystol/", delimiter: "/", "continuation-token": "a+b/c= d" }),
+    "continuation-token=a%2Bb%2Fc%3D%20d&delimiter=%2F&list-type=2&prefix=heystol%2F",
+  );
+  assert.equal(canonicalQuery({}), "");
+  // From the aws-sig-v4-test-suite: get-vanilla-query-order-key-case, -query-unreserved, -utf8-query.
+  assert.equal(canonicalQuery({ Param2: "value2", Param1: "value1" }), "Param1=value1&Param2=value2");
+  const unreserved = "-._~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  assert.equal(canonicalQuery({ [unreserved]: unreserved }), `${unreserved}=${unreserved}`);
+  assert.equal(canonicalQuery({ "\u1234": "bar" }), "%E1%88%B4=bar");
+  // encodeURIComponent leaves these alone; SigV4 does not.
+  assert.equal(uriEncode("!'()*"), "%21%27%28%29%2A");
+  // A key keeps its slashes and is encoded once.
+  assert.equal(keyPath("heystol/20261002-134501-landing/01 top.png"), "heystol/20261002-134501-landing/01%20top.png");
+});
+
+test("a ListObjectsV2 page gives its keys, its folders and the token for the next page", () => {
+  const first = `<?xml version="1.0" encoding="UTF-8"?>
+<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <Name>media</Name>
+  <Prefix>heystol/</Prefix>
+  <Delimiter>/</Delimiter>
+  <MaxKeys>1000</MaxKeys>
+  <KeyCount>3</KeyCount>
+  <IsTruncated>true</IsTruncated>
+  <NextContinuationToken>1ueGcxLPRx1Tr/XYExHnhbYLgveDs2J/wm36Hy4vbOwM=</NextContinuationToken>
+  <Contents>
+    <Key>heystol/index.json</Key>
+    <LastModified>2026-10-08T12:00:00.000Z</LastModified>
+    <ETag>&quot;9b2cf535f27731c974343645a3985328&quot;</ETag>
+    <Size>812</Size>
+    <StorageClass>STANDARD</StorageClass>
+  </Contents>
+  <CommonPrefixes>
+    <Prefix>heystol/20261002-134501-landing/</Prefix>
+  </CommonPrefixes>
+  <CommonPrefixes>
+    <Prefix>heystol/20261008-090000-booking/</Prefix>
+  </CommonPrefixes>
+</ListBucketResult>`;
+  assert.deepEqual(parseListing(first), {
+    keys: ["heystol/index.json"],
+    prefixes: ["heystol/20261002-134501-landing/", "heystol/20261008-090000-booking/"],
+    next: "1ueGcxLPRx1Tr/XYExHnhbYLgveDs2J/wm36Hy4vbOwM=",
+  });
+
+  const last =
+    '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">' +
+    "<Name>media</Name><Prefix>heystol/20261002-134501-landing/</Prefix><KeyCount>2</KeyCount><MaxKeys>1000</MaxKeys>" +
+    "<IsTruncated>false</IsTruncated>" +
+    "<Contents><Key>heystol/20261002-134501-landing/01-top.png</Key><Size>1</Size></Contents>" +
+    "<Contents><Key>heystol/20261002-134501-landing/before &amp; after &lt;1&gt;.png</Key><Size>2</Size></Contents>" +
+    "</ListBucketResult>";
+  assert.deepEqual(parseListing(last), {
+    keys: ["heystol/20261002-134501-landing/01-top.png", "heystol/20261002-134501-landing/before & after <1>.png"],
+    prefixes: [],
+    next: undefined,
+  });
 });

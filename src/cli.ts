@@ -1,4 +1,4 @@
-// shipcut: record a web app's flows, clip the video, publish to Vercel Blob.
+// shipcut: record a web app's flows, clip the video, publish to Cloudflare R2.
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { captionOptions, clipOptions, measureOptions, polishOptions, runOptions } from "./lib.ts";

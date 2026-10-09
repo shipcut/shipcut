@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Record screenshots and short videos of a web app's flows and publish them to Vercel Blob.",
+  "description": "Record screenshots and short videos of a web app's flows and publish them to Cloudflare R2.",
   "bin": {
     "shipcut": "bin/shipcut"
   },
@@ -16,7 +16,6 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@vercel/blob": "^2.8.0",
     "playwright": "^1.63.0"
   },
   "devDependencies": {

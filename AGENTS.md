@@ -1,7 +1,7 @@
 # shipcut
 
 A CLI that records screenshots and short videos of a web app in headless
-Chromium and publishes them to Vercel Blob with a manifest. Other projects
+Chromium and publishes them to Cloudflare R2 with a manifest. Other projects
 keep the scenarios; this repo records, clips and publishes. `.claude/CLAUDE.md`
 is a single `@` import of this file.
 
@@ -9,9 +9,11 @@ One name everywhere: the command, the product, the repository
 `shipcut/shipcut`, the checkout `~/projects/shipcut` and the Vercel project
 `shipcut`. The old name `shots` is gone, and nothing reads it.
 
-There is no store behind `publish`, `list` and `rm` since 2026-10-08: the
-Blob store was deleted ahead of the move to R2, and until then they stop at
-the missing token.
+The store is the Cloudflare R2 bucket `shipcut-media`, served at
+`https://media.shipcut.dev`. DNS for `shipcut.dev` is on Cloudflare; the
+landing's records point at Vercel. The five `R2_*` keys are in
+`~/.config/shipcut/env` on dev01, a plain file with mode 600, from a token
+that can read and write that one bucket.
 
 What the product is and is not: `PRODUCT.md`. The order of work: `ROADMAP.md`.
 The current stage in detail: `docs/prd/<nn>-*.md`, the one `ROADMAP.md` names.
@@ -24,12 +26,12 @@ true when a flag or a stored shape changes.
 - `bin/shipcut` - the entry, symlinked into PATH. Runs `src/cli.ts` with Node.
 - `src/cli.ts` - dispatch, and the re-exec under `heavy`.
 - `src/lib.ts` - everything pure: run id, presets, flag parsing, ffmpeg
-  arguments, the caption timeline and layout, the index, the Markdown. This is
-  what the tests cover.
+  arguments, the caption timeline and layout, the index, the Markdown, the S3
+  signature and the listing parser. This is what the tests cover.
 - `src/run.ts` - the browser: scenario contract, the pointer's glide, the old cursor, the recorder,
   `run.json`.
 - `src/clip.ts` - `clip`, `caption`, `polish` and `measure`, the ffmpeg wrappers.
-- `src/store.ts` - Blob: publish, list, rm, the token.
+- `src/store.ts` - R2: publish, list, rm, the credentials.
 - `src/types.ts` - the stored shapes. Published manifests already have them,
   so add fields, do not rename or remove.
 - `fonts/` - Inter SemiBold for the labels and Inter Bold for the captions,
@@ -57,8 +59,10 @@ true when a flag or a stored shape changes.
 - No build step. Node 24 strips types, so only erasable syntax: no `enum`, no
   parameter properties, no namespaces, and imports carry `.ts`. `tsconfig.json`
   enforces it.
-- Runtime dependencies are `playwright` and `@vercel/blob`. Anything else needs
-  a reason; if ffmpeg or Playwright does the job, there is no reason.
+- The one runtime dependency is `playwright`. `src/store.ts` talks to R2's S3
+  API with `fetch` and a Signature Version 4 signer built on `node:crypto`,
+  with no SDK. Anything else needs a reason; if Node, ffmpeg or Playwright does
+  the job, there is no reason.
 - Playwright stays on the minor whose Chromium is in `~/.cache/ms-playwright`.
   Bumping it means a browser download, so say so first.
 - The video comes from Chromium's screencast over CDP, or under
@@ -72,10 +76,14 @@ true when a flag or a stored shape changes.
 - Every time in a run comes from its `Clock`: steps, shots, the pointer's
   events and its waits. Never `Date.now()` or `setTimeout` for those; under
   `--frame-by-frame` the video's time is not the wall clock's.
-- The token is read in `src/store.ts` and nowhere else, and is never printed.
-- Reads of a rewritten Blob path are stale for a minute or more, even with a
-  cache-busting query. Do not build on reading back what was just written; the
-  listing API is the truth (`currentIndex` in `src/store.ts`).
+- Only `src/store.ts` reads the R2 credentials, the five `R2_*` variables.
+  Nothing prints a value, not even an error. An error names the missing
+  variables, or R2's error code and the object key.
+- Cloudflare and browsers cache a public URL for its `max-age`. A rewritten
+  `index.json` or `manifest.json` can read stale for a minute, and a deleted
+  run file for a year. Do not read back through the public URL something you
+  just wrote and build on it. The S3 API's listing is the truth
+  (`currentIndex` in `src/store.ts`).
 - `vercel.json` keeps Git deployments off until there is an app. Do not push a
   branch expecting a preview.
 

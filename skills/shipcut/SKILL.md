@@ -6,7 +6,7 @@ description: Record screenshots and a short video of this project's web app with
 # shipcut
 
 `shipcut` drives a scenario in headless Chromium, saves PNGs and an mp4, and
-uploads them to a public Blob store. You get Markdown with the links.
+uploads them to a public Cloudflare R2 bucket. You get Markdown with the links.
 
 ## When to record
 
@@ -84,8 +84,9 @@ Files land in `./out/<run-id>/` with a `run.json`; the command prints the
 paths. Look at the PNGs before publishing. If the scenario throws, read
 `failed.png` in the same directory.
 
-`run`, `clip`, `caption` and `polish` queue themselves through `heavy` on a shared box.
-Do not wrap them. Exit 75 means the box is busy. Retry later.
+Where `heavy`, a memory queue for shared machines, is on PATH, `run`, `clip`,
+`caption` and `polish` queue themselves through it. Do not wrap them. Exit 75
+means the machine is busy. Retry later.
 
 ## Polish
 
@@ -135,6 +136,12 @@ directory is uploaded with it. An mp4 is only ever a link in Markdown; a GIF sho
 shipcut publish out/<run-id> --project <this project's name> --title "What changed"
 ```
 
+Publishing needs five variables, in the environment or in
+`~/.config/shipcut/env`: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY`, `R2_BUCKET` and `R2_PUBLIC_URL`. If `publish` stops
+and names missing ones, ask the person for them; do not look for them
+elsewhere, and never print them.
+
 The project name is lowercase with dashes and stays the same for every run of
 this project. Stdout is the Markdown block. Paste it as printed into the PR
 description or the changelog entry; for before and after, put the two blocks
@@ -142,4 +149,5 @@ under "Before" and "After".
 
 `shipcut list --project <name>` shows what is stored.
 `shipcut rm <project>/<run-id> --yes` removes a run you published by mistake.
-Remove only runs you made.
+Remove only runs you made. Cloudflare's cache can keep serving the files after
+that, so if one showed something private, tell the person to purge its URLs.

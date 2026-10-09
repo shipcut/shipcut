@@ -1,7 +1,7 @@
 # shipcut
 
 Screenshots and short videos of an app's real flows, recorded in headless
-Chromium and published to Vercel Blob with a manifest. A changelog entry or a
+Chromium and published to Cloudflare R2 with a manifest. A changelog entry or a
 PR pastes the links; later a web UI lists what was saved.
 
 Scenarios live in the project they record. `shipcut` only records, clips and
@@ -12,17 +12,35 @@ publishes.
 Node 24 runs the TypeScript as is, so there is no build.
 
 ```sh
+git clone https://github.com/shipcut/shipcut && cd shipcut
 pnpm install
-ln -s "$PWD/bin/shipcut" ~/.local/bin/shipcut
+ln -s "$PWD/bin/shipcut" ~/.local/bin/shipcut   # or any directory on your PATH
 ```
 
 It needs `ffmpeg` built with librsvg (Ubuntu's is) and `ffprobe` on PATH, and
 Playwright's Chromium
 (`pnpm exec playwright install chromium` where it is missing).
 
-Publishing needs `BLOB_READ_WRITE_TOKEN`, from the environment or else from
-`~/.config/shipcut/env` (a `KEY=value` file; a link to this repo's `.env.local`
-works).
+Linux is where it is built and tested, and a CI runner is Linux. On macOS it
+records, but `--frame-by-frame` does not run, because Chrome there cannot be
+driven frame by frame. Windows is untested, and `bin/shipcut` is a bash
+script.
+
+Publishing needs a Cloudflare R2 bucket whose files are served publicly, and
+five variables. Each comes from the environment or else from
+`~/.config/shipcut/env`, a `KEY=value` file:
+
+```sh
+R2_ACCOUNT_ID=...          # the Cloudflare account that holds the bucket
+R2_ACCESS_KEY_ID=...       # an R2 API token's S3 credentials,
+R2_SECRET_ACCESS_KEY=...   # with Object Read & Write on the bucket
+R2_BUCKET=...
+R2_PUBLIC_URL=https://media.shipcut.dev   # where the bucket is served; every link starts here
+```
+
+`shipcut` signs its own requests to R2's S3 API, so there is no SDK to
+install. If a variable is missing, `publish`, `list` and `rm` stop and name
+it. They never print a value.
 
 ## Commands
 
@@ -96,8 +114,8 @@ frame fails and says so.
 
 It records the one page the scenario is given. A popup or a second tab is not
 in it. Headless Chromium paints in software, so a 1080x1920 page that changes
-on every frame comes out at about 26 repaints a second on a 4-vCPU box with
-no GPU, and a heavy page at 2 to 4; `shipcut measure` prints the number for a
+on every frame comes out at about 26 repaints a second on a 4-vCPU machine
+with no GPU, and a heavy page at 2 to 4; `shipcut measure` prints the number for a
 run.
 
 `--frame-by-frame` takes the page's time away from the wall clock. Chromium
@@ -112,16 +130,12 @@ animation that counts its callbacks instead of reading their time runs twice
 as fast. Steps, shots, the pointer's events and the scenario's
 `page.waitForTimeout` and typing delays all count video time, so two runs of
 the same scenario come out the same length to within a frame. Recording takes
-longer than the video: about 3 times at 1280x800 and 4 at 1080x1920 here. A
+longer than the video: about 3 times at 1280x800 and 4 at 1080x1920 on that
+machine. A
 request that never ends, a stream or a long poll, would hold the clock, so
 after 5 s the clock runs past pending requests for the rest of the run and
 says which request it was. It needs Chromium's headless shell, which
-Playwright runs by default, on Linux or Windows.
-
-Where `heavy` is on PATH, `run`, `clip` and `caption` run themselves again
-under `heavy --name shipcut --no-lock --mem 1500M --need 800`, so the browser and
-ffmpeg share one memory cap. Exit 75 means the box had no memory to spare. A
-story run peaks near 700 MB.
+Playwright runs by default, so Linux. A story run peaks near 700 MB.
 
 ### clip
 
@@ -239,7 +253,8 @@ a before and an after.
 shipcut publish out/20261002-134501-booking --project heystol --title "Booking, new form"
 ```
 
-Uploads the run and prints Markdown on stdout: images embedded, videos linked.
+Uploads the run to the bucket and prints Markdown on stdout: images embedded,
+videos linked.
 No Markdown host plays an outside mp4 inline, so for motion in a PR make a GIF
 first. Publishing the same run again replaces it.
 
@@ -257,19 +272,20 @@ Without `--project`, every project.
 shipcut rm heystol/20261002-134501-booking
 ```
 
-Deletes the run's files and its index entry. Asks first unless `--yes`. The
-CDN can keep serving a deleted file for a few minutes.
+Deletes the run's files and its index entry. Asks first unless `--yes`.
+Cloudflare's cache and any browser that already fetched a file can keep
+serving it until it expires, which for a run's files is a year. When one must
+be gone now, purge its URL in the Cloudflare dashboard.
 
 ## Data layout
 
-One public Blob store. No database: the web UI reads these. No store is
-connected since 2026-10-08, while the store moves to R2, so `publish`, `list`
-and `rm` stop at the missing token.
+One R2 bucket, served at `R2_PUBLIC_URL`. No database: the web UI reads
+these.
 
 ```
 <project>/index.json               IndexEntry[], newest first    max-age 60
 <project>/<run-id>/manifest.json   Manifest                      max-age 60
-<project>/<run-id>/<file>          png, mp4, gif                 max-age one year
+<project>/<run-id>/<file>          png, mp4, gif                 max-age one year, immutable
 ```
 
 The types are in `src/types.ts`, and only there: `Run` is the local
@@ -280,13 +296,13 @@ time.
 
 Two things a reader should know:
 
-- `index.json` is derived. The store's listing decides which runs exist, and
-  every publish and rm rebuilds the index from it. A public store sits behind
-  a CDN that serves an overwritten file's old copy for a minute or more, so the
-  index a browser fetches can lag by that much. A server that holds the token
-  can list `<project>/` folders instead and never lag.
-- Projects are the store's top-level folders (`list({ mode: "folded" })`).
-  There is no list of projects stored anywhere.
+- `index.json` is derived. The bucket's listing decides which runs exist, and
+  every publish and rm rebuilds the index from it. Its public URL carries
+  `max-age=60`, so the index a page fetches can lag by up to a minute. A
+  server with the R2 credentials can list the
+  `<project>/` folders through the S3 API instead and never lag.
+- Projects are the bucket's top-level folders (ListObjectsV2 with
+  `delimiter=/`). There is no list of projects stored anywhere.
 
 ## Deployments are off
 
