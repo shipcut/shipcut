@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shipcut</title>
+<meta name="description" content="A demo video that updates with every deploy.">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#E4DDFF">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 22'%3E%3Cpath d='M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z' fill='%23111' stroke='%23fff' stroke-width='1.3' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@700;800&family=Google+Sans+Code:wght@400;500&family=Inter:wght@400;600&display=swap">
+<script defer src="/_vercel/insights/script.js"></script>
+<style>
+  /* The page is the stage the polished videos are framed on: their gradient,
+     their window and shadow, their violet labels. */
+  :root {
+    --lavender: #E4DDFF;
+    --sky: #C9DCFF;
+    --violet: #6C5CE7;
+    --violet-deep: #5544D6;
+    --ink: #1B1340;
+    --ink-soft: #4A4270;
+    --window: #000;
+    --code: #E4DDFF;
+    --code-dim: #8F88B8;
+    --display: "Funnel Display", "Inter", system-ui, sans-serif;
+    --text: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Google Sans Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --shadow: 0 8px 30px rgb(0 0 0 / 0.3);
+    --gutter: clamp(16px, 4vw, 56px);
+  }
+  * { box-sizing: border-box; }
+  html { min-height: 100%; background: linear-gradient(to bottom right, var(--lavender), var(--sky)); -webkit-text-size-adjust: 100%; }
+  body { margin: 0; color: var(--ink); font: 17px/1.5 var(--text); }
+  h1, h2, p, figure, ol { margin: 0; }
+  a { color: inherit; text-underline-offset: 3px; }
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+  .page { max-width: 1440px; margin: 0 auto; padding: 0 var(--gutter); }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0; }
+  .mark { display: inline-flex; align-items: center; gap: 8px; font: 800 24px/1 var(--display); letter-spacing: -0.02em; text-decoration: none; }
+  .mark svg { width: 16px; height: 22px; filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.4)); }
+
+  /* The pointer's label in the videos: violet, Inter SemiBold, white. */
+  .pill { display: inline-block; padding: 10px 16px; border: 0; border-radius: 10px; background: var(--violet); color: #fff; font: 600 15px/1.2 var(--text); text-decoration: none; cursor: pointer; box-shadow: 0 1px 2px rgb(0 0 0 / 0.35); }
+  .pill:hover { background: var(--violet-deep); }
+
+  h1 { max-width: 12.5em; margin: clamp(16px, 4vh, 48px) 0 clamp(28px, 5vh, 56px); font: 800 clamp(40px, 5.6vw, 96px)/0.98 var(--display); letter-spacing: -0.03em; text-wrap: balance; }
+
+  /* A recording, cut to its window: the video's own gradient margin is hidden
+     and the page's gradient takes its place, with the same corners and shadow. */
+  .win { position: relative; overflow: hidden; aspect-ratio: 1648 / 1028; border-radius: 1.95% / 3.13%; background: var(--window); box-shadow: var(--shadow); }
+  .win video { position: absolute; left: -8.2524%; top: -8.3658%; width: 116.505%; height: auto; aspect-ratio: 1920 / 1200; }
+  /* Native controls would sit in the cut-off margin, so each window has its own pause. */
+  .toggle { position: absolute; right: 12px; bottom: 12px; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: rgb(0 0 0 / 0.55); color: #fff; cursor: pointer; }
+  .toggle svg { width: 14px; height: 14px; fill: currentColor; }
+  .toggle:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .toggle .play, .toggle[data-paused] .pause { display: none; }
+  .toggle[data-paused] .play { display: inline; }
+
+  .hero { display: grid; gap: 28px; }
+  .hero .take { max-width: 560px; }
+  .take figcaption { margin-top: 20px; }
+  h2 { font: 700 clamp(24px, 2.1vw, 32px)/1.12 var(--display); letter-spacing: -0.015em; text-wrap: balance; }
+  .take p { margin-top: 6px; color: var(--ink-soft); }
+  .soon { display: inline-block; margin-left: 2px; padding: 3px 10px; border: 1.5px solid var(--ink); border-radius: 10px; font: 600 14px/1.3 var(--text); letter-spacing: 0; vertical-align: 0.3em; }
+
+  /* The six step() calls of booking.ts, one per chapter of the video above. */
+  .code { padding: 14px 10px 12px; border-radius: 14px; background: var(--window); color: var(--code); box-shadow: var(--shadow); }
+  .file { padding: 0 10px 8px; color: #A9A3CC; font: 400 13px/1.4 var(--mono); }
+  .steps { padding: 0; list-style: none; }
+  .steps button { display: flex; align-items: center; gap: 14px; width: 100%; padding: 4px 10px; border: 0; border-radius: 10px; background: none; color: inherit; font: 400 15px/1.5 var(--mono); text-align: left; cursor: pointer; }
+  .steps button:hover:not([aria-current]) code { background: rgb(228 221 255 / 0.12); }
+  .steps button:focus-visible { outline: 2px solid var(--code); outline-offset: 0; }
+  .steps .at { flex: none; width: 3ch; color: var(--code-dim); font-variant-numeric: tabular-nums; }
+  .steps code { padding: 3px 9px; border-radius: 8px; font: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .steps [aria-current] .at { color: #fff; }
+  .steps [aria-current] code { background: var(--violet); color: #fff; font-weight: 500; }
+
+  .takes { display: grid; gap: 64px 40px; margin-top: clamp(80px, 12vh, 140px); }
+  .art { display: block; width: 100%; height: auto; }
+
+  .join { display: grid; gap: 24px 40px; margin: clamp(96px, 14vh, 160px) 0 0; }
+  .join h2 { font-size: clamp(32px, 3.6vw, 56px); line-height: 1.02; letter-spacing: -0.025em; }
+  .join form { display: flex; flex-wrap: wrap; gap: 10px; max-width: 620px; }
+  .join label { flex-basis: 100%; font-weight: 600; font-size: 15px; }
+  .join input { flex: 1 1 240px; min-width: 0; min-height: 52px; padding: 0 16px; border: 1.5px solid var(--ink-soft); border-radius: 10px; background: #fff; color: var(--ink); font: 400 17px var(--text); }
+  .join input:focus-visible { outline-offset: 2px; }
+  .join .pill { min-height: 52px; padding: 0 20px; font-size: 16px; }
+  .join .pill[aria-disabled] { cursor: wait; opacity: 0.7; }
+  #answer { flex-basis: 100%; min-height: 1.5em; font-weight: 600; }
+  #answer.ok { flex-basis: auto; display: inline-block; padding: 6px 12px; border-radius: 10px; background: var(--violet); color: #fff; }
+  footer { padding: 40px 0 48px; color: var(--ink-soft); }
+
+  @media (max-width: 640px) {
+    /* The story cut, small enough that its steps fit on the same screen. */
+    .hero .win { width: min(100%, calc(58svh * 924 / 1648)); margin: 0 auto; aspect-ratio: 924 / 1648; border-radius: 3.14% / 1.76%; }
+    .hero .win video { left: -8.4416%; top: -8.2524%; width: 116.883%; aspect-ratio: 1080 / 1920; }
+    .steps button { gap: 10px; font-size: 14px; }
+  }
+  @media (min-width: 760px) {
+    .takes, .join { grid-template-columns: 1fr 1fr; }
+    .join { align-items: center; }
+  }
+  @media (min-width: 1000px) {
+    .hero { grid-template-columns: minmax(0, 2fr) minmax(340px, 1fr); gap: 40px; align-items: start; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <a class="mark" href="/"><svg viewBox="0 0 16 22" aria-hidden="true"><path d="M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z" fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/></svg>shipcut</a>
+    <a class="pill" href="#join">Join the waitlist</a>
+  </header>
+
+  <main>
+    <h1>A demo video that updates with every deploy.</h1>
+
+    <section class="hero" aria-label="Demo">
+      <div class="win"><video id="demo" data-video="booking" muted loop playsinline aria-label="A guest books a table in Heystol, recorded by shipcut"></video><button class="toggle" type="button" aria-label="Pause video"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pause" d="M4 3h3v10H4zM9 3h3v10H9z"/><path class="play" d="M5 2.5l8.5 5.5L5 13.5z"/></svg></button></div>
+      <figure class="take">
+        <div class="code">
+          <p class="file">booking.ts</p>
+          <ol class="steps" aria-label="Chapters, click one to jump there">
+            <li><button type="button"><span class="at">0:00</span><code>step("A guest opens Kávomat");</code></button></li>
+            <li><button type="button"><span class="at">0:03</span><code>step("Book a table");</code></button></li>
+            <li><button type="button"><span class="at">0:05</span><code>step("Pick a day");</code></button></li>
+            <li><button type="button"><span class="at">0:08</span><code>step("Pick a time");</code></button></li>
+            <li><button type="button"><span class="at">0:10</span><code>step("Name and email");</code></button></li>
+            <li><button type="button"><span class="at">0:13</span><code>step("Table booked");</code></button></li>
+          </ol>
+        </div>
+        <figcaption>
+          <h2>Your coding agent writes the flow.</h2>
+          <p>You review it like any PR.</p>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="takes" aria-label="What you get">
+      <figure class="take">
+        <div class="win"><video data-video="events" muted loop playsinline aria-label="An owner creates an event and a guest books a seat, recorded by shipcut"></video><button class="toggle" type="button" aria-label="Pause video"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="pause" d="M4 3h3v10H4zM9 3h3v10H9z"/><path class="play" d="M5 2.5l8.5 5.5L5 13.5z"/></svg></button></div>
+        <figcaption>
+          <h2>shipcut renders it frame by frame.</h2>
+          <p>Smooth on a slow CI runner. Emails blurred.</p>
+        </figcaption>
+      </figure>
+      <figure class="take">
+        <svg class="art" viewBox="0 0 640 400" role="img" aria-label="A git push, and a new cut of the video lands on top of the old ones">
+          <defs>
+            <filter id="lift" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dy="6" stdDeviation="10" flood-opacity=".3"/></filter>
+            <filter id="nib" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dy="1" stdDeviation="1" flood-opacity=".4"/></filter>
+            <marker id="head" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L8 5L1 9" fill="none" stroke="#1B1340" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+          </defs>
+          <!-- the push -->
+          <g filter="url(#lift)">
+            <rect x="8" y="56" width="214" height="82" rx="12" fill="#000"/>
+          </g>
+          <text x="30" y="106" fill="#E4DDFF" font-family="Google Sans Code, monospace" font-size="22"><tspan fill="#8F88B8">$</tspan> git push</text>
+          <path d="M120 150 C 130 250, 200 270, 262 262" fill="none" stroke="#1B1340" stroke-width="2.5" stroke-linecap="round" marker-end="url(#head)"/>
+          <!-- older cuts, then the fresh one on top -->
+          <rect x="324" y="40" width="300" height="187" rx="12" fill="none" stroke="#1B1340" stroke-width="2" opacity=".25"/>
+          <rect x="300" y="72" width="310" height="194" rx="12" fill="none" stroke="#1B1340" stroke-width="2" opacity=".45"/>
+          <g filter="url(#lift)">
+            <rect x="276" y="104" width="340" height="212" rx="13" fill="#000"/>
+          </g>
+          <!-- a booking page, drawn small -->
+          <rect x="300" y="128" width="96" height="14" rx="4" fill="#E4DDFF"/>
+          <rect x="300" y="154" width="150" height="8" rx="4" fill="#4A4270"/>
+          <g fill="#2A2546">
+            <rect x="300" y="178" width="58" height="26" rx="6"/><rect x="366" y="178" width="58" height="26" rx="6"/><rect x="432" y="178" width="58" height="26" rx="6"/>
+            <rect x="300" y="212" width="58" height="26" rx="6"/><rect x="432" y="212" width="58" height="26" rx="6"/>
+          </g>
+          <rect x="366" y="212" width="58" height="26" rx="6" fill="#E4DDFF"/>
+          <rect x="300" y="256" width="190" height="30" rx="7" fill="#C9DCFF"/>
+          <!-- the pointer and its label, as polish draws them -->
+          <path transform="translate(412 268) scale(1.6) translate(-1 -1)" d="M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z" fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round" filter="url(#nib)"/>
+          <g filter="url(#nib)"><rect x="434" y="300" width="150" height="36" rx="10" fill="#6C5CE7"/></g>
+          <text x="509" y="324" fill="#fff" font-family="Inter, sans-serif" font-weight="600" font-size="18" text-anchor="middle">Book a table</text>
+        </svg>
+        <figcaption>
+          <h2>A fresh cut on every deploy. <span class="soon">Coming</span></h2>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="join" id="join" aria-labelledby="join-title">
+      <h2 id="join-title">Hear when it ships.</h2>
+      <form action="/api/waitlist" method="post">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@company.com">
+        <button class="pill" type="submit">Join the waitlist</button>
+        <p id="answer" role="status"></p>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <p>Want it on your app? Ask Roman at <a href="mailto:hello@shipcut.dev">hello@shipcut.dev</a>.</p>
+  </footer>
+</div>
+<script>
+  // The videos live on R2 behind Cloudflare, not in this repo.
+  // Published with `shipcut publish --project heystol`; a re-recording gets a new run id here.
+  const MEDIA = "https://media.shipcut.dev";
+  const VIDEOS = {
+    desktop: "heystol/20261008-120850-booking/video-polished-clip.mp4",
+    story: "heystol/20261008-121515-booking/video-polished-clip.mp4",
+    events: "heystol/20261008-140834-events/video-polished-clip.mp4",
+  };
+  // When each step() starts in each cut of the booking video, in seconds.
+  const CHAPTERS = { desktop: [0, 3.333, 5.133, 8.267, 10, 13.6], story: [0, 3.333, 5.1, 8.067, 9.8, 13.367] };
+
+  // The story cut is 9:16, for screens too narrow for 1920x1200. Same query as the CSS.
+  const narrow = matchMedia("(max-width: 640px)");
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const demo = document.getElementById("demo");
+  const lines = [...document.querySelectorAll(".steps button")];
+  let cut = "desktop";
+  let current = -1;
+
+  // Without motion the videos wait for their play button instead of starting on their own,
+  // showing their second 1: the first frame is the page before it paints, white.
+  function load(video, file) {
+    video.autoplay = !still;
+    if (still) video.addEventListener("loadedmetadata", () => { video.currentTime = 1; }, { once: true });
+    video.src = `${MEDIA}/${file}`;
+  }
+
+  for (const video of document.querySelectorAll("video")) {
+    const toggle = video.parentElement.querySelector(".toggle");
+    const sync = () => {
+      toggle.toggleAttribute("data-paused", video.paused);
+      toggle.setAttribute("aria-label", video.paused ? "Play video" : "Pause video");
+    };
+    video.addEventListener("play", sync);
+    video.addEventListener("pause", sync);
+    toggle.addEventListener("click", () => (video.paused ? video.play() : video.pause()));
+    sync();
+  }
+
+  function show(index) {
+    if (index === current) return;
+    lines[current]?.removeAttribute("aria-current");
+    lines[index]?.setAttribute("aria-current", "step");
+    current = index;
+  }
+
+  function pickCut() {
+    cut = narrow.matches ? "story" : "desktop";
+    CHAPTERS[cut].forEach((start, i) => {
+      lines[i].querySelector(".at").textContent = `0:${String(Math.floor(start)).padStart(2, "0")}`;
+    });
+    load(demo, VIDEOS[cut]);
+    show(0);
+  }
+
+  pickCut();
+  narrow.addEventListener("change", pickCut);
+  load(document.querySelector('video[data-video="events"]'), VIDEOS.events);
+
+  // The chapter on screen lights its step() line. A seek lands a hair early, hence the 0.05.
+  demo.addEventListener("timeupdate", () => {
+    show(CHAPTERS[cut].findLastIndex((start) => demo.currentTime + 0.05 >= start));
+  });
+  lines.forEach((line, i) => line.addEventListener("click", () => {
+    demo.currentTime = CHAPTERS[cut][i];
+    show(i);
+    demo.play();
+  }));
+
+  // Posts in place; without this script the form posts and the function answers with a page.
+  const form = document.querySelector("form");
+  const answer = document.getElementById("answer");
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = form.querySelector("button");
+    // aria-disabled rather than disabled: a disabled button drops keyboard focus.
+    if (button.hasAttribute("aria-disabled")) return;
+    button.setAttribute("aria-disabled", "true");
+    answer.textContent = "";
+    answer.className = "";
+    try {
+      const response = await fetch(form.action, { method: "POST", body: new URLSearchParams(new FormData(form)) });
+      answer.textContent = await response.text();
+      if (response.ok) {
+        answer.className = "ok";
+        form.reset();
+      }
+    } catch {
+      answer.textContent = "No connection. Try again.";
+    } finally {
+      button.removeAttribute("aria-disabled");
+    }
+  });
+</script>
+</body>
+</html>
