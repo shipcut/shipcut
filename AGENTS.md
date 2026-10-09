@@ -84,8 +84,9 @@ true when a flag or a stored shape changes.
   run file for a year. Do not read back through the public URL something you
   just wrote and build on it. The S3 API's listing is the truth
   (`currentIndex` in `src/store.ts`).
-- `vercel.json` keeps Git deployments off until there is an app. Do not push a
-  branch expecting a preview.
+- `web/` is the landing at shipcut.dev: the Vercel project `shipcut` has its
+  root there, so a push to `main` deploys it and a branch gets a preview.
+  Nothing outside `web/` is served.
 
 ## Words
 

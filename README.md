@@ -304,10 +304,12 @@ Two things a reader should know:
 - Projects are the bucket's top-level folders (ListObjectsV2 with
   `delimiter=/`). There is no list of projects stored anywhere.
 
-## Deployments are off
+## The landing
 
-`vercel.json` turns Git deployments off, because there is no app to build yet.
-Remove it when the web UI lands.
+`web/` is shipcut.dev: one HTML page and the waitlist function
+`web/api/waitlist.ts`, deployed by Vercel with `web` as the project root, so
+a push to `main` goes live. The function needs `RESEND_API_KEY`,
+`WAITLIST_FROM` and `WAITLIST_TO` in the project's environment.
 
 ## Check
 
