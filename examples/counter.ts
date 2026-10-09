@@ -3,6 +3,7 @@
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+
 import type { Scenario } from "../src/run.ts";
 
 const PAGE = `<!doctype html><meta charset="utf-8"><title>Counter</title>
@@ -22,7 +23,9 @@ const scenario: Scenario = async ({ page, shot, step }) => {
   await once(server, "listening");
   try {
     step("An empty counter");
-    await page.goto(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
+    await page.goto(
+      `http://127.0.0.1:${(server.address() as AddressInfo).port}/`
+    );
     await shot("empty");
 
     step("Three clicks");

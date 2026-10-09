@@ -2,7 +2,7 @@
 // here is a change to every manifest already published.
 
 /** One file of a run, as measured on disk. */
-export type RunFile = {
+export interface RunFile {
   /** File name inside the run, e.g. `01-landing.png`, `video.mp4`. */
   name: string;
   contentType: string;
@@ -13,16 +13,24 @@ export type RunFile = {
   duration?: number;
   /** Milliseconds from the start of the recording, for a shot. */
   at?: number;
-};
+}
 
 /** A chapter a scenario marked with `step(title)`. `caption: false` keeps it out of `shipcut caption`, `zoom: false` out of `polish --zoom`. */
-export type Step = { title: string; at: number; caption?: false; zoom?: false };
+export interface Step {
+  title: string;
+  at: number;
+  caption?: false;
+  zoom?: false;
+}
 
 /** `[ms, x, y]`: milliseconds from the start of the video and CSS pixels of the viewport. */
 export type Point = [number, number, number];
 
 /** What the pointer did under `--pointer`: where it pressed, and every point of its way there. */
-export type Events = { clicks: Point[]; moves: Point[] };
+export interface Events {
+  clicks: Point[];
+  moves: Point[];
+}
 
 /** `run.json`: what `shipcut run` writes next to the files. */
 export interface Run {
@@ -56,7 +64,7 @@ export interface Manifest extends Omit<Run, "files"> {
 }
 
 /** One row of `<project>/index.json`, newest first. */
-export type IndexEntry = {
+export interface IndexEntry {
   id: string;
   title?: string;
   scenario: string;
@@ -65,4 +73,4 @@ export type IndexEntry = {
   /** The first image, for a thumbnail. */
   cover?: string;
   files: number;
-};
+}

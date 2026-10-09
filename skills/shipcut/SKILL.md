@@ -46,12 +46,12 @@ export default async ({ page, base, shot, step }) => {
 shipcut run shipcut/landing.ts --base http://localhost:3000 --video --pointer
 ```
 
-| Preset | Layout | Shots and video |
-|---|---|---|
-| `desktop` (default) | desktop, 1280x800 CSS | 1280x800 |
-| `phone` | phone, 390x844 CSS | 390x844 |
-| `post` | phone, 360x450 CSS at scale 3 | 1080x1350 |
-| `story` | phone, 360x640 CSS at scale 3 | 1080x1920 |
+| Preset              | Layout                        | Shots and video |
+| ------------------- | ----------------------------- | --------------- |
+| `desktop` (default) | desktop, 1280x800 CSS         | 1280x800        |
+| `phone`             | phone, 390x844 CSS            | 390x844         |
+| `post`              | phone, 360x450 CSS at scale 3 | 1080x1350       |
+| `story`             | phone, 360x640 CSS at scale 3 | 1080x1920       |
 
 `post` and `story` are for social feeds, and show the phone layout. For
 anything else, `--viewport WxH` takes CSS pixels and behaves as a desktop, and

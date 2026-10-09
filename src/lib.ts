@@ -3,6 +3,7 @@
 import { createHash, createHmac } from "node:crypto";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
+
 import type { IndexEntry, Manifest, Point, Run, Step } from "./types.ts";
 
 /**
@@ -21,12 +22,16 @@ export const PRESETS = {
 export const slug = (text: string) =>
   text
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-|-$/g, "");
 
 /** `20261002-134501-landing`: UTC to the second, then the scenario's file name. */
 export function runId(now: Date, scenario: string): string {
-  const stamp = now.toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
+  const stamp = now
+    .toISOString()
+    .replaceAll(/[-:]/g, "")
+    .replace("T", "-")
+    .slice(0, 15);
   return `${stamp}-${slug(basename(scenario, extname(scenario))) || "run"}`;
 }
 
@@ -43,7 +48,8 @@ export const contentType = (file: string) =>
 function number(flag: string, value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
   const n = Number(value);
-  if (!Number.isFinite(n) || n < 0) throw new Error(`--${flag} wants a number, got "${value}"`);
+  if (!Number.isFinite(n) || n < 0)
+    throw new Error(`--${flag} wants a number, got "${value}"`);
   return n;
 }
 
@@ -73,20 +79,38 @@ export function runOptions(argv: string[]) {
     },
   });
   const [scenario, ...rest] = positionals;
-  if (!scenario || rest.length) throw new Error("usage: shipcut run <scenario> [flags]");
-  if (values.preset && values.viewport) throw new Error("--preset and --viewport exclude each other");
-  if (values.pointer && values.cursor) throw new Error("--pointer and --cursor both draw a pointer; --pointer is drawn by shipcut polish");
-  if (values.pointer && !values.video) throw new Error("--pointer is drawn over the video, so it needs --video");
-  if (values["frame-by-frame"] && !values.video) throw new Error("--frame-by-frame is a way to record the video, so it needs --video");
+  if (!scenario || rest.length)
+    throw new Error("usage: shipcut run <scenario> [flags]");
+  if (values.preset && values.viewport)
+    throw new Error("--preset and --viewport exclude each other");
+  if (values.pointer && values.cursor)
+    throw new Error(
+      "--pointer and --cursor both draw a pointer; --pointer is drawn by shipcut polish"
+    );
+  if (values.pointer && !values.video)
+    throw new Error("--pointer is drawn over the video, so it needs --video");
+  if (values["frame-by-frame"] && !values.video)
+    throw new Error(
+      "--frame-by-frame is a way to record the video, so it needs --video"
+    );
   if (values["frame-by-frame"] && values.slow)
-    throw new Error("--slow pauses in wall-clock time, which --frame-by-frame does not keep; pause in the scenario instead");
+    throw new Error(
+      "--slow pauses in wall-clock time, which --frame-by-frame does not keep; pause in the scenario instead"
+    );
 
-  const preset: string | undefined = values.preset ?? (values.viewport ? undefined : "desktop");
+  const preset: string | undefined =
+    values.preset ?? (values.viewport ? undefined : "desktop");
   let size: { width: number; height: number; scale: number; mobile: boolean };
   if (values.viewport) {
     const match = /^(\d+)x(\d+)$/.exec(values.viewport);
-    if (!match) throw new Error(`--viewport wants WxH, got "${values.viewport}"`);
-    size = { width: Number(match[1]), height: Number(match[2]), scale: 1, mobile: false };
+    if (!match)
+      throw new Error(`--viewport wants WxH, got "${values.viewport}"`);
+    size = {
+      width: Number(match[1]),
+      height: Number(match[2]),
+      scale: 1,
+      mobile: false,
+    };
   } else {
     if (!preset || !(preset in PRESETS))
       throw new Error(`--preset is one of ${Object.keys(PRESETS).join(", ")}`);
@@ -98,7 +122,11 @@ export function runOptions(argv: string[]) {
     base: values.base.replace(/\/$/, ""),
     out: values.out,
     preset,
-    viewport: { width: size.width, height: size.height, scale: number("scale", values.scale) || size.scale },
+    viewport: {
+      width: size.width,
+      height: size.height,
+      scale: number("scale", values.scale) || size.scale,
+    },
     /** Touch and the mobile viewport, as a phone reports them. */
     mobile: size.mobile,
     video: values.video,
@@ -109,7 +137,10 @@ export function runOptions(argv: string[]) {
     slow: number("slow", values.slow) ?? 0,
     storageState: values["storage-state"],
     /** Under `--mask` or `--mask-selector`: the extra selectors to blur, beside the email and phone defaults. */
-    mask: values.mask || values["mask-selector"]?.length ? (values["mask-selector"] ?? []) : undefined,
+    mask:
+      values.mask || values["mask-selector"]?.length
+        ? (values["mask-selector"] ?? [])
+        : undefined,
     locale: values.locale,
     dark: values.dark,
   };
@@ -131,7 +162,8 @@ export function clipOptions(argv: string[]) {
     },
   });
   const [input, ...rest] = positionals;
-  if (!input || rest.length) throw new Error("usage: shipcut clip <video> [flags]");
+  if (!input || rest.length)
+    throw new Error("usage: shipcut clip <video> [flags]");
   const stem = input.slice(0, input.length - extname(input).length);
   return {
     input,
@@ -145,7 +177,17 @@ export function clipOptions(argv: string[]) {
 }
 
 /** H.264 that X, Threads and Safari play: 4:2:0, even dimensions, moov atom first. */
-export const MP4 = ["-c:v", "libx264", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an"];
+export const MP4 = [
+  "-c:v",
+  "libx264",
+  "-crf",
+  "20",
+  "-pix_fmt",
+  "yuv420p",
+  "-movflags",
+  "+faststart",
+  "-an",
+];
 const EVEN = "scale=trunc(iw/2)*2:trunc(ih/2)*2";
 
 /** Frames per second of a recording, constant whatever the page did. */
@@ -156,14 +198,18 @@ export const FPS = 30;
  * longer, up to a ceiling, so a long move is quick and a short one still
  * reads as a move. The three numbers are the knob.
  */
-export const glideMs = (distance: number) => Math.round(Math.min(900, 250 + distance * 0.9));
+export const glideMs = (distance: number) =>
+  Math.round(Math.min(900, 250 + distance * 0.9));
 
 /**
  * The pointer's way from `from` to `to`: a shallow arc, slow at both ends,
  * one point every sixtieth of a second, each `[ms, x, y]` from the start of
  * the move. Empty when it is already there.
  */
-export function glidePath(from: { x: number; y: number }, to: { x: number; y: number }): Point[] {
+export function glidePath(
+  from: { x: number; y: number },
+  to: { x: number; y: number }
+): Point[] {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const distance = Math.hypot(dx, dy);
@@ -177,7 +223,11 @@ export function glidePath(from: { x: number; y: number }, to: { x: number; y: nu
     const p = at / ms;
     const t = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;
     const u = 1 - t;
-    points.push([Math.round(at), u * u * from.x + 2 * u * t * cx + t * t * to.x, u * u * from.y + 2 * u * t * cy + t * t * to.y]);
+    points.push([
+      Math.round(at),
+      u * u * from.x + 2 * u * t * cx + t * t * to.x,
+      u * u * from.y + 2 * u * t * cy + t * t * to.y,
+    ]);
     if (at === ms) return points;
   }
 }
@@ -199,14 +249,22 @@ export function concatList(offsetsMs: number[], endMs: number): string {
   for (let i = 0; i < offsetsMs.length; i++) {
     const from = i === 0 ? 0 : Math.round(offsetsMs[i]!);
     const to = Math.round(offsetsMs[i + 1] ?? endMs);
-    lines.push(`file ${frameName(i)}`, `duration ${(Math.max(to - from, 1) / 1000).toFixed(3)}`);
+    lines.push(
+      `file ${frameName(i)}`,
+      `duration ${(Math.max(to - from, 1) / 1000).toFixed(3)}`
+    );
   }
   lines.push(`file ${frameName(offsetsMs.length - 1)}`);
   return `${lines.join("\n")}\n`;
 }
 
 /** The ffmpeg arguments that encode a concat list of JPEG frames into a video `seconds` long. */
-export function recordArgs(list: string, out: string, seconds: number, fps = FPS): string[] {
+export function recordArgs(
+  list: string,
+  out: string,
+  seconds: number,
+  fps = FPS
+): string[] {
   // The frames are full-range BT.601 JPEGs. Players take an untagged HD file
   // for limited-range BT.709, so it is converted and tagged, else black is grey.
   // zscale, because swscale either rounds a white page to #fbfdfa or, told to
@@ -215,11 +273,37 @@ export function recordArgs(list: string, out: string, seconds: number, fps = FPS
   // are copies of the converted picture. -t, because the list's repeated last
   // file adds a frame of its own past the recording's end.
   const vf = `crop=trunc(iw/2)*2:trunc(ih/2)*2,zscale=min=170m:rin=full:m=709:r=limited,format=yuv420p,fps=${fps}`;
-  return ["-y", "-f", "concat", "-safe", "0", "-i", list, "-vf", vf, "-t", seconds.toFixed(3), ...MP4, ...BT709, "-preset", "medium", out];
+  return [
+    "-y",
+    "-f",
+    "concat",
+    "-safe",
+    "0",
+    "-i",
+    list,
+    "-vf",
+    vf,
+    "-t",
+    seconds.toFixed(3),
+    ...MP4,
+    ...BT709,
+    "-preset",
+    "medium",
+    out,
+  ];
 }
 
 /** The tags of a limited-range BT.709 file, which every video here is. */
-export const BT709 = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"];
+export const BT709 = [
+  "-colorspace",
+  "bt709",
+  "-color_primaries",
+  "bt709",
+  "-color_trc",
+  "bt709",
+  "-color_range",
+  "tv",
+];
 
 export type PolishOptions = ReturnType<typeof polishOptions>;
 
@@ -241,7 +325,7 @@ export function polishOptions(argv: string[]) {
   const [dir, ...rest] = positionals;
   if (!dir || rest.length)
     throw new Error(
-      "usage: shipcut polish <run-dir> [--[no-]labels] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]",
+      "usage: shipcut polish <run-dir> [--[no-]labels] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]"
     );
   const factor = number("zoom-factor", values["zoom-factor"]) ?? ZOOM.factor;
   if (factor <= 1) throw new Error("--zoom-factor wants a number above 1");
@@ -253,7 +337,10 @@ export function polishOptions(argv: string[]) {
     labels: values.labels,
     frame: values.frame,
     /** `--background`: one colour for a fill, two for a gradient. */
-    background: values.background === undefined ? undefined : backgroundColors(values.background),
+    background:
+      values.background === undefined
+        ? undefined
+        : backgroundColors(values.background),
   };
 }
 
@@ -264,12 +351,20 @@ export function polishOptions(argv: string[]) {
  * the sides. `--background` implies the frame. `zoom` is the factor, `frame`
  * the background's colours.
  */
-export function polishPlan(o: PolishOptions, size: { width: number; height: number }, preset?: string) {
+export function polishPlan(
+  o: PolishOptions,
+  size: { width: number; height: number },
+  preset?: string
+) {
   const landscape = size.width > size.height;
   return {
     labels: o.labels ?? true,
     zoom: (o.zoom ?? landscape) ? o.zoomFactor : undefined,
-    frame: (o.frame ?? (o.background !== undefined || landscape || preset === "story")) ? (o.background ?? BACKGROUND) : undefined,
+    frame:
+      (o.frame ??
+      (o.background !== undefined || landscape || preset === "story"))
+        ? (o.background ?? BACKGROUND)
+        : undefined,
   };
 }
 
@@ -281,10 +376,23 @@ export function polishPlan(o: PolishOptions, size: { width: number; height: numb
  * over `pan` to a click outside the middle of the view, so the picture never
  * rocks in and out. These numbers are the knob.
  */
-export const ZOOM = { factor: 1.5, in: 0.5, lead: 0.1, hold: 1.2, out: 0.6, gap: 1, pan: 0.6 };
+export const ZOOM = {
+  factor: 1.5,
+  in: 0.5,
+  lead: 0.1,
+  hold: 1.2,
+  out: 0.6,
+  gap: 1,
+  pan: 0.6,
+};
 
 /** The camera at `t` seconds: `z` times closer, centred on `x`, `y` in video pixels. */
-export type Keyframe = { t: number; z: number; x: number; y: number };
+export interface Keyframe {
+  t: number;
+  z: number;
+  x: number;
+  y: number;
+}
 
 /**
  * The camera's keyframes for a video of `size` pixels and `seconds`, from the
@@ -292,11 +400,19 @@ export type Keyframe = { t: number; z: number; x: number; y: number };
  * outside them it shows the whole frame. Clicks in a step marked `zoom: false`
  * are left out. `spans` are the stretches in which it is closer than 1.
  */
-export function zoomTrack(clicks: Point[], steps: Step[], size: { width: number; height: number; scale: number; seconds: number }, factor: number) {
+export function zoomTrack(
+  clicks: Point[],
+  steps: Step[],
+  size: { width: number; height: number; scale: number; seconds: number },
+  factor: number
+) {
   const { width: W, height: H, scale, seconds } = size;
   const sorted = [...steps].sort((a, b) => a.at - b.at);
-  const zooms = (at: number) => sorted.findLast((s) => s.at <= at)?.zoom !== false;
-  const points = clicks.filter(([at]) => zooms(at)).map(([at, x, y]) => ({ t: at / 1000, x: x * scale, y: y * scale }));
+  const zooms = (at: number) =>
+    sorted.findLast((s) => s.at <= at)?.zoom !== false;
+  const points = clicks
+    .filter(([at]) => zooms(at))
+    .map(([at, x, y]) => ({ t: at / 1000, x: x * scale, y: y * scale }));
   const half = { x: W / (2 * factor), y: H / (2 * factor) };
   const aim = (p: { x: number; y: number }) => ({
     x: Math.min(Math.max(p.x, half.x), W - half.x),
@@ -307,12 +423,18 @@ export function zoomTrack(clicks: Point[], steps: Step[], size: { width: number;
   const spans: [number, number][] = [];
   const key = (t: number, z: number, at: { x: number; y: number }) => {
     const clamped = Math.min(Math.max(t, keys.at(-1)?.t ?? 0, 0), seconds);
-    keys.push({ t: Math.round(clamped * 1000) / 1000, z, x: Math.round(at.x), y: Math.round(at.y) });
+    keys.push({
+      t: Math.round(clamped * 1000) / 1000,
+      z,
+      x: Math.round(at.x),
+      y: Math.round(at.y),
+    });
   };
   const apart = ZOOM.hold + ZOOM.out + ZOOM.gap + ZOOM.in + ZOOM.lead;
-  for (let i = 0; i < points.length; ) {
+  for (let i = 0; i < points.length;) {
     let j = i;
-    while (j + 1 < points.length && points[j + 1]!.t - points[j]!.t < apart) j++;
+    while (j + 1 < points.length && points[j + 1]!.t - points[j]!.t < apart)
+      j++;
     let center = aim(points[i]!);
     key(points[i]!.t - ZOOM.lead - ZOOM.in, 1, whole);
     const from = keys.at(-1)!.t;
@@ -320,7 +442,11 @@ export function zoomTrack(clicks: Point[], steps: Step[], size: { width: number;
     for (let k = i + 1; k <= j; k++) {
       const p = points[k]!;
       // A click still in the middle of the view needs no pan.
-      if (Math.abs(p.x - center.x) < half.x * 0.6 && Math.abs(p.y - center.y) < half.y * 0.6) continue;
+      if (
+        Math.abs(p.x - center.x) < half.x * 0.6 &&
+        Math.abs(p.y - center.y) < half.y * 0.6
+      )
+        continue;
       key(p.t - ZOOM.lead - ZOOM.pan, factor, center);
       center = aim(p);
       key(p.t - ZOOM.lead, factor, center);
@@ -340,7 +466,11 @@ export function zoomTrack(clicks: Point[], steps: Step[], size: { width: number;
  * fractions of a pixel, so a slow zoom does not shake. Registers 1 to 3 hold
  * `z`, `x` and `y`, register 0 the eased progress.
  */
-export function zoomFilter(keys: Keyframe[], size: { width: number; height: number }, fps = FPS): string {
+export function zoomFilter(
+  keys: Keyframe[],
+  size: { width: number; height: number },
+  fps = FPS
+): string {
   const T = `(in/${fps})`;
   let camera = `st(1,1);st(2,${size.width / 2});st(3,${size.height / 2})`;
   for (let k = keys.length - 2; k >= 0; k--) {
@@ -348,23 +478,40 @@ export function zoomFilter(keys: Keyframe[], size: { width: number; height: numb
     const b = keys[k + 1]!;
     if (b.t <= a.t) continue;
     const ease = `st(0,(${T}-${a.t})/${(b.t - a.t).toFixed(3)});st(0,if(lt(ld(0),0.5),4*ld(0)^3,1-(2-2*ld(0))^3/2))`;
-    const lerp = (r: number, from: number, to: number) => `st(${r},${from}+${to - from}*ld(0))`;
+    const lerp = (r: number, from: number, to: number) =>
+      `st(${r},${from}+${to - from}*ld(0))`;
     camera = `if(between(${T},${a.t},${b.t}),${ease};${lerp(1, a.z, b.z)};${lerp(2, a.x, b.x)};${lerp(3, a.y, b.y)},${camera})`;
   }
   const left = `${camera};ld(2)-W/(2*ld(1))`;
   const right = `${camera};ld(2)+W/(2*ld(1))`;
   const top = `${camera};ld(3)-H/(2*ld(1))`;
   const bottom = `${camera};ld(3)+H/(2*ld(1))`;
-  const corners = { x0: left, y0: top, x1: right, y1: top, x2: left, y2: bottom, x3: right, y3: bottom };
-  return `perspective=${Object.entries(corners).map(([k, v]) => `${k}='${v}'`).join(":")}:interpolation=cubic:eval=frame`;
+  const corners = {
+    x0: left,
+    y0: top,
+    x1: right,
+    y1: top,
+    x2: left,
+    y2: bottom,
+    x3: right,
+    y3: bottom,
+  };
+  return `perspective=${Object.entries(corners)
+    .map(([k, v]) => `${k}='${v}'`)
+    .join(":")}:interpolation=cubic:eval=frame`;
 }
 
 /** Something `polish` draws: SVG in CSS pixels, its width, and the point of it that sits on the pointer's position. */
-export type Sprite = { svg: string; width: number; hotspot: { x: number; y: number } };
+export interface Sprite {
+  svg: string;
+  width: number;
+  hotspot: { x: number; y: number };
+}
 
 const svg = (width: number, height: number, body: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${body}</svg>`;
-const SHADOW = '<defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dy="1" stdDeviation="1" flood-opacity=".4"/></filter></defs>';
+const SHADOW =
+  '<defs><filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dy="1" stdDeviation="1" flood-opacity=".4"/></filter></defs>';
 
 /** An arrow with its tip at `x`, `y`, `size` times its usual 18x27: a 14x21 drawing whose tip sits at 1, 1. */
 const arrow = (x: number, y: number, size = 1) =>
@@ -372,7 +519,11 @@ const arrow = (x: number, y: number, size = 1) =>
   'fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round" filter="url(#s)"/>';
 
 /** The pointer, an arrow on every preset; the tip is the hotspot. */
-export const POINTER: Sprite = { width: 24, hotspot: { x: 4.3, y: 4.3 }, svg: svg(24, 33, `${SHADOW}${arrow(4.3, 4.3)}`) };
+export const POINTER: Sprite = {
+  width: 24,
+  hotspot: { x: 4.3, y: 4.3 },
+  svg: svg(24, 33, `${SHADOW}${arrow(4.3, 4.3)}`),
+};
 
 /** How the arrow sizes through a press, one value a frame: it gives under the finger and springs back. */
 const PRESS = [0.92, 0.86, 0.85, 0.9, 0.96, 1];
@@ -394,7 +545,11 @@ export function clickFrames(fps = FPS): Sprite[] {
       `<circle cx="37" cy="37" r="${radius.toFixed(2)}" fill="${LABEL.color}" fill-opacity="${(0.25 * (1 - p)).toFixed(3)}" ` +
       `stroke="${LABEL.color}" stroke-opacity="${(1 - p).toFixed(3)}" stroke-width="2"/>`;
     const press = PRESS[k];
-    return { width: 74, hotspot: { x: 37, y: 37 }, svg: svg(74, 74, `${SHADOW}${wave}${press ? arrow(37, 37, press) : ""}`) };
+    return {
+      width: 74,
+      hotspot: { x: 37, y: 37 },
+      svg: svg(74, 74, `${SHADOW}${wave}${press ? arrow(37, 37, press) : ""}`),
+    };
   });
 }
 
@@ -411,28 +566,43 @@ export function follow(
   from: number,
   to: number,
   place: (x: number, y: number) => { x: number; y: number },
-  fps = FPS,
+  fps = FPS
 ): string[] {
   const lines: string[] = [];
   let i = 0;
   let last = "";
-  for (let frame = Math.max(0, Math.floor(from * fps)); frame < Math.round(to * fps); frame++) {
+  for (
+    let frame = Math.max(0, Math.floor(from * fps));
+    frame < Math.round(to * fps);
+    frame++
+  ) {
     const ms = (frame * 1000) / fps;
     while (i < moves.length - 1 && moves[i + 1]![0] <= ms) i++;
     if (!moves[i] || moves[i]![0] > ms) continue;
     const { x, y } = place(moves[i]![1], moves[i]![2]);
     if (`${x},${y}` === last) continue;
     last = `${x},${y}`;
-    lines.push(`${Math.max(0, (frame - 0.5) / fps).toFixed(4)} ${target} x ${x}, ${target} y ${y};`);
+    lines.push(
+      `${Math.max(0, (frame - 0.5) / fps).toFixed(4)} ${target} x ${x}, ${target} y ${y};`
+    );
   }
   return lines;
 }
 
 /** The pointer sprite's track from its first move on: `from` (seconds) and `start` place it, `commands` move it. */
-export function pointerTrack(moves: Point[], seconds: number, scale: number, hotspot: { x: number; y: number }, fps = FPS) {
+export function pointerTrack(
+  moves: Point[],
+  seconds: number,
+  scale: number,
+  hotspot: { x: number; y: number },
+  fps = FPS
+) {
   const first = moves[0];
   if (!first) return undefined;
-  const corner = (x: number, y: number) => ({ x: Math.round((x - hotspot.x) * scale), y: Math.round((y - hotspot.y) * scale) });
+  const corner = (x: number, y: number) => ({
+    x: Math.round((x - hotspot.x) * scale),
+    y: Math.round((y - hotspot.y) * scale),
+  });
   return {
     from: first[0] / 1000,
     start: corner(first[1], first[2]),
@@ -445,26 +615,48 @@ export function pointerTrack(moves: Point[], seconds: number, scale: number, hot
  * in the step's words, as wide as its text, in the colour presses wave in. It shows from the step until the
  * next, for `seconds` at most, fading in and out. These numbers are the knob.
  */
-export const LABEL = { size: 14, padX: 10, padY: 6, radius: 8, margin: 4, color: "#6C5CE7", chars: 32, seconds: 4, fade: 0.2 };
+export const LABEL = {
+  size: 14,
+  padX: 10,
+  padY: 6,
+  radius: 8,
+  margin: 4,
+  color: "#6C5CE7",
+  chars: 32,
+  seconds: 4,
+  fade: 0.2,
+};
 
 /** What a `story`'s feed covers with its own controls, in its 1080x1920 pixels. */
 export const STORY_SAFE = { top: 250, bottom: 340 };
 
 const LABEL_FONT = `font-family="Inter, sans-serif" font-weight="600" font-size="${LABEL.size}"`;
-const xml = (text: string) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+const xml = (text: string) =>
+  text.replaceAll(
+    /[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!
+  );
 
 /** A step's title as its label shows it: one line, cut with an ellipsis past `LABEL.chars`. */
 export function labelText(title: string): string {
-  const text = title.trim().replace(/\s+/g, " ");
-  return text.length > LABEL.chars ? `${text.slice(0, LABEL.chars - 1).trimEnd()}…` : text;
+  const text = title.trim().replaceAll(/\s+/g, " ");
+  return text.length > LABEL.chars
+    ? `${text.slice(0, LABEL.chars - 1).trimEnd()}…`
+    : text;
 }
 
 /** The label windows: each captioned step's title, from the step (or the pointer's first move) to the next step, `LABEL.seconds` at most. */
-export function labelWindows(steps: Step[], seconds: number, pointerFrom: number) {
+export function labelWindows(
+  steps: Step[],
+  seconds: number,
+  pointerFrom: number
+) {
   return captionTimeline(steps, seconds).flatMap(({ title, from, to }) => {
     const start = Math.max(from, pointerFrom);
     const end = Math.min(to, start + LABEL.seconds);
-    return end - start >= 0.5 ? [{ text: labelText(title), from: start, to: end }] : [];
+    return end - start >= 0.5
+      ? [{ text: labelText(title), from: start, to: end }]
+      : [];
   });
 }
 
@@ -480,7 +672,10 @@ export function labelProbe(text: string) {
  * shadow in the margin around it. `ink` is in CSS pixels, `left` measured
  * from where the text starts. The hotspot is the pill's top-left corner.
  */
-export function labelSprite(text: string, ink: { left: number; width: number }): Sprite & { pill: { width: number; height: number } } {
+export function labelSprite(
+  text: string,
+  ink: { left: number; width: number }
+): Sprite & { pill: { width: number; height: number } } {
   const width = Math.ceil(ink.width + 2 * LABEL.padX);
   const height = LABEL.size + 2 * LABEL.padY;
   const m = LABEL.margin;
@@ -494,7 +689,7 @@ export function labelSprite(text: string, ink: { left: number; width: number }):
       width + 2 * m,
       height + 2 * m,
       `${SHADOW}<rect x="${m}" y="${m}" width="${width}" height="${height}" rx="${LABEL.radius}" fill="${LABEL.color}" filter="url(#s)"/>` +
-        `<text x="${(m + LABEL.padX - ink.left).toFixed(2)}" y="${(m + baseline).toFixed(2)}" fill="#fff" ${LABEL_FONT}>${xml(text)}</text>`,
+        `<text x="${(m + LABEL.padX - ink.left).toFixed(2)}" y="${(m + baseline).toFixed(2)}" fill="#fff" ${LABEL_FONT}>${xml(text)}</text>`
     ),
   };
 }
@@ -508,15 +703,17 @@ export function labelPlace(
   p: { x: number; y: number },
   pill: { width: number; height: number },
   frame: { width: number; height: number },
-  safe = { top: 0, bottom: 0 },
+  safe = { top: 0, bottom: 0 }
 ) {
   const gap = { x: 14, y: 20 };
   let x = p.x + gap.x;
   if (x + pill.width > frame.width - 8) x = p.x - gap.x - pill.width;
-  const y = Math.min(Math.max(p.y + gap.y, safe.top + 8), frame.height - safe.bottom - 8 - pill.height);
+  const y = Math.min(
+    Math.max(p.y + gap.y, safe.top + 8),
+    frame.height - safe.bottom - 8 - pill.height
+  );
   return { x: Math.max(8, x), y };
 }
-
 
 export function measureOptions(argv: string[]) {
   const { positionals } = parseArgs({ args: argv, allowPositionals: true });
@@ -529,7 +726,7 @@ export function measureOptions(argv: string[]) {
 export function framesKept(stderr: string): number {
   const counts = [...stderr.matchAll(/frame=\s*(\d+)/g)];
   if (!counts.length) throw new Error("ffmpeg printed no frame count");
-  return Number(counts[counts.length - 1]![1]);
+  return Number(counts.at(-1)![1]);
 }
 
 /**
@@ -537,15 +734,25 @@ export function framesKept(stderr: string): number {
  * against the seconds recorded, and the repaints Chromium sent. One fact a
  * line, the number first, so a before and after can sit side by side.
  */
-export function measureLines(run: Run, duration: number, distinct: number): string[] {
-  const lines = [`${(distinct / duration).toFixed(1)} distinct frames/s (${distinct} of ${Math.round(duration * FPS)} at ${FPS} fps)`];
+export function measureLines(
+  run: Run,
+  duration: number,
+  distinct: number
+): string[] {
+  const lines = [
+    `${(distinct / duration).toFixed(1)} distinct frames/s (${distinct} of ${Math.round(duration * FPS)} at ${FPS} fps)`,
+  ];
   lines.push(`${duration.toFixed(2)}s video`);
   if (run.recording) {
     const drift = duration - run.recording.seconds;
-    lines.push(`${drift >= 0 ? "+" : ""}${(drift * 1000).toFixed(0)} ms against the ${run.recording.seconds.toFixed(2)}s recorded`);
-    lines.push(`${(run.recording.repaints / run.recording.seconds).toFixed(1)} repaints/s from Chromium (${run.recording.repaints})`);
+    lines.push(
+      `${drift >= 0 ? "+" : ""}${(drift * 1000).toFixed(0)} ms against the ${run.recording.seconds.toFixed(2)}s recorded`,
+      `${(run.recording.repaints / run.recording.seconds).toFixed(1)} repaints/s from Chromium (${run.recording.repaints})`
+    );
   }
-  lines.push(`${run.steps.length} steps, last at ${((run.steps.at(-1)?.at ?? 0) / 1000).toFixed(2)}s`);
+  lines.push(
+    `${run.steps.length} steps, last at ${((run.steps.at(-1)?.at ?? 0) / 1000).toFixed(2)}s`
+  );
   return lines;
 }
 
@@ -558,11 +765,22 @@ export function captionOptions(argv: string[]) {
     options: { out: { type: "string" }, font: { type: "string" } },
   });
   const [dir, ...rest] = positionals;
-  if (!dir || rest.length) throw new Error("usage: shipcut caption <run-dir> [--out FILE] [--font FILE]");
-  return { dir, out: values.out ?? `${dir.replace(/\/$/, "")}/video-captioned.mp4`, font: values.font };
+  if (!dir || rest.length)
+    throw new Error(
+      "usage: shipcut caption <run-dir> [--out FILE] [--font FILE]"
+    );
+  return {
+    dir,
+    out: values.out ?? `${dir.replace(/\/$/, "")}/video-captioned.mp4`,
+    font: values.font,
+  };
 }
 
-export type Caption = { title: string; from: number; to: number };
+export interface Caption {
+  title: string;
+  from: number;
+  to: number;
+}
 
 /**
  * When each step's title is on screen, in seconds: from its own offset to the
@@ -574,7 +792,9 @@ export function captionTimeline(steps: Step[], duration: number): Caption[] {
   return sorted.flatMap((step, i) => {
     const from = step.at / 1000;
     const to = Math.min((sorted[i + 1]?.at ?? Infinity) / 1000, duration);
-    return step.caption === false || !step.title.trim() || to <= from ? [] : [{ title: step.title.trim(), from, to }];
+    return step.caption === false || !step.title.trim() || to <= from
+      ? []
+      : [{ title: step.title.trim(), from, to }];
   });
 }
 
@@ -583,7 +803,8 @@ export function wrap(text: string, max: number): string[] {
   const lines: string[] = [];
   for (const word of text.split(/\s+/).filter(Boolean)) {
     const last = lines.at(-1);
-    if (last !== undefined && last.length + 1 + word.length <= max) lines[lines.length - 1] = `${last} ${word}`;
+    if (last !== undefined && last.length + 1 + word.length <= max)
+      lines[lines.length - 1] = `${last} ${word}`;
     else lines.push(word);
   }
   return lines;
@@ -595,7 +816,7 @@ export function wrap(text: string, max: number): string[] {
  * both read is escaped twice, and what only the graph reads once.
  */
 export const filterValue = (text: string) =>
-  text.replace(/[\\':]/g, "\\$&").replace(/[\\',;[\]]/g, "\\$&");
+  text.replaceAll(/[\\':]/g, "\\$&").replaceAll(/[\\',;[\]]/g, "\\$&");
 
 // ponytail: no font metrics, a glyph is taken to be 0.6 of the font size wide.
 // The bundled Inter Bold averages 0.53 on a Slovak sentence, DejaVu Sans Bold
@@ -604,18 +825,27 @@ export const filterValue = (text: string) =>
 const GLYPH = 0.6;
 
 /** Where a caption of these lines sits in a frame: a band across it, low. */
-export function captionLayout(title: string, frame: { width: number; height: number }) {
+export function captionLayout(
+  title: string,
+  frame: { width: number; height: number }
+) {
   const usable = frame.width * 0.9;
   const longest = Math.max(...title.split(/\s+/).map((w) => w.length));
   // Relative to the frame's short side; one word too long for a line shrinks it.
-  const size = Math.floor(Math.min(Math.min(frame.width, frame.height) / 22, usable / (GLYPH * longest)));
+  const size = Math.floor(
+    Math.min(
+      Math.min(frame.width, frame.height) / 22,
+      usable / (GLYPH * longest)
+    )
+  );
   const lines = wrap(title, Math.floor(usable / (GLYPH * size)));
   const lineHeight = Math.round(size * 1.35);
   const pad = Math.round(size * 0.6);
   const height = lines.length * lineHeight + 2 * pad;
   // A story's bottom eighth is under the platform's own controls, so a tall
   // frame lifts the band clear of it. Either way the middle stays free.
-  const bottom = frame.height > frame.width ? Math.round(frame.height * 0.88) : frame.height;
+  const bottom =
+    frame.height > frame.width ? Math.round(frame.height * 0.88) : frame.height;
   return { lines, size, lineHeight, pad, height, top: bottom - height };
 }
 
@@ -624,7 +854,11 @@ export function captionLayout(title: string, frame: { width: number; height: num
  * band, so the page never shows through, with a white rule above and below,
  * so the band still reads as one on a black page.
  */
-export function captionFilter(captions: Caption[], frame: { width: number; height: number }, font?: string): string {
+export function captionFilter(
+  captions: Caption[],
+  frame: { width: number; height: number },
+  font?: string
+): string {
   return captions
     .flatMap((c) => {
       const l = captionLayout(c.title, frame);
@@ -640,7 +874,7 @@ export function captionFilter(captions: Caption[], frame: { width: number; heigh
         ...l.lines.map(
           (line, i) =>
             `drawtext=${face}text=${filterValue(line)}:expansion=none:fontsize=${l.size}:fontcolor=white:` +
-            `x=(w-text_w)/2:y=${l.top + l.pad + i * l.lineHeight + Math.round((l.lineHeight - l.size) / 2)}:y_align=font:${enable}`,
+            `x=(w-text_w)/2:y=${l.top + l.pad + i * l.lineHeight + Math.round((l.lineHeight - l.size) / 2)}:y_align=font:${enable}`
         ),
       ];
     })
@@ -663,7 +897,16 @@ export function clipArgs(o: ClipOptions): string[] {
     return ["-y", ...seek, "-i", o.input, "-filter_complex", graph, o.out];
   }
   filters.push(o.width ? `scale=${o.width}:-2` : EVEN);
-  return ["-y", ...seek, "-i", o.input, "-vf", filters.join(","), ...MP4, o.out];
+  return [
+    "-y",
+    ...seek,
+    "-i",
+    o.input,
+    "-vf",
+    filters.join(","),
+    ...MP4,
+    o.out,
+  ];
 }
 
 export function indexEntry(m: Manifest, manifestUrl: string): IndexEntry {
@@ -686,7 +929,9 @@ export function indexEntry(m: Manifest, manifestUrl: string): IndexEntry {
 export function buildIndex(ids: string[], known: IndexEntry[]) {
   const byId = new Map(known.map((e) => [e.id, e]));
   return {
-    index: ids.flatMap((id) => byId.get(id) ?? []).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    index: ids
+      .flatMap((id) => byId.get(id) ?? [])
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     missing: ids.filter((id) => !byId.has(id)),
   };
 }
@@ -696,9 +941,11 @@ export function markdown(m: Manifest): string {
   const lines = m.title ? [`**${m.title}**`, ""] : [];
   const videos = m.files.filter((f) => f.contentType.startsWith("video/"));
   for (const f of m.files)
-    if (f.contentType.startsWith("image/")) lines.push(`![${basename(f.name, extname(f.name))}](${f.url})`, "");
+    if (f.contentType.startsWith("image/"))
+      lines.push(`![${basename(f.name, extname(f.name))}](${f.url})`, "");
   for (const f of videos) {
-    const seconds = f.duration === undefined ? "" : `, ${f.duration.toFixed(1)}s`;
+    const seconds =
+      f.duration === undefined ? "" : `, ${f.duration.toFixed(1)}s`;
     lines.push(`[${f.name}${seconds}](${f.url})`, "");
   }
   return lines.join("\n").trimEnd();
@@ -706,7 +953,10 @@ export function markdown(m: Manifest): string {
 
 /** Percent-encoding as Signature Version 4 wants it: every UTF-8 byte but `A-Za-z0-9-._~`. */
 export const uriEncode = (text: string) =>
-  encodeURIComponent(text).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+  encodeURIComponent(text).replaceAll(
+    /[!'()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+  );
 
 /** An object key as a URL path: each segment encoded once, as S3 wants, the slashes kept. */
 export const keyPath = (key: string) => key.split("/").map(uriEncode).join("/");
@@ -718,22 +968,33 @@ export const canonicalQuery = (query: Record<string, string>) =>
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
     .join("&");
 
-export const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
+export const sha256 = (data: string | Uint8Array) =>
+  createHash("sha256").update(data).digest("hex");
 
 /** A request as SigV4 signs it: `path` already encoded, header names lowercase, `host` among them. */
-export type S3Request = {
+export interface S3Request {
   method: string;
   path: string;
   query: Record<string, string>;
   headers: Record<string, string>;
   /** Hex SHA-256 of the body, the same value as the `x-amz-content-sha256` header. */
   payloadHash: string;
-};
+}
 
 export function canonicalRequest(r: S3Request): string {
   const names = Object.keys(r.headers).sort();
-  const headers = names.map((n) => `${n}:${r.headers[n]!.trim().replace(/\s+/g, " ")}`);
-  return [r.method, r.path, canonicalQuery(r.query), ...headers, "", names.join(";"), r.payloadHash].join("\n");
+  const headers = names.map(
+    (n) => `${n}:${r.headers[n]!.trim().replaceAll(/\s+/g, " ")}`
+  );
+  return [
+    r.method,
+    r.path,
+    canonicalQuery(r.query),
+    ...headers,
+    "",
+    names.join(";"),
+    r.payloadHash,
+  ].join("\n");
 }
 
 /**
@@ -743,17 +1004,33 @@ export function canonicalRequest(r: S3Request): string {
 export function authorization(
   r: S3Request,
   key: { id: string; secret: string; region: string; service: string },
-  amzDate: string,
+  amzDate: string
 ): string {
   const scope = [amzDate.slice(0, 8), key.region, key.service, "aws4_request"];
-  const signingKey = scope.reduce((k: Buffer, part) => createHmac("sha256", k).update(part).digest(), Buffer.from(`AWS4${key.secret}`));
-  const toSign = ["AWS4-HMAC-SHA256", amzDate, scope.join("/"), sha256(canonicalRequest(r))].join("\n");
-  const signature = createHmac("sha256", signingKey).update(toSign).digest("hex");
+  const signingKey = scope.reduce(
+    (k: Buffer, part) => createHmac("sha256", k).update(part).digest(),
+    Buffer.from(`AWS4${key.secret}`)
+  );
+  const toSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    scope.join("/"),
+    sha256(canonicalRequest(r)),
+  ].join("\n");
+  const signature = createHmac("sha256", signingKey)
+    .update(toSign)
+    .digest("hex");
   const signed = Object.keys(r.headers).sort().join(";");
   return `AWS4-HMAC-SHA256 Credential=${key.id}/${scope.join("/")}, SignedHeaders=${signed}, Signature=${signature}`;
 }
 
-const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+const ENTITIES: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+};
 
 /**
  * One page of a ListObjectsV2 answer: the object keys, the folders folded
@@ -762,14 +1039,21 @@ const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"'
 export function parseListing(xml: string) {
   const text = (block: string, tag: string) => {
     const found = new RegExp(`<${tag}>([^<]*)</${tag}>`).exec(block)?.[1];
-    return found?.replace(/&(amp|lt|gt|quot|apos);/g, (_, name: string) => ENTITIES[name] ?? name);
+    return found?.replaceAll(
+      /&(amp|lt|gt|quot|apos);/g,
+      (_, name: string) => ENTITIES[name] ?? name
+    );
   };
   const each = (block: string, tag: string) =>
-    [...xml.matchAll(new RegExp(`<${block}>([\\s\\S]*?)</${block}>`, "g"))].flatMap((m) => text(m[1]!, tag) ?? []);
+    [
+      ...xml.matchAll(new RegExp(`<${block}>([\\s\\S]*?)</${block}>`, "g")),
+    ].flatMap((m) => text(m[1]!, tag) ?? []);
   return {
     keys: each("Contents", "Key"),
     prefixes: each("CommonPrefixes", "Prefix"),
-    next: /<IsTruncated>true<\/IsTruncated>/.test(xml) ? text(xml, "NextContinuationToken") : undefined,
+    next: xml.includes("<IsTruncated>true<\/IsTruncated>")
+      ? text(xml, "NextContinuationToken")
+      : undefined,
   };
 }
 
@@ -780,8 +1064,13 @@ export const BACKGROUND = ["#E4DDFF", "#C9DCFF"];
 export function backgroundColors(spec: string | undefined): string[] {
   if (spec === undefined) return BACKGROUND;
   const colors = spec.split(",").map((c) => c.trim());
-  if (colors.length > 2 || !colors.every((c) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c)))
-    throw new Error(`--background wants #rrggbb or #rrggbb,#rrggbb, got "${spec}"`);
+  if (
+    colors.length > 2 ||
+    !colors.every((c) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c))
+  )
+    throw new Error(
+      `--background wants #rrggbb or #rrggbb,#rrggbb, got "${spec}"`
+    );
   return colors;
 }
 
@@ -795,7 +1084,10 @@ export function backgroundColors(spec: string | undefined): string[] {
 export function frameLayout(size: { width: number; height: number }) {
   const short = Math.min(size.width, size.height);
   const margin = 0.07 * short;
-  const room = { width: size.width - 2 * margin, height: size.height - 2 * margin };
+  const room = {
+    width: size.width - 2 * margin,
+    height: size.height - 2 * margin,
+  };
   const fit = Math.min(room.width / size.width, room.height / size.height);
   const even = (n: number) => 2 * Math.round(n / 2);
   const width = even(size.width * fit);
@@ -810,7 +1102,11 @@ export function frameLayout(size: { width: number; height: number }) {
 }
 
 /** The still behind the window: the background and the window's soft shadow, at the video's size. */
-export function backgroundSvg(size: { width: number; height: number }, window: ReturnType<typeof frameLayout>, colors: string[]) {
+export function backgroundSvg(
+  size: { width: number; height: number },
+  window: ReturnType<typeof frameLayout>,
+  colors: string[]
+) {
   const short = Math.min(size.width, size.height);
   const fill = colors.length === 1 ? colors[0]! : "url(#g)";
   const gradient =
@@ -823,10 +1119,14 @@ export function backgroundSvg(size: { width: number; height: number }, window: R
     size.width,
     size.height,
     `<defs>${gradient}${blur}</defs><rect width="${size.width}" height="${size.height}" fill="${fill}"/>` +
-      `<rect x="${x}" y="${y + Math.round(0.012 * short)}" width="${width}" height="${height}" rx="${radius}" fill="#000" fill-opacity=".35" filter="url(#b)"/>`,
+      `<rect x="${x}" y="${y + Math.round(0.012 * short)}" width="${width}" height="${height}" rx="${radius}" fill="#000" fill-opacity=".35" filter="url(#b)"/>`
   );
 }
 
 /** The window's alpha: white where the recording shows, a rounded rectangle on black. */
 export const windowMask = (window: ReturnType<typeof frameLayout>) =>
-  svg(window.width, window.height, `<rect width="${window.width}" height="${window.height}"/><rect width="${window.width}" height="${window.height}" rx="${window.radius}" fill="#fff"/>`);
+  svg(
+    window.width,
+    window.height,
+    `<rect width="${window.width}" height="${window.height}"/><rect width="${window.width}" height="${window.height}" rx="${window.radius}" fill="#fff"/>`
+  );

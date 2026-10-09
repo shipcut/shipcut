@@ -1,14 +1,37 @@
 // `shipcut run`: drive a scenario in headless Chromium, keep the shots and the video.
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { type BrowserContext, chromium, type Frame, type Page } from "playwright";
-import { concatList, contentType, FPS, frameName, glidePath, recordArgs, runId, type RunOptions, slug } from "./lib.ts";
+
+import {
+  type BrowserContext,
+  chromium,
+  type Frame,
+  type Page,
+} from "playwright";
+
+import {
+  concatList,
+  contentType,
+  FPS,
+  frameName,
+  glidePath,
+  recordArgs,
+  runId,
+  type RunOptions,
+  slug,
+} from "./lib.ts";
 import type { Events, Run, RunFile, Step } from "./types.ts";
 
 /** What a scenario's default export receives. */
-export type ScenarioContext = {
+export interface ScenarioContext {
   page: Page;
   /** `--base` without a trailing slash. */
   base: string;
@@ -20,7 +43,7 @@ export type ScenarioContext = {
    * its clicks unless `zoom: false`.
    */
   step: (title: string, options?: { caption?: false; zoom?: false }) => void;
-};
+}
 export type Scenario = (context: ScenarioContext) => Promise<void>;
 
 const CURSOR_ID = "__shipcut_cursor";
@@ -48,9 +71,12 @@ function cursor(id: string) {
     "mousemove",
     (e) => {
       place(e.clientX, e.clientY);
-      sessionStorage.setItem(id, `${Math.round(e.clientX)},${Math.round(e.clientY)}`);
+      sessionStorage.setItem(
+        id,
+        `${Math.round(e.clientX)},${Math.round(e.clientY)}`
+      );
     },
-    true,
+    true
   );
   addEventListener(
     "mousedown",
@@ -61,25 +87,56 @@ function cursor(id: string) {
         "pointer-events:none;width:22px;height:22px;border-radius:50%;border:2px solid #fff;" +
         "box-shadow:0 0 0 1px rgba(0,0,0,.35)";
       document.documentElement.append(ring);
-      ring.animate([{ transform: "scale(1)", opacity: 1 }, { transform: "scale(3)", opacity: 0 }], {
-        duration: 450,
-        easing: "ease-out",
-      }).onfinish = () => ring.remove();
+      ring.animate(
+        [
+          { transform: "scale(1)", opacity: 1 },
+          { transform: "scale(3)", opacity: 0 },
+        ],
+        {
+          duration: 450,
+          easing: "ease-out",
+        }
+      ).onfinish = () => ring.remove();
     },
-    true,
+    true
   );
   const attach = () => document.documentElement.append(dot);
-  if (document.readyState === "loading") addEventListener("DOMContentLoaded", attach);
+  if (document.readyState === "loading")
+    addEventListener("DOMContentLoaded", attach);
   else attach();
 }
 
-type ActionOptions = { strict?: boolean; force?: boolean; timeout?: number; position?: { x: number; y: number } } | undefined;
-type Action = (this: Frame, selector: string, ...rest: unknown[]) => Promise<unknown>;
+type ActionOptions =
+  | {
+      strict?: boolean;
+      force?: boolean;
+      timeout?: number;
+      position?: { x: number; y: number };
+    }
+  | undefined;
+type Action = (
+  this: Frame,
+  selector: string,
+  ...rest: unknown[]
+) => Promise<unknown>;
 
 /** The Frame methods every Locator and Page action goes through; the second group takes a value before its options. */
-const ACTIONS = ["click", "dblclick", "tap", "check", "uncheck", "hover"] as const;
+const ACTIONS = [
+  "click",
+  "dblclick",
+  "tap",
+  "check",
+  "uncheck",
+  "hover",
+] as const;
 const VALUED = ["fill", "type", "selectOption"] as const;
-const PRESSES = new Set<string>(["click", "dblclick", "tap", "check", "uncheck"]);
+const PRESSES = new Set<string>([
+  "click",
+  "dblclick",
+  "tap",
+  "check",
+  "uncheck",
+]);
 
 /**
  * Under `--pointer`, the scenario's pointer travels to an element before
@@ -102,25 +159,42 @@ function pointer(page: Page, clock: Clock, events: Events): void {
     here = to;
     if (!path.length) return;
     const began = now();
-    for (const [ms, x, y] of path) events.moves.push([began + ms, Math.round(x), Math.round(y)]);
+    for (const [ms, x, y] of path)
+      events.moves.push([began + ms, Math.round(x), Math.round(y)]);
     await clock.wait(path.at(-1)![0]);
   };
   const pressed = (name: string, at: { x: number; y: number }) => {
-    if (PRESSES.has(name)) events.clicks.push([now(), Math.round(at.x), Math.round(at.y)]);
+    if (PRESSES.has(name))
+      events.clicks.push([now(), Math.round(at.x), Math.round(at.y)]);
   };
 
-  const frame = Object.getPrototypeOf(page.mainFrame()) as Record<string, Action>;
+  const frame = Object.getPrototypeOf(page.mainFrame()) as Record<
+    string,
+    Action
+  >;
   for (const name of [...ACTIONS, ...VALUED]) {
     const original = frame[name]!;
-    frame[name] = async function (this: Frame, selector: string, ...rest: unknown[]) {
-      const options = ((VALUED as readonly string[]).includes(name) ? rest[1] : rest[0]) as ActionOptions;
+    frame[name] = async function (
+      this: Frame,
+      selector: string,
+      ...rest: unknown[]
+    ) {
+      const options = (
+        (VALUED as readonly string[]).includes(name) ? rest[1] : rest[0]
+      ) as ActionOptions;
       if (this.page() === page) {
         try {
-          const target = options?.strict ? this.locator(selector) : this.locator(selector).first();
-          if (!options?.force) await target.scrollIntoViewIfNeeded({ timeout: options?.timeout });
+          const target = options?.strict
+            ? this.locator(selector)
+            : this.locator(selector).first();
+          if (!options?.force)
+            await target.scrollIntoViewIfNeeded({ timeout: options?.timeout });
           const box = await target.boundingBox({ timeout: options?.timeout });
           if (box) {
-            const to = { x: box.x + (options?.position?.x ?? box.width / 2), y: box.y + (options?.position?.y ?? box.height / 2) };
+            const to = {
+              x: box.x + (options?.position?.x ?? box.width / 2),
+              y: box.y + (options?.position?.y ?? box.height / 2),
+            };
             await travel(to);
             pressed(name, to);
           }
@@ -128,24 +202,27 @@ function pointer(page: Page, clock: Clock, events: Events): void {
           // The action decides whether the element can be acted on; a pointer that cannot get there stays put.
         }
       }
-      return original.call(this, selector, ...rest);
+      return await original.call(this, selector, ...rest);
     };
   }
 
-  const mouse = page.mouse as unknown as Record<"click" | "dblclick" | "move", (x: number, y: number, o?: unknown) => Promise<void>>;
+  const mouse = page.mouse as unknown as Record<
+    "click" | "dblclick" | "move",
+    (x: number, y: number, o?: unknown) => Promise<void>
+  >;
   for (const name of ["click", "dblclick"] as const) {
     const original = mouse[name].bind(page.mouse);
     mouse[name] = async (x, y, o) => {
       await travel({ x, y });
       pressed(name, { x, y });
-      return original(x, y, o);
+      return await original(x, y, o);
     };
   }
   const move = mouse.move.bind(page.mouse);
   mouse.move = async (x, y, o) => {
     here = { x, y };
     events.moves.push([now(), Math.round(x), Math.round(y)]);
-    return move(x, y, o);
+    return await move(x, y, o);
   };
 }
 
@@ -157,20 +234,24 @@ function pointer(page: Page, clock: Clock, events: Events): void {
 // are redone in the mutation observer's callback, before the next paint.
 function mask(selectors: string[]) {
   // Blur in fractions of the text's own size, so letters run together at any size.
-  const HIDE = "color:transparent!important;text-shadow:0 0 .7em rgba(128,128,128,.9)!important";
+  const HIDE =
+    "color:transparent!important;text-shadow:0 0 .7em rgba(128,128,128,.9)!important";
   const FIELDS =
     "input[type=email],input[type=tel],input[type=password],input[autocomplete~=email],input[autocomplete~=tel]";
   const style = document.createElement("style");
-  style.textContent =
-    `${FIELDS}{${HIDE}}::highlight(shipcut-mask){${HIDE}}` + (selectors.length ? `${selectors.join(",")}{filter:blur(.6em)!important}` : "");
+  style.textContent = `${FIELDS}{${HIDE}}::highlight(shipcut-mask){${HIDE}}${selectors.length ? `${selectors.join(",")}{filter:blur(.6em)!important}` : ""}`;
   const PATTERN = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+|\+\d[\d ()-]{6,}\d/g;
   const marks = new Highlight();
   CSS.highlights.set("shipcut-mask", marks);
   const scan = () => {
-    if (!style.isConnected && document.documentElement) document.documentElement.append(style);
+    if (!style.isConnected && document.documentElement)
+      document.documentElement.append(style);
     marks.clear();
     if (!document.documentElement) return;
-    const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT);
+    const walker = document.createTreeWalker(
+      document.documentElement,
+      NodeFilter.SHOW_TEXT
+    );
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       for (const match of (node.textContent ?? "").matchAll(PATTERN)) {
         const range = new Range();
@@ -180,11 +261,19 @@ function mask(selectors: string[]) {
       }
     }
   };
-  new MutationObserver(scan).observe(document, { subtree: true, childList: true, characterData: true });
+  new MutationObserver(scan).observe(document, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+  });
   scan();
 }
 
-type Recorded = { captured: number; seconds: number; encodeSeconds: number };
+interface Recorded {
+  captured: number;
+  seconds: number;
+  encodeSeconds: number;
+}
 
 /**
  * The run's time: `now()` in milliseconds of the video, `wait(ms)` a pause of
@@ -192,7 +281,10 @@ type Recorded = { captured: number; seconds: number; encodeSeconds: number };
  * by it, so they land where they happened in the video, whichever way it was
  * captured.
  */
-type Clock = { now(): number; wait(ms: number): Promise<unknown> };
+interface Clock {
+  now(): number;
+  wait(ms: number): Promise<unknown>;
+}
 
 /**
  * Typing with a `delay` waits between keys inside Playwright, in wall-clock
@@ -200,20 +292,26 @@ type Clock = { now(): number; wait(ms: number): Promise<unknown> };
  * one at a time here, with the pause on the video's clock.
  */
 function typeInVideoTime(page: Page, clock: Clock): void {
-  type Typing = (this: Frame, selector: string, text: string, options?: { delay?: number }) => Promise<void>;
+  type Typing = (
+    this: Frame,
+    selector: string,
+    text: string,
+    options?: { delay?: number }
+  ) => Promise<void>;
   const frame = Object.getPrototypeOf(page.mainFrame()) as { type: Typing };
-  const type = frame.type;
+  const { type } = frame;
   frame.type = async function (selector, text, options) {
-    if (!options?.delay || this.page() !== page) return type.call(this, selector, text, options);
+    if (!options?.delay || this.page() !== page)
+      return await type.call(this, selector, text, options);
     for (const key of text) {
       await type.call(this, selector, key, { ...options, delay: 0 });
       await clock.wait(options.delay);
     }
   };
-  const keyboard = page.keyboard;
+  const { keyboard } = page;
   const typeKeys = keyboard.type.bind(keyboard);
   keyboard.type = async (text, options) => {
-    if (!options?.delay) return typeKeys(text, options);
+    if (!options?.delay) return await typeKeys(text, options);
     for (const key of text) {
       await typeKeys(key);
       await clock.wait(options.delay);
@@ -248,23 +346,41 @@ function frameStore(out: string) {
     },
     close(endMs: number) {
       seconds = endMs / 1000;
-      if (!offsets.length) throw new Error("the page never painted, so there is no video");
+      if (!offsets.length)
+        throw new Error("the page never painted, so there is no video");
       writeFileSync(join(dir, "list.ffconcat"), concatList(offsets, endMs));
     },
     encode(): Recorded {
       const began = Date.now();
       const path = join(out, "video.mp4");
-      const done = spawnSync("ffmpeg", ["-v", "error", ...recordArgs(join(dir, "list.ffconcat"), path, seconds)], {
-        stdio: ["ignore", "ignore", "pipe"],
-      });
+      const done = spawnSync(
+        "ffmpeg",
+        [
+          "-v",
+          "error",
+          ...recordArgs(join(dir, "list.ffconcat"), path, seconds),
+        ],
+        {
+          stdio: ["ignore", "ignore", "pipe"],
+        }
+      );
       if (done.error) throw done.error;
-      if (done.status !== 0) throw new Error(`ffmpeg failed: ${done.stderr.toString().trim()}; the frames are in ${dir}`);
+      if (done.status !== 0)
+        throw new Error(
+          `ffmpeg failed: ${done.stderr.toString().trim()}; the frames are in ${dir}`
+        );
       // A frame the encoder lost shortens the video and shifts every step after it.
       const duration = measure(path, "video.mp4").duration ?? 0;
       if (Math.abs(duration - seconds) > 1 / FPS)
-        throw new Error(`the video is ${duration}s for a ${seconds.toFixed(2)}s recording; the frames are in ${dir}`);
+        throw new Error(
+          `the video is ${duration}s for a ${seconds.toFixed(2)}s recording; the frames are in ${dir}`
+        );
       rmSync(dir, { recursive: true, force: true });
-      return { captured: offsets.length, seconds, encodeSeconds: (Date.now() - began) / 1000 };
+      return {
+        captured: offsets.length,
+        seconds,
+        encodeSeconds: (Date.now() - began) / 1000,
+      };
     },
   };
 }
@@ -280,14 +396,20 @@ function frameStore(out: string) {
  * ponytail: one page. A popup or a second tab is not in the video; record each
  * page's session when a scenario needs that.
  */
-async function screencast(context: BrowserContext, page: Page, out: string): Promise<Recorder> {
+async function screencast(
+  context: BrowserContext,
+  page: Page,
+  out: string
+): Promise<Recorder> {
   const store = frameStore(out);
   const cdp = await context.newCDPSession(page);
   const clock = wallClock(Date.now());
   let ended = false;
   cdp.on("Page.screencastFrame", (event) => {
     // Chromium sends the next frame only after this one is acknowledged.
-    cdp.send("Page.screencastFrameAck", { sessionId: event.sessionId }).catch(() => {});
+    cdp
+      .send("Page.screencastFrameAck", { sessionId: event.sessionId })
+      .catch(() => {});
     if (!ended) store.add(Buffer.from(event.data, "base64"), clock.now()); // a repaint after the stop is not in it
   });
   await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92 });
@@ -323,9 +445,14 @@ const FLUSH_LAG_MS = 0.001;
  * viewport and all. It needs Chromium's headless shell, which Playwright runs
  * by default, and Linux or Windows.
  */
-async function frameByFrame(context: BrowserContext, out: string): Promise<Recorder & { page: Page }> {
+async function frameByFrame(
+  context: BrowserContext,
+  out: string
+): Promise<Recorder & { page: Page }> {
   const helper = await context.newPage();
-  const { targetInfo } = (await (await context.newCDPSession(helper)).send("Target.getTargetInfo")) as {
+  const { targetInfo } = (await (
+    await context.newCDPSession(helper)
+  ).send("Target.getTargetInfo")) as {
     targetInfo: { browserContextId: string };
   };
   const root = await context.browser()!.newBrowserCDPSession();
@@ -342,11 +469,19 @@ async function frameByFrame(context: BrowserContext, out: string): Promise<Recor
   const store = frameStore(out);
   // The requests in flight, to name the one that holds the clock.
   const pending = new Map<string, string>();
-  cdp.on("Network.requestWillBeSent", (e) => pending.set(e.requestId, `${e.request.method} ${e.request.url.slice(0, 120)}`));
+  cdp.on("Network.requestWillBeSent", (e) =>
+    pending.set(
+      e.requestId,
+      `${e.request.method} ${e.request.url.slice(0, 120)}`
+    )
+  );
   cdp.on("Network.loadingFinished", (e) => pending.delete(e.requestId));
   cdp.on("Network.loadingFailed", (e) => pending.delete(e.requestId));
   await cdp.send("Network.enable");
-  const { virtualTimeTicksBase } = await cdp.send("Emulation.setVirtualTimePolicy", { policy: "pause" });
+  const { virtualTimeTicksBase } = await cdp.send(
+    "Emulation.setVirtualTimePolicy",
+    { policy: "pause" }
+  );
   let frames = 0;
   let running = true;
   let heedRequests = true;
@@ -359,20 +494,27 @@ async function frameByFrame(context: BrowserContext, out: string): Promise<Recor
     }
   };
   const advance = async () => {
-    const expired = new Promise((done) => cdp.once("Emulation.virtualTimeBudgetExpired", done));
+    const expired = new Promise((done) =>
+      cdp.once("Emulation.virtualTimeBudgetExpired", done)
+    );
     await cdp.send("Emulation.setVirtualTimePolicy", {
       policy: heedRequests ? "pauseIfNetworkFetchesPending" : "advance",
       budget: FRAME_MS,
     });
-    const timer = new Promise((done) => setTimeout(() => done("stuck"), STUCK_MS));
+    const timer = new Promise((done) =>
+      setTimeout(() => done("stuck"), STUCK_MS)
+    );
     if ((await Promise.race([expired, timer])) !== "stuck") return;
     // A request that never ends (a stream, a long poll) would hold the clock forever.
     heedRequests = false;
     console.error(
       `shipcut: a request held the page's clock for ${STUCK_MS / 1000}s; from here time runs past pending requests. ` +
-        `In flight: ${[...pending.values()].slice(0, 3).join(", ") || "none Chromium reported"}`,
+        `In flight: ${[...pending.values()].slice(0, 3).join(", ") || "none Chromium reported"}`
     );
-    await cdp.send("Emulation.setVirtualTimePolicy", { policy: "advance", budget: FRAME_MS });
+    await cdp.send("Emulation.setVirtualTimePolicy", {
+      policy: "advance",
+      budget: FRAME_MS,
+    });
     await expired;
   };
   const loop = (async () => {
@@ -384,14 +526,19 @@ async function frameByFrame(context: BrowserContext, out: string): Promise<Recor
           interval: FRAME_MS,
           screenshot: { format: "jpeg", quality: 92 },
         });
-        if (frame.screenshotData) store.add(Buffer.from(frame.screenshotData, "base64"), frames * FRAME_MS);
+        if (frame.screenshotData)
+          store.add(
+            Buffer.from(frame.screenshotData, "base64"),
+            frames * FRAME_MS
+          );
         // After a frame that took a screenshot, Chromium hands the page no
         // network response until the next BeginFrame, and the next frame waits
         // for the clock, which waits for the response. A frame that draws
         // nothing, stamped a hair later, lets the responses through; the page's
         // requestAnimationFrame runs once more for it.
         await cdp.send("HeadlessExperimental.beginFrame", {
-          frameTimeTicks: virtualTimeTicksBase + (frames + 1) * FRAME_MS + FLUSH_LAG_MS,
+          frameTimeTicks:
+            virtualTimeTicksBase + (frames + 1) * FRAME_MS + FLUSH_LAG_MS,
           interval: FRAME_MS,
           noDisplayUpdates: true,
         });
@@ -417,7 +564,10 @@ async function frameByFrame(context: BrowserContext, out: string): Promise<Recor
     async stop() {
       running = false;
       await loop;
-      if (failure) throw new Error(`frame-by-frame capture stopped: ${failure instanceof Error ? failure.message : String(failure)}`);
+      if (failure)
+        throw new Error(
+          `frame-by-frame capture stopped: ${failure instanceof Error ? failure.message : String(failure)}`
+        );
       store.close(frames * FRAME_MS);
     },
     encode: () => store.encode(),
@@ -432,14 +582,28 @@ export function measure(path: string, name: string): RunFile {
   const probe = JSON.parse(
     execFileSync(
       "ffprobe",
-      ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json", path],
-      { encoding: "utf8" },
-    ),
-  ) as { streams?: { width?: number; height?: number }[]; format?: { duration?: string } };
+      [
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height:format=duration",
+        "-of",
+        "json",
+        path,
+      ],
+      { encoding: "utf-8" }
+    )
+  ) as {
+    streams?: { width?: number; height?: number }[];
+    format?: { duration?: string };
+  };
   file.width = probe.streams?.[0]?.width;
   file.height = probe.streams?.[0]?.height;
   const duration = Number(probe.format?.duration);
-  if (type !== "image/png" && Number.isFinite(duration)) file.duration = Math.round(duration * 100) / 100;
+  if (type !== "image/png" && Number.isFinite(duration))
+    file.duration = Math.round(duration * 100) / 100;
   return file;
 }
 
@@ -448,18 +612,24 @@ export function recordFile(dir: string, name: string): boolean {
   const path = join(dir, "run.json");
   let run: Run;
   try {
-    run = JSON.parse(readFileSync(path, "utf8")) as Run;
+    run = JSON.parse(readFileSync(path, "utf-8")) as Run;
   } catch {
     return false;
   }
-  run.files = [...run.files.filter((f) => f.name !== name), measure(join(dir, name), name)];
+  run.files = [
+    ...run.files.filter((f) => f.name !== name),
+    measure(join(dir, name), name),
+  ];
   writeFileSync(path, `${JSON.stringify(run, null, 2)}\n`);
   return true;
 }
 
 function git(): Run["git"] {
   const ask = (...args: string[]) =>
-    execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    execFileSync("git", args, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
   try {
     const commit = ask("rev-parse", "HEAD");
     let remote: string | undefined;
@@ -480,17 +650,26 @@ export function reportPeak(): void {
 
 function peakMemory(): number | undefined {
   try {
-    const group = readFileSync("/proc/self/cgroup", "utf8").trim().replace(/^0::/, "");
-    return Math.round(Number(readFileSync(`/sys/fs/cgroup${group}/memory.peak`, "utf8")) / 2 ** 20);
+    const group = readFileSync("/proc/self/cgroup", "utf-8")
+      .trim()
+      .replace(/^0::/, "");
+    return Math.round(
+      Number(readFileSync(`/sys/fs/cgroup${group}/memory.peak`, "utf-8")) /
+        2 ** 20
+    );
   } catch {
     return undefined;
   }
 }
 
 export async function run(o: RunOptions): Promise<void> {
-  const loaded = (await import(pathToFileURL(resolve(o.scenario)).href)) as { default?: Scenario };
+  const loaded = (await import(pathToFileURL(resolve(o.scenario)).href)) as {
+    default?: Scenario;
+  };
   if (typeof loaded.default !== "function")
-    throw new Error(`${o.scenario} has no default export: export default async ({ page, base, shot, step }) => {}`);
+    throw new Error(
+      `${o.scenario} has no default export: export default async ({ page, base, shot, step }) => {}`
+    );
 
   const createdAt = new Date();
   const id = runId(createdAt, o.scenario);
@@ -519,7 +698,9 @@ export async function run(o: RunOptions): Promise<void> {
   });
   const steps: Step[] = [];
   const shots: { name: string; at: number }[] = [];
-  const events: Events | undefined = o.pointer ? { clicks: [], moves: [] } : undefined;
+  const events: Events | undefined = o.pointer
+    ? { clicks: [], moves: [] }
+    : undefined;
   let video: Recorded | undefined;
   let recording: Recorder | undefined;
   try {
@@ -573,8 +754,13 @@ export async function run(o: RunOptions): Promise<void> {
       });
     } catch (error) {
       await page.screenshot({ path: join(out, "failed.png") }).catch(() => {});
-      console.error(`shipcut: the scenario failed, the page as it was is ${join(out, "failed.png")}`);
-      if (recording) console.error(`shipcut: the frames captured so far are in ${join(out, ".frames")}`);
+      console.error(
+        `shipcut: the scenario failed, the page as it was is ${join(out, "failed.png")}`
+      );
+      if (recording)
+        console.error(
+          `shipcut: the frames captured so far are in ${join(out, ".frames")}`
+        );
       throw error;
     } finally {
       try {
@@ -589,7 +775,10 @@ export async function run(o: RunOptions): Promise<void> {
   // The encode runs alone, after Chromium has given the cores back.
   video = recording?.encode();
 
-  const files: RunFile[] = shots.map((s) => ({ ...measure(join(out, s.name), s.name), at: s.at }));
+  const files: RunFile[] = shots.map((s) => ({
+    ...measure(join(out, s.name), s.name),
+    at: s.at,
+  }));
   if (video) files.push(measure(join(out, "video.mp4"), "video.mp4"));
 
   const result: Run = {
@@ -604,7 +793,12 @@ export async function run(o: RunOptions): Promise<void> {
     steps,
     files,
     events,
-    recording: video ? { seconds: Math.round(video.seconds * 100) / 100, repaints: video.captured } : undefined,
+    recording: video
+      ? {
+          seconds: Math.round(video.seconds * 100) / 100,
+          repaints: video.captured,
+        }
+      : undefined,
     git: git(),
     createdAt: createdAt.toISOString(),
   };
@@ -613,13 +807,15 @@ export async function run(o: RunOptions): Promise<void> {
   for (const f of files) {
     const size = f.width ? ` ${f.width}x${f.height}` : "";
     const length = f.duration === undefined ? "" : ` ${f.duration}s`;
-    console.log(`${join(out, f.name)}  ${(f.bytes / 1024).toFixed(0)} KB${size}${length}`);
+    console.log(
+      `${join(out, f.name)}  ${(f.bytes / 1024).toFixed(0)} KB${size}${length}`
+    );
   }
   console.log(join(out, "run.json"));
   if (video)
     console.error(
       `shipcut: video ${FPS} fps, ${video.seconds.toFixed(2)}s from ${video.captured} repaints ` +
-        `(${(video.captured / video.seconds).toFixed(1)}/s), encoded in ${video.encodeSeconds.toFixed(1)}s`,
+        `(${(video.captured / video.seconds).toFixed(1)}/s), encoded in ${video.encodeSeconds.toFixed(1)}s`
     );
   reportPeak();
 }

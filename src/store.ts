@@ -5,22 +5,44 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseEnv } from "node:util";
-import { authorization, buildIndex, canonicalQuery, indexEntry, keyPath, markdown, parseListing, sha256 } from "./lib.ts";
+
+import {
+  authorization,
+  buildIndex,
+  canonicalQuery,
+  indexEntry,
+  keyPath,
+  markdown,
+  parseListing,
+  sha256,
+} from "./lib.ts";
 import type { IndexEntry, Manifest, Run } from "./types.ts";
 
 const YEAR = "public, max-age=31536000, immutable";
 // The manifest and the index are the only keys ever rewritten.
 const MINUTE = "public, max-age=60";
 
-const KEYS = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL"] as const;
+const KEYS = [
+  "R2_ACCOUNT_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+  "R2_PUBLIC_URL",
+] as const;
 
 /** The bucket and its keys: each from the environment, else from `~/.config/shipcut/env`. Never printed. */
 function credentials() {
   const file = join(homedir(), ".config/shipcut/env");
-  const fromFile = existsSync(file) ? parseEnv(readFileSync(file, "utf8")) : {};
-  const value = (key: (typeof KEYS)[number]) => process.env[key] || fromFile[key] || "";
+  const fromFile = existsSync(file)
+    ? parseEnv(readFileSync(file, "utf-8"))
+    : {};
+  const value = (key: (typeof KEYS)[number]) =>
+    process.env[key] || fromFile[key] || "";
   const missing = KEYS.filter((key) => !value(key));
-  if (missing.length) throw new Error(`no ${missing.join(", ")} in the environment or in ~/.config/shipcut/env`);
+  if (missing.length)
+    throw new Error(
+      `no ${missing.join(", ")} in the environment or in ~/.config/shipcut/env`
+    );
   return {
     account: value("R2_ACCOUNT_ID"),
     id: value("R2_ACCESS_KEY_ID"),
@@ -40,43 +62,71 @@ const publicUrl = (key: string) => `${credentials().publicUrl}/${keyPath(key)}`;
 async function r2(
   method: string,
   key: string,
-  o: { query?: Record<string, string>; body?: string | Uint8Array<ArrayBuffer>; headers?: Record<string, string>; missing?: boolean } = {},
+  o: {
+    query?: Record<string, string>;
+    body?: string | Uint8Array<ArrayBuffer>;
+    headers?: Record<string, string>;
+    missing?: boolean;
+  } = {}
 ) {
   const c = credentials();
   const host = `${c.account}.r2.cloudflarestorage.com`;
   const path = key ? `/${c.bucket}/${keyPath(key)}` : `/${c.bucket}`;
   const query = o.query ?? {};
-  const amzDate = new Date().toISOString().replace(/[-:]|\.\d{3}/g, "");
+  const amzDate = new Date().toISOString().replaceAll(/[-:]|\.\d{3}/g, "");
   const payloadHash = sha256(o.body ?? "");
-  const headers = { ...o.headers, "x-amz-content-sha256": payloadHash, "x-amz-date": amzDate };
+  const headers = {
+    ...o.headers,
+    "x-amz-content-sha256": payloadHash,
+    "x-amz-date": amzDate,
+  };
   const signed = authorization(
     { method, path, query, headers: { ...headers, host }, payloadHash },
     { id: c.id, secret: c.secret, region: "auto", service: "s3" },
-    amzDate,
+    amzDate
   );
   const search = canonicalQuery(query);
-  const res = await fetch(`https://${host}${path}${search ? `?${search}` : ""}`, {
-    method,
-    headers: { ...headers, authorization: signed },
-    body: o.body,
-  });
+  const res = await fetch(
+    `https://${host}${path}${search ? `?${search}` : ""}`,
+    {
+      method,
+      headers: { ...headers, authorization: signed },
+      body: o.body,
+    }
+  );
   // Every answer here is small, and read whole so the connection is let go.
   const text = await res.text();
-  if (res.ok || (o.missing && res.status === 404)) return { status: res.status, text };
+  if (res.ok || (o.missing && res.status === 404))
+    return { status: res.status, text };
   const code = /<Code>([^<]*)<\/Code>/.exec(text)?.[1] ?? res.statusText;
-  throw new Error(`R2 answered ${res.status} ${code} to ${method} ${key || `a listing of ${query.prefix ?? "the bucket"}`}`);
+  throw new Error(
+    `R2 answered ${res.status} ${code} to ${method} ${key || `a listing of ${query.prefix ?? "the bucket"}`}`
+  );
 }
 
-async function put(key: string, body: string | Uint8Array<ArrayBuffer>, contentType: string, cacheControl: string) {
-  await r2("PUT", key, { body, headers: { "cache-control": cacheControl, "content-type": contentType } });
+async function put(
+  key: string,
+  body: string | Uint8Array<ArrayBuffer>,
+  contentType: string,
+  cacheControl: string
+) {
+  await r2("PUT", key, {
+    body,
+    headers: { "cache-control": cacheControl, "content-type": contentType },
+  });
   return publicUrl(key);
 }
 
-const putJson = (key: string, value: unknown) => put(key, `${JSON.stringify(value, null, 2)}\n`, "application/json", MINUTE);
+const putJson = (key: string, value: unknown) =>
+  put(key, `${JSON.stringify(value, null, 2)}\n`, "application/json", MINUTE);
 
-async function getJson<T>(key: string): Promise<{ value: T; url: string } | undefined> {
+async function getJson<T>(
+  key: string
+): Promise<{ value: T; url: string } | undefined> {
   const { status, text } = await r2("GET", key, { missing: true });
-  return status === 404 ? undefined : { value: JSON.parse(text) as T, url: publicUrl(key) };
+  return status === 404
+    ? undefined
+    : { value: JSON.parse(text) as T, url: publicUrl(key) };
 }
 
 /** Every key under `prefix`, or with `folded` the folders one level down, across all pages of the listing. */
@@ -99,7 +149,9 @@ async function listAll(prefix: string, folded = false) {
 
 function projectName(name: string | undefined): string {
   if (!name || !/^[a-z0-9][a-z0-9-]*$/.test(name))
-    throw new Error("--project wants a name of lowercase letters, digits and dashes");
+    throw new Error(
+      "--project wants a name of lowercase letters, digits and dashes"
+    );
   return name;
 }
 
@@ -113,16 +165,22 @@ function projectName(name: string | undefined): string {
  * the S3 API rather than the public URL, only supplies their entries, and a
  * run it does not know is read from its own `manifest.json`.
  */
-async function currentIndex(project: string, change: { add?: IndexEntry; drop?: string } = {}) {
+async function currentIndex(
+  project: string,
+  change: { add?: IndexEntry; drop?: string } = {}
+) {
   const { folders } = await listAll(`${project}/`, true);
   const ids = new Set(folders.map((f) => f.slice(project.length + 1, -1)));
   if (change.add) ids.add(change.add.id);
   if (change.drop) ids.delete(change.drop);
 
-  const known = (await getJson<IndexEntry[]>(`${project}/index.json`))?.value ?? [];
+  const known =
+    (await getJson<IndexEntry[]>(`${project}/index.json`))?.value ?? [];
   if (change.add) known.push(change.add);
   const manifests = await Promise.all(
-    buildIndex([...ids], known).missing.map((id) => getJson<Manifest>(`${project}/${id}/manifest.json`)),
+    buildIndex([...ids], known).missing.map((id) =>
+      getJson<Manifest>(`${project}/${id}/manifest.json`)
+    )
   );
   // A folder with no manifest is a publish that died half way; it is left out.
   for (const m of manifests) if (m) known.push(indexEntry(m.value, m.url));
@@ -135,24 +193,36 @@ async function currentIndex(project: string, change: { add?: IndexEntry; drop?: 
 // and the next publish or rm in the project rebuilds index.json with both.
 // Until then a reader of index.json alone misses one run. Upgrade path: take
 // the ETag from the GET of index.json, PUT with `If-Match`, retry on a 412.
-async function writeIndex(project: string, change: { add?: IndexEntry; drop?: string }) {
+async function writeIndex(
+  project: string,
+  change: { add?: IndexEntry; drop?: string }
+) {
   const index = await currentIndex(project, change);
   if (index.length) await putJson(`${project}/index.json`, index);
   // The last run gone, the project goes too, so `shipcut list` stops naming it.
   else await r2("DELETE", `${project}/index.json`);
 }
 
-export async function publish(dir: string, project: string | undefined, title: string | undefined) {
+export async function publish(
+  dir: string,
+  project: string | undefined,
+  title: string | undefined
+) {
   const name = projectName(project);
-  const run = JSON.parse(await readFile(join(dir, "run.json"), "utf8")) as Run;
+  const run = JSON.parse(await readFile(join(dir, "run.json"), "utf-8")) as Run;
   const prefix = `${name}/${run.id}`;
   const files = await Promise.all(
     // A run id is unique, so its files never change; a second publish of the
     // same run (after `shipcut clip`) rewrites them with the same bytes.
     run.files.map(async (f) => ({
       ...f,
-      url: await put(`${prefix}/${f.name}`, await readFile(join(dir, f.name)), f.contentType, YEAR),
-    })),
+      url: await put(
+        `${prefix}/${f.name}`,
+        await readFile(join(dir, f.name)),
+        f.contentType,
+        YEAR
+      ),
+    }))
   );
   const manifest: Manifest = { ...run, project: name, title, files };
   const url = await putJson(`${prefix}/manifest.json`, manifest);
@@ -163,7 +233,7 @@ export async function publish(dir: string, project: string | undefined, title: s
   if (files.some((f) => f.contentType.startsWith("video/")))
     console.error(
       "note: an mp4 link plays inline on no Markdown host (GitHub only inlines videos uploaded through its own editor);\n" +
-        "X and Threads want the file uploaded. For motion inline, `shipcut clip --gif` and publish again: a GIF is an image.",
+        "X and Threads want the file uploaded. For motion inline, `shipcut clip --gif` and publish again: a GIF is an image."
     );
 }
 
@@ -172,27 +242,39 @@ export async function listRuns(project: string | undefined, limit: number) {
     ? [projectName(project)]
     : (await listAll("", true)).folders.map((f) => f.replace(/\/$/, ""));
   const rows = (
-    await Promise.all(projects.map(async (p) => (await currentIndex(p)).map((e) => ({ ...e, project: p }))))
+    await Promise.all(
+      projects.map(async (p) =>
+        (await currentIndex(p)).map((e) => ({ ...e, project: p }))
+      )
+    )
   )
     .flat()
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
   if (!rows.length) console.log("no runs");
   for (const r of rows)
-    console.log(`${r.project}/${r.id}  ${r.createdAt}  ${r.files} files  ${r.title ?? ""}\n  ${r.manifest}`);
+    console.log(
+      `${r.project}/${r.id}  ${r.createdAt}  ${r.files} files  ${r.title ?? ""}\n  ${r.manifest}`
+    );
 }
 
 export async function remove(target: string | undefined, yes: boolean) {
   const [project, id, ...rest] = (target ?? "").split("/");
-  if (!id || rest.length) throw new Error("usage: shipcut rm <project>/<run-id> [--yes]");
+  if (!id || rest.length)
+    throw new Error("usage: shipcut rm <project>/<run-id> [--yes]");
   const name = projectName(project);
   // The trailing slash keeps a run id that is a prefix of another one apart.
   const { keys } = await listAll(`${name}/${id}/`);
   if (!keys.length) throw new Error(`nothing stored as ${name}/${id}`);
 
   if (!yes) {
-    const prompt = createInterface({ input: process.stdin, output: process.stderr });
-    const answer = await prompt.question(`delete ${keys.length} files of ${name}/${id}? [y/N] `);
+    const prompt = createInterface({
+      input: process.stdin,
+      output: process.stderr,
+    });
+    const answer = await prompt.question(
+      `delete ${keys.length} files of ${name}/${id}? [y/N] `
+    );
     prompt.close();
     if (!/^y(es)?$/i.test(answer.trim())) throw new Error("not deleted");
   }
@@ -203,6 +285,6 @@ export async function remove(target: string | undefined, yes: boolean) {
   // domain's zone beside the R2 keys. Add it when an rm has to be instant.
   console.error(
     "note: Cloudflare's cache and a browser that already fetched a file can serve it until it expires, a year for a run's files;\n" +
-      "purge the URLs in the Cloudflare dashboard if they must be gone now",
+      "purge the URLs in the Cloudflare dashboard if they must be gone now"
   );
 }
