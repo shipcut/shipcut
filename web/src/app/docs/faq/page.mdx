@@ -30,6 +30,19 @@ A screen recorder records you, once. When the interface changes, you record agai
 
 The pointer, the click waves, the labels, the zoom and the frame are drawn after the run from its event log, not by the page. They move at a steady 30 fps however slowly the page paints, and `polish` can draw them again without a new run. There is no timeline to edit. To change the video, change the scenario or the flags.
 
+## How is it different from Playwright's own video?
+
+Playwright's `recordVideo`, and the newer `page.screencast` with its cursor and highlights, take frames from Chromium's screencast in real time: a frame arrives when the page paints, and when the machine is slow the encoder repeats the last one to keep the rate. On a 4-vCPU machine with no GPU a heavy page painted 2 to 4 times a second, and a 10 s test animation got 215 of its 300 frames.
+
+Under `--frame-by-frame` shipcut asks Chromium for each frame on a virtual clock that moves 1/30 s per frame, so all 300 frames are in the video, each a real paint of the page, and Playwright's waits and actionability checks keep working. The cost is time: recording takes about 3 times the video's length at 1280x800. The pointer, zoom and labels are drawn after capture, so they can be drawn again without a new run.
+
+## How does it compare?
+
+- Playwright's screencast: built in, real time, and now with a cursor. Fine when the machine paints fast enough; shipcut is for when it does not, and for the editing on top.
+- playwright-recast: a video from a Playwright trace, with voice-over and subtitles. shipcut has no sound and renders frame by frame from a scenario instead of a trace.
+- Screen Studio and other recorders: you record once, by hand, and the result looks good. shipcut re-records from a script with nobody at the keyboard.
+- Hosted tools such as ScreenCI or Arcade: they host the demo and give you a stable link, and ScreenCI re-records from CI. shipcut runs on your machine or your runner and publishes to your own bucket; the hosted link and the CI step are what is coming.
+
 ## What does it not record?
 
 Anything outside the one page the scenario is given: a popup or a second tab is not in the video. There is no sound either, no voice-over and no music.
@@ -39,6 +52,7 @@ Anything outside the one page the scenario is given: a popup or a second tab is 
 - A step for your CI that records your scenarios on every deploy and publishes the result, so the video follows the app.
 - One stable URL per scenario that always shows its latest run.
 - A player you can embed on your own site.
+- An npm package. Today it installs from the checkout.
 
 ## Where do I ask?
 

@@ -19,18 +19,24 @@ import { utmSource } from "./visit-source";
 
 const IDLE: WaitlistState = { status: "idle", message: "" };
 
-/** A button that opens the waitlist form in a dialog. */
+/** A button that opens the waitlist form in a dialog. The trigger's text is its children. */
 export function Waitlist({
   className,
   size = "lg",
+  variant = "default",
+  children = "Join the waitlist",
 }: {
   className?: string;
   size?: "default" | "lg";
+  variant?: "default" | "link";
+  children?: React.ReactNode;
 }) {
   return (
     <Dialog>
-      <DialogTrigger render={<Button size={size} className={className} />}>
-        Join the waitlist
+      <DialogTrigger
+        render={<Button size={size} variant={variant} className={className} />}
+      >
+        {children}
       </DialogTrigger>
       <DialogContent className="border-line gap-5 border p-6 sm:max-w-sm">
         <DialogHeader>
@@ -38,7 +44,7 @@ export function Waitlist({
             Join the waitlist
           </DialogTitle>
           <DialogDescription className="text-base">
-            One email when shipcut can run on your app. Nothing else.
+            One email when the CI step and the stable link ship. Nothing else.
           </DialogDescription>
         </DialogHeader>
         <WaitlistForm />

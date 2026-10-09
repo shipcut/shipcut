@@ -3,12 +3,13 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
-// The picture a shared link to shipcut.dev shows: the headline, the wordmark,
-// and the hero's last step, a pointer clicking Upgrade with its step label.
+// The picture a shared link to shipcut.dev shows: the wordmark with what
+// shipcut is in one line, the headline, and the hero's last step, a pointer
+// clicking Upgrade with its step label.
 // Satori reads no woff2, so it takes the static Satoshi TTFs that
 // scripts/satoshi.ts fetches next to the site's variable font.
 
-export const alt = "shipcut: a demo video that updates with every deploy.";
+export const alt = "shipcut: every frame of your app, even on a CI runner.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -61,18 +62,23 @@ export default function OpengraphImage() {
           width: 620,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <svg width="26" height="36" viewBox="0 0 16 22">
-            <path
-              d={POINTER}
-              fill={PAPER}
-              stroke={VIOLET}
-              strokeWidth="1.6"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span style={{ fontSize: 40, fontWeight: 700, letterSpacing: -1 }}>
-            shipcut
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <svg width="26" height="36" viewBox="0 0 16 22">
+              <path
+                d={POINTER}
+                fill={PAPER}
+                stroke={VIOLET}
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span style={{ fontSize: 40, fontWeight: 700, letterSpacing: -1 }}>
+              shipcut
+            </span>
+          </div>
+          <span style={{ fontSize: 26, fontWeight: 500, color: HAZE }}>
+            Open-source CLI for Playwright
           </span>
         </div>
         <div
@@ -83,7 +89,7 @@ export default function OpengraphImage() {
             letterSpacing: -2.7,
           }}
         >
-          A demo video that updates with every deploy.
+          Every frame of your app, even on a CI runner.
         </div>
         <div style={{ fontSize: 26, fontWeight: 500, color: HAZE }}>
           shipcut.dev

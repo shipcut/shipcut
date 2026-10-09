@@ -2,18 +2,18 @@
 
 const FEATURES = [
   {
-    title: "Every frame, on any machine",
-    text: "The page's clock moves 1/30 s per frame, so a CI runner with no GPU still records every frame of every animation.",
+    title: "Every frame, on a virtual clock",
+    text: "The page's clock moves 1/30 s per frame and Chromium draws each one when asked, so a 4-vCPU runner with no GPU records every frame of every animation, none repeated. Linux, as CI is.",
     picture: <Frames />,
   },
   {
     title: "Looks edited by hand",
-    text: "The pointer, click waves, step labels, zoom and window frame are drawn after capture.",
+    text: "The pointer, click waves, step labels, zoom and frame are drawn after capture, from the run's event log. Change the flags, not the recording.",
     picture: <Polish />,
   },
   {
     title: "Your agent writes the script",
-    text: "A Playwright file in your repo, written from our skill. You review it like any PR.",
+    text: "A Playwright file in your repo, written by Claude Code or another agent from our skill. You review it like any PR, and the next run picks up the new UI.",
     picture: <Script />,
   },
 ];

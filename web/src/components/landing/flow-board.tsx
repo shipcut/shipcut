@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 // How a video gets made, as an automation board seen from above at an angle:
 // four lanes, and one job card that travels through them.
 const LANES = [
-  { name: "Push", station: "git push", note: "coming", card: "booking.ts" },
+  { name: "Deploy", station: "Your CI", note: "coming", card: "booking.ts" },
   {
     name: "Record",
     station: "Chromium, frame by frame",
@@ -21,7 +21,7 @@ const LANES = [
   },
   {
     name: "Publish",
-    station: "A link in your PR",
+    station: "A link for your site, changelog or PR",
     note: undefined,
     card: "media.shipcut.dev/…",
   },
@@ -126,7 +126,7 @@ export function FlowBoard() {
               <span className="text-haze font-mono text-sm">{i + 1}</span>
               <span className="text-lg font-bold">{l.name}</span>
               {l.note && (
-                <span className="border-line text-haze ml-auto rounded-full border px-2 text-xs">
+                <span className="border-haze text-paper ml-auto rounded-full border px-2.5 text-sm font-medium">
                   {l.note}
                 </span>
               )}

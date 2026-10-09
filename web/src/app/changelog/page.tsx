@@ -28,8 +28,8 @@ export default function Changelog() {
       <main className="mx-auto max-w-6xl px-4 pt-8 pb-20 sm:px-8 lg:pt-16">
         <h1 className="text-5xl font-black tracking-tight">Changelog</h1>
         <p className="text-haze mt-5 max-w-[44ch] text-lg leading-relaxed text-pretty">
-          What changed, newest first. shipcut recorded and published every video
-          here.
+          What changed, newest first. Every video here is a shipcut run of a
+          real app, recorded from a script in its repo.
         </p>
         <ol className="mt-12 flex flex-col">
           {ENTRIES.map((entry) => (

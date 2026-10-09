@@ -1,9 +1,21 @@
+import Link from "next/link";
+
+import { Demo } from "@/components/landing/demo";
 import { Features } from "@/components/landing/features";
 import { FlowBoard } from "@/components/landing/flow-board";
 import { HeroStage } from "@/components/landing/hero-stage";
 import { Waitlist } from "@/components/landing/waitlist";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
+import { buttonVariants } from "@/components/ui/button";
+
+// Installing is the signal the launch counts, so the docs are the primary
+// action everywhere and the waitlist waits for what is not built yet.
+const INSTALL = buttonVariants({
+  size: "lg",
+  className: "h-12 px-6 text-base",
+});
+const LATER = "text-lavender h-12 px-0 text-base font-medium";
 
 export default function Home() {
   return (
@@ -14,24 +26,27 @@ export default function Home() {
         <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-8 pb-16 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:pt-20 lg:pb-24">
           <div className="flex flex-col items-start gap-7">
             <h1 className="text-[clamp(2.75rem,5.4vw,4.5rem)] leading-[0.98] font-black tracking-[-0.035em] text-balance lg:text-wrap">
-              A demo video that updates with every deploy.
+              Every frame of your app, even on a CI runner.
             </h1>
             <p className="text-haze max-w-[36ch] text-xl leading-relaxed text-pretty">
-              Your coding agent writes a Playwright script. shipcut records it
-              frame by frame and edits it like a person would.
+              An open-source CLI: your coding agent writes the Playwright
+              script. shipcut renders every real frame on a virtual clock and
+              draws the pointer, zoom and labels on top. A re-render on every
+              deploy from CI is coming.
             </p>
-            <div className="flex items-center gap-5">
-              <Waitlist className="h-12 px-6 text-base" />
-              <a
-                href="#how"
-                className="text-lavender inline-flex h-12 items-center font-medium underline-offset-4 hover:underline"
-              >
-                How it works
-              </a>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <Link href="/docs" className={INSTALL}>
+                Run it on your app
+              </Link>
+              <Waitlist variant="link" className={LATER}>
+                Get the re-render on deploy
+              </Waitlist>
             </div>
           </div>
           <HeroStage />
         </section>
+
+        <Demo />
 
         <Features />
 
@@ -44,26 +59,33 @@ export default function Home() {
             id="how-title"
             className="max-w-[18ch] text-4xl leading-tight font-black tracking-tight text-balance sm:text-5xl"
           >
-            From a push to a video in your PR.
+            From a script to a video you can put anywhere.
           </h2>
           <FlowBoard />
         </section>
       </main>
 
-      <section className="border-line mx-auto flex max-w-6xl flex-col gap-8 border-t px-4 py-12 sm:flex-row sm:flex-wrap sm:items-center sm:px-8 lg:py-16">
+      <section className="border-line mx-auto flex max-w-6xl flex-col gap-8 border-t px-4 py-12 sm:px-8 lg:py-16">
         <p className="text-3xl font-bold tracking-tight">
           Want it on your app?
         </p>
-        <Waitlist className="h-12 px-6 text-base" />
-        <p className="text-haze basis-full lg:ml-auto lg:basis-auto">
-          Or write to{" "}
-          <a
-            href="mailto:hello@shipcut.dev"
-            className="text-paper underline-offset-4 hover:underline"
-          >
-            hello@shipcut.dev
-          </a>
-        </p>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Link href="/docs" className={INSTALL}>
+            Install it today
+          </Link>
+          <Waitlist variant="link" className={LATER}>
+            One email when it runs from CI
+          </Waitlist>
+          <p className="text-haze basis-full lg:ml-auto lg:basis-auto">
+            Or write to{" "}
+            <a
+              href="mailto:hello@shipcut.dev"
+              className="text-paper underline-offset-4 hover:underline"
+            >
+              hello@shipcut.dev
+            </a>
+          </p>
+        </div>
       </section>
       <SiteFooter />
     </>
