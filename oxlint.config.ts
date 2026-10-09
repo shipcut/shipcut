@@ -114,6 +114,12 @@ export default defineConfig({
       },
     ],
     "shadcn/no-raw-colors": "error",
+    // The React Compiler wins where rules disagree. It cannot compile `??=`
+    // ("react/todo"), so the guarded assignment it wants instead is allowed.
+    "typescript/prefer-nullish-coalescing": [
+      "error",
+      { ignoreIfStatements: true },
+    ],
     "shadcn/no-unknown-classes": [
       "error",
       { allow: ["iso-plane", "iso-block", "iso-card", "cn-*"] },
