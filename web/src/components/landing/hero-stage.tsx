@@ -101,7 +101,7 @@ export function HeroStage() {
         />
         <div
           ref={pointer}
-          className="pointer-events-none absolute top-0 left-0 z-10"
+          className="group/pointer pointer-events-none absolute top-0 left-0 z-10"
           aria-hidden
         >
           <span
@@ -121,7 +121,7 @@ export function HeroStage() {
           </svg>
           <span
             className={cn(
-              "bg-violet text-paper absolute top-7 left-3.5 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-opacity duration-300",
+              "bg-violet text-paper absolute top-7 left-3.5 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-opacity duration-300 group-data-flip/pointer:right-1 group-data-flip/pointer:left-auto",
               label ? "opacity-100" : "opacity-0"
             )}
           >
@@ -300,11 +300,17 @@ function centre(parts: Parts, target: RefObject<HTMLElement | null>) {
 
 const at = { x: 0, y: 0 };
 
+/** Moves the pointer. Near the right edge its label flips to the left, as `shipcut polish` does. */
 function place(parts: Parts, x: number, y: number) {
   at.x = x;
   at.y = y;
-  if (parts.pointer.current)
-    parts.pointer.current.style.transform = `translate(${x}px, ${y}px)`;
+  const pointer = parts.pointer.current;
+  if (!pointer) return;
+  pointer.style.transform = `translate(${x}px, ${y}px)`;
+  pointer.toggleAttribute(
+    "data-flip",
+    x > (parts.area.current?.offsetWidth ?? 0) - 180
+  );
 }
 
 /** Puts the pointer on `target`, or at rest low on the right when there is none. */
