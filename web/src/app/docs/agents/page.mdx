@@ -1,0 +1,55 @@
+export const metadata = {
+  title: { absolute: "Coding agents, shipcut docs" },
+  description:
+    "The shipcut skill: how a coding agent writes the scenario, records it and puts the links in your PR.",
+};
+
+# Coding agents
+
+You rarely need to write a scenario by hand. Your coding agent already reads your app's source, so it knows the routes, the labels and which fields hold personal data, and it can write the scenario, record it and paste the links into the PR. shipcut ships a skill that tells it how.
+
+## The skill
+
+The skill is one file, `skills/shipcut/SKILL.md` in the shipcut checkout. It tells the agent:
+
+- when to record: a visible change gets a before and an after, a new flow gets one run with `--video --pointer`, and verification is not shipcut's job;
+- how to write the scenario: `page`, `base`, `shot`, `step`, waiting for elements instead of timeouts, never writing to production;
+- which preset and flags to use, and when to pass `--mask`;
+- how to polish, caption and clip, and to look at a frame before publishing;
+- how to publish, and to paste the Markdown as printed into the PR or the changelog.
+
+## Install it
+
+Copy the folder into your project, where your agent looks for skills. Claude Code reads `.claude/skills/`. For another agent, use the folder it reads skills from, often `.agents/skills/`.
+
+```sh
+mkdir -p .claude/skills && cp -r path/to/shipcut/skills/shipcut .claude/skills/
+# or
+mkdir -p .agents/skills && cp -r path/to/shipcut/skills/shipcut .agents/skills/
+```
+
+The agent also needs `shipcut` on its PATH ([Quick start](/docs)), and the five `R2_*` variables to publish ([Publishing](/docs/publishing)). If they are missing, the skill tells the agent to ask you for them, never to look for them elsewhere or print them.
+
+## Ask for a video
+
+Name the flow, the format and where the links go. For example:
+
+```txt
+Use the shipcut skill to record the new checkout flow, before and after this
+branch. Desktop, with the pointer, polished. Publish both runs under the
+project acme and put the Markdown under "Before" and "After" in the PR
+description.
+```
+
+The agent writes `shipcut/checkout.ts`, starts the app, records the scenario on the base branch and on yours, polishes both runs, looks at the shots and a frame from each video, and publishes. In Claude Code, `/shipcut` calls the skill directly.
+
+## Review the scenario
+
+The scenario is code in your repository, so review it like any other change in the PR:
+
+- It writes nothing anywhere but a local server or a preview with test data.
+- It waits for elements, not for fixed timeouts.
+- Where it types or shows a person's details, the run uses `--mask`, with `--mask-selector` for what the defaults miss, such as a name.
+- The step titles say in a few words what happens next.
+
+Once it is merged, the same file records the same flow after the next change, and the video changes only where the interface did.

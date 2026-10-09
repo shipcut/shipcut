@@ -1,0 +1,117 @@
+export const metadata = {
+  title: { absolute: "Quick start, shipcut docs" },
+  description:
+    "Install shipcut, write a first scenario, record it, polish the video and publish it.",
+};
+
+# Quick start
+
+shipcut runs a Playwright scenario from your repository in headless Chromium and records the page, frame by frame if you ask. It then draws a pointer, click waves, step labels, a zoom and a frame over the video, and publishes the files to your Cloudflare R2 bucket with Markdown links for a PR or a changelog.
+
+## Install
+
+shipcut installs from GitHub. Node 24 runs its TypeScript as it is, so there is no build step.
+
+```sh
+git clone https://github.com/shipcut/shipcut && cd shipcut
+pnpm install
+ln -s "$PWD/bin/shipcut" ~/.local/bin/shipcut   # or any directory on your PATH
+```
+
+It also needs:
+
+- `ffmpeg` built with librsvg, and `ffprobe`, on your PATH. Ubuntu's `ffmpeg` has librsvg, and `ffmpeg -decoders | grep librsvg` prints a line if yours does.
+- Playwright's Chromium. Run `pnpm exec playwright install chromium` in the checkout if it is missing.
+
+Linux is where shipcut is built and tested. On macOS it records, but without `--frame-by-frame`. Windows is untested, and `bin/shipcut` is a bash script.
+
+## Write a scenario
+
+A scenario is a module in your project whose default export drives the page. Keep them in one folder, such as `shipcut/`. This one opens the landing and follows a link; save it as `shipcut/landing.ts`:
+
+```ts
+export default async ({ page, base, shot, step }) => {
+  step("The landing");
+  await page.goto(`${base}/`);
+  await page.getByRole("heading", { level: 1 }).waitFor();
+  await shot("landing");
+
+  step("Opening the docs");
+  await page.getByRole("link", { name: "Docs" }).first().click();
+  await page.waitForURL("**/docs");
+  await shot("docs");
+};
+```
+
+`page` is a Playwright page and `base` is the URL you record. `step` marks a chapter, and `shot` saves a PNG. [Scenarios](/docs/scenarios) has the rest.
+
+## Record
+
+Start your app, then run the scenario against it:
+
+```sh
+shipcut run shipcut/landing.ts --base http://localhost:3000 --video --pointer
+```
+
+`--video` records `video.mp4`, and `--pointer` logs where the pointer goes and what it clicks, for `polish` to draw. The command prints each file:
+
+```txt
+/home/you/acme/out/20261009-093529-landing/01-landing.png  78 KB 1280x800
+/home/you/acme/out/20261009-093529-landing/02-docs.png  82 KB 1280x800
+/home/you/acme/out/20261009-093529-landing/video.mp4  109 KB 1280x800 3.07s
+/home/you/acme/out/20261009-093529-landing/run.json
+shipcut: video 30 fps, 3.05s from 38 repaints (12.5/s), encoded in 1.6s
+shipcut: peak memory 414 MB of the 1500 MB cap
+```
+
+## Polish
+
+```sh
+shipcut polish out/20261009-093529-landing
+```
+
+```txt
+shipcut: 1 labels in Inter SemiBold
+shipcut: framed at 1100x688 in 1280x800, background #E4DDFF to #C9DCFF
+shipcut: 1 zooms at 1.5x, 1.609-3.07s
+out/20261009-093529-landing/video-polished.mp4  210 KB 1280x800 3.07s
+added to run.json
+shipcut: peak memory 479 MB of the 1500 MB cap
+```
+
+`video-polished.mp4` has the pointer with a wave on each click, the step titles in labels beside it, a zoom on the clicks and a frame around the page. `polish` reads the pointer's log from `run.json`, so you can run it again with other flags without recording again. [Commands](/docs/commands#polish) lists them.
+
+## Publish
+
+Publishing needs an R2 bucket and five variables, set up once as [Publishing](/docs/publishing) describes. Then:
+
+```sh
+shipcut publish out/20261009-093529-landing --project acme --title "The landing and the docs"
+```
+
+Stdout is the Markdown to paste into the PR:
+
+```md
+**The landing and the docs**
+
+![01-landing](https://media.example.com/acme/20261009-093529-landing/01-landing.png)
+
+![02-docs](https://media.example.com/acme/20261009-093529-landing/02-docs.png)
+
+[video.mp4, 3.1s](https://media.example.com/acme/20261009-093529-landing/video.mp4)
+
+[video-polished.mp4, 3.1s](https://media.example.com/acme/20261009-093529-landing/video-polished.mp4)
+```
+
+## What you get
+
+- A run directory, `out/20261009-093529-landing/`, with the shots, `video.mp4`, `video-polished.mp4` and `run.json`, which holds the steps, the pointer's clicks and moves, and the git commit.
+- The same files in your bucket under `acme/20261009-093529-landing/`, with a `manifest.json`, listed in the project's `index.json`.
+- A Markdown block for the PR: shots embedded, videos linked.
+
+No Markdown host plays an mp4 inline. For motion in a PR, make a GIF and publish again:
+
+```sh
+shipcut clip out/20261009-093529-landing/video-polished.mp4 --gif
+shipcut publish out/20261009-093529-landing --project acme --title "The landing and the docs"
+```

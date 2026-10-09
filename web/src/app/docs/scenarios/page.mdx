@@ -1,0 +1,92 @@
+export const metadata = {
+  title: { absolute: "Scenarios, shipcut docs" },
+  description:
+    "The scenario module shipcut records: page, base, shot and step, its type, and how to write one.",
+};
+
+# Scenarios
+
+A scenario is the script shipcut records: a TypeScript or JavaScript module (`.ts` or `.mjs`) whose default export is an async function. It lives in the project it records, next to the code, so it changes in the same PR as the interface it shows.
+
+```ts
+export default async ({ page, base, shot, step }) => {
+  step("The landing");
+  await page.goto(`${base}/`);
+  await shot("landing"); // 01-landing.png
+  step("Booking a table");
+  await page.getByRole("link", { name: "Book" }).click();
+  await shot("form", { fullPage: true }); // 02-form.png
+};
+```
+
+shipcut calls it once per run and hands it four things.
+
+## page
+
+A Playwright [`Page`](https://playwright.dev/docs/api/class-page) in headless Chromium, sized by `--preset` or `--viewport`. Everything Playwright does works here. The run records this one page. A popup or a second tab is not in the video.
+
+## base
+
+The `--base` URL with no trailing slash, `http://localhost:3000` unless you pass another. Build every URL from it, and the same scenario records a local server, a preview deploy or production.
+
+## shot
+
+`shot(name)` saves a PNG of the viewport as `NN-name.png`, numbered in the order of the calls, so the first `shot("landing")` is `01-landing.png`. `shot(name, { fullPage: true })` saves the whole page instead. shipcut lowercases the name and turns every run of characters other than letters and digits into a dash. `run.json` records each shot's time, in milliseconds from the start.
+
+## step
+
+`step(title)` marks a chapter at this moment. Its title and time go into `run.json`, and three commands use them:
+
+- `shipcut caption` burns each title into the video, from its step until the next.
+- `shipcut polish` shows it in a label beside the pointer, for 4 s at most.
+- `polish --zoom` closes in on the clicks in each step.
+
+Two options keep a step out:
+
+- `step(title, { caption: false })` shows neither a caption nor a label. It still ends the caption before it.
+- `step(title, { zoom: false })` leaves its clicks unzoomed.
+
+Write a title as a caption: two to four words of what happens next, with no full stop. A label cuts a title longer than 32 characters with an ellipsis.
+
+## Types
+
+Node strips the types and runs the file as it is, so a `.ts` scenario can be plain JavaScript. For your editor's help, type it with `Scenario` from the shipcut checkout:
+
+```ts
+import type { Scenario } from "../../shipcut/src/run.ts";
+
+const scenario: Scenario = async ({ page, base, shot, step }) => {
+  step("The landing");
+  await page.goto(`${base}/`);
+  await shot("landing");
+};
+
+export default scenario;
+```
+
+The path is wherever your checkout is. Node drops an `import type` before it runs the file, so only your editor reads it.
+
+Since nothing builds the file, a relative import carries its extension (`./helpers.ts`), a path alias such as `@/` does not resolve, and only TypeScript that can be erased works: no `enum`, no `namespace`, no parameter properties.
+
+## The pointer
+
+Under `run --pointer` the pointer starts in the middle of the viewport. Before the scenario clicks, taps, checks, hovers, fills, types or selects through a locator or the page, the pointer glides to the element on a shallow arc: 250 ms for a short hop, 900 ms at most. `page.mouse.click` and `page.mouse.dblclick` glide too. Each action takes that much longer, and `run.json` gets the path and the clicks for `polish` to draw.
+
+A scenario that only scrolls shows no pointer. A scroll with `scrollIntoView({ behavior: "smooth" })` and a pause after it reads better than a jump.
+
+## Time
+
+Under `--frame-by-frame` the page runs on the video's clock, not the wall clock. `page.waitForTimeout` and typing delays count video time, so two runs of the same scenario come out the same length to within a frame. A pause still means a pause in the video.
+
+## Writing a good one
+
+- Wait for the thing you are about to shoot: `locator.waitFor()`, `page.waitForURL()`, `page.waitForLoadState()`. A fixed `page.waitForTimeout()` is right only to let the video breathe after an action.
+- Never write to production. A scenario against a live site only reads. One that books, buys or signs up runs against a local server or a preview with test data.
+- Pass `--mask` whenever the page shows or the scenario types a real person's details. It blurs email, phone and password fields, and every email address and `+`-prefixed phone number on the page, before the frame is taken, so neither the video nor a shot holds them. `--mask-selector 'input[name=name]'` adds what the defaults miss. Pull a frame after typing and check it.
+- Start signed in with `--storage-state FILE`, a Playwright storage state, rather than typing a password on camera.
+- Look at the shots before you publish. If the scenario throws, the run saves the page as it was in `failed.png` and exits 1.
+- To try a run with no app and no network, record `examples/counter.ts` from the checkout. It serves its own page.
+
+```sh
+shipcut run examples/counter.ts --video --pointer
+```

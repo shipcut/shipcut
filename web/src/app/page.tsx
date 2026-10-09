@@ -1,35 +1,14 @@
-import Link from "next/link";
-
 import { Features } from "@/components/landing/features";
 import { FlowBoard } from "@/components/landing/flow-board";
 import { HeroStage } from "@/components/landing/hero-stage";
 import { Waitlist } from "@/components/landing/waitlist";
-
-const REPO = "https://github.com/shipcut/shipcut";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
 
 export default function Home() {
   return (
     <>
-      <header className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-5 sm:px-8">
-        <Link
-          href="/"
-          className="mr-auto flex items-center gap-2 text-xl font-bold tracking-tight"
-        >
-          <svg viewBox="0 0 16 22" className="w-3.5" aria-hidden>
-            <path
-              d="M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z"
-              className="fill-paper stroke-violet"
-              strokeWidth="1.6"
-              strokeLinejoin="round"
-            />
-          </svg>
-          shipcut
-        </Link>
-        <a href={REPO} className="text-haze hover:text-paper hidden sm:block">
-          GitHub
-        </a>
-        <Waitlist size="default" className="h-10 px-4" />
-      </header>
+      <SiteHeader />
 
       <main>
         <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-8 pb-16 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:pt-20 lg:pb-24">
@@ -71,7 +50,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-line mx-auto flex max-w-6xl flex-col gap-8 border-t px-4 py-12 sm:flex-row sm:flex-wrap sm:items-center sm:px-8 lg:py-16">
+      <section className="border-line mx-auto flex max-w-6xl flex-col gap-8 border-t px-4 py-12 sm:flex-row sm:flex-wrap sm:items-center sm:px-8 lg:py-16">
         <p className="text-3xl font-bold tracking-tight">
           Want it on your app?
         </p>
@@ -85,7 +64,8 @@ export default function Home() {
             hello@shipcut.dev
           </a>
         </p>
-      </footer>
+      </section>
+      <SiteFooter />
     </>
   );
 }

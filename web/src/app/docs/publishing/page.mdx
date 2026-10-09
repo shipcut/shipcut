@@ -1,0 +1,92 @@
+export const metadata = {
+  title: { absolute: "Publishing, shipcut docs" },
+  description:
+    "The R2 bucket shipcut publishes to, its five variables, the Markdown it prints, the data layout and caching.",
+};
+
+# Publishing
+
+`shipcut publish` uploads a run to a Cloudflare R2 bucket you own and prints Markdown with the links. There is no shipcut server in between. The files go from your machine to your bucket, and the links point at your bucket's public URL.
+
+## The bucket
+
+1. Create an R2 bucket in your Cloudflare account.
+2. Serve it publicly: connect a custom domain to it, or turn on its `r2.dev` URL. Every link shipcut prints starts with this URL.
+3. Create an R2 API token with Object Read & Write on that bucket. Its S3 credentials are an access key ID and a secret access key.
+
+## The five variables
+
+| Variable               | What it is                                                   |
+| ---------------------- | ------------------------------------------------------------ |
+| `R2_ACCOUNT_ID`        | The Cloudflare account that holds the bucket                 |
+| `R2_ACCESS_KEY_ID`     | The token's access key ID                                    |
+| `R2_SECRET_ACCESS_KEY` | The token's secret access key                                |
+| `R2_BUCKET`            | The bucket's name                                            |
+| `R2_PUBLIC_URL`        | Where the bucket is served, e.g. `https://media.example.com` |
+
+Each one comes from the environment, or else from `~/.config/shipcut/env`, a file of `KEY=value` lines:
+
+```sh
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET=...
+R2_PUBLIC_URL=https://media.example.com
+```
+
+Keep the file to yourself with `chmod 600 ~/.config/shipcut/env`. shipcut signs its own requests to R2's S3 API, so there is no SDK to install. Only `publish`, `list` and `rm` read the variables. If one is missing they stop and name it, and they never print a value, not even in an error:
+
+```txt
+shipcut: no R2_BUCKET, R2_PUBLIC_URL in the environment or in ~/.config/shipcut/env
+```
+
+## Publish a run
+
+```sh
+shipcut publish out/20261009-092845-counter --project acme --title "Counter, three clicks"
+```
+
+`--project` names the folder the run goes in: lowercase letters, digits and dashes, the same for every run of a project. `--title` is optional and heads the Markdown. Publishing the same run again replaces it, so make GIFs, clips and captions first; each one made inside the run directory is uploaded with the run.
+
+## The Markdown
+
+Stdout is the block to paste, as printed, into a PR description or a changelog entry. It embeds images and links videos, with their length:
+
+```md
+**Counter, three clicks**
+
+![01-empty](https://media.example.com/acme/20261009-092845-counter/01-empty.png)
+
+![02-three](https://media.example.com/acme/20261009-092845-counter/02-three.png)
+
+![video-polished](https://media.example.com/acme/20261009-092845-counter/video-polished.gif)
+
+[video.mp4, 2.3s](https://media.example.com/acme/20261009-092845-counter/video.mp4)
+
+[video-polished.mp4, 2.3s](https://media.example.com/acme/20261009-092845-counter/video-polished.mp4)
+
+[video-captioned.mp4, 2.3s](https://media.example.com/acme/20261009-092845-counter/video-captioned.mp4)
+```
+
+Stderr gets the manifest's URL. No Markdown host plays an mp4 from another site inline. GitHub only inlines a video uploaded through its own editor, and X and Threads want the file itself. For motion in a PR, make a GIF with `shipcut clip --gif` inside the run directory and publish again, since a GIF is an image. For before and after, record the same scenario on the base branch and on yours, and paste the two blocks under "Before" and "After".
+
+## The data layout
+
+One bucket, no database. A web page can read these files straight from the public URL.
+
+```txt
+<project>/index.json               IndexEntry[], newest first    max-age 60
+<project>/<run-id>/manifest.json   Manifest                      max-age 60
+<project>/<run-id>/<file>          png, mp4, gif                 max-age one year, immutable
+```
+
+The shapes are in `src/types.ts`. `Run` is the local `run.json`. `Manifest` is the run plus `project`, `title` and a `url` on every file. `IndexEntry` is one row of a project's index: the run's id, title, scenario, time, the manifest's URL, a cover image and the number of files. A run id is `YYYYMMDD-HHMMSS-<scenario>` in UTC, so ids sort by time.
+
+- `index.json` is derived. The bucket's listing decides which runs exist, and every `publish` and `rm` rebuilds the index from it.
+- Projects are the bucket's top-level folders. shipcut stores no list of projects.
+
+## Caching
+
+A run's files never change, so shipcut uploads them with a `max-age` of a year and `immutable`. `manifest.json` and `index.json` are the only files ever rewritten, and they carry `max-age=60`, so a page that fetches the index can lag by up to a minute. A server with the R2 credentials can list the `<project>/` folders through the S3 API instead and never lag.
+
+`shipcut rm` deletes a run's files and its index entry, but Cloudflare's cache and any browser that already fetched a file can keep serving it until it expires, a year for a run's files. If a file must be gone now, purge its URL in the Cloudflare dashboard.

@@ -1,0 +1,45 @@
+export const metadata = {
+  title: { absolute: "FAQ, shipcut docs" },
+  description:
+    "Platforms, CI runners, how long a recording takes, how shipcut differs from a screen recorder, and what is coming.",
+};
+
+# FAQ
+
+## Which platforms does it run on?
+
+Linux is where shipcut is built and tested. On macOS it records, but `--frame-by-frame` does not run, because Chrome there cannot be driven frame by frame. Windows is untested, and `bin/shipcut` is a bash script.
+
+## Does it run on a CI runner?
+
+A hosted CI runner is Linux, the platform shipcut is built and tested on. It needs Node 24, `ffmpeg` with librsvg, `ffprobe` and Playwright's Chromium, as in the [Quick start](/docs). It needs no GPU: under `--frame-by-frame` the page's clock moves 1/30 s per frame, so a slow runner still records every frame of every animation, only more slowly. There is no packaged CI step yet; it is coming.
+
+## How long does a recording take?
+
+Measured on a 4-vCPU machine with no GPU:
+
+- A plain `--video` run takes as long as the scenario, plus an encode after the browser closes of about as long again for a page in constant motion. Under `--pointer`, each action adds its glide, 250 ms to 900 ms.
+- A `--frame-by-frame` run takes about 3 times the video's length at 1280x800, and about 4 times at 1080x1920.
+- `polish` with the zoom on a 1280x800 video takes about as long as the video plays.
+
+A `story` run peaks near 700 MB of memory, and `polish` at 2560x1600 near 1.35 GB.
+
+## How is it different from a screen recorder?
+
+A screen recorder records you, once. When the interface changes, you record again by hand. shipcut records a script in your repository, so the same scenario gives the same video, and when the interface changes, a new run gives a new video with nobody at the keyboard.
+
+The pointer, the click waves, the labels, the zoom and the frame are drawn after the run from its event log, not by the page. They move at a steady 30 fps however slowly the page paints, and `polish` can draw them again without a new run. There is no timeline to edit. To change the video, change the scenario or the flags.
+
+## What does it not record?
+
+Anything outside the one page the scenario is given: a popup or a second tab is not in the video. There is no sound either, no voice-over and no music.
+
+## What is coming?
+
+- A step for your CI that records your scenarios on every deploy and publishes the result, so the video follows the app.
+- One stable URL per scenario that always shows its latest run.
+- A player you can embed on your own site.
+
+## Where do I ask?
+
+Write to [hello@shipcut.dev](mailto:hello@shipcut.dev). Once the repository is public, [GitHub issues](https://github.com/shipcut/shipcut/issues) work too.

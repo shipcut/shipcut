@@ -1,0 +1,216 @@
+export const metadata = {
+  title: { absolute: "Commands, shipcut docs" },
+  description:
+    "Every shipcut command and flag: run, polish, caption, clip, measure, publish, list and rm.",
+};
+
+# Commands
+
+`shipcut` with no command prints them all:
+
+```txt
+shipcut run <scenario> [--base URL] [--out DIR] [--preset desktop|phone|post|story | --viewport WxH]
+          [--scale N] [--video] [--frame-by-frame] [--pointer | --cursor] [--slow MS] [--storage-state FILE] [--locale xx] [--dark]
+          [--mask] [--mask-selector CSS]...
+shipcut clip <video> [--from S] [--to S] [--speed X] [--width W] [--gif] [--out FILE]
+shipcut caption <run-dir> [--out FILE] [--font FILE]
+shipcut polish <run-dir> [--[no-]labels] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]
+shipcut measure <run-dir>
+shipcut publish <run-dir> --project NAME [--title TEXT]
+shipcut list [--project NAME] [--limit N]
+shipcut rm <project>/<run-id> [--yes]
+```
+
+A command that fails prints `shipcut:` and the reason on stderr, and exits 1.
+
+## run
+
+```sh
+shipcut run flows/booking.ts --base http://localhost:3000 --video --pointer
+```
+
+Runs a [scenario](/docs/scenarios) in headless Chromium and writes what it made to a run directory.
+
+| Flag                   | What it does                                                                                                                                          |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--base URL`           | Handed to the scenario as `base`. Default `http://localhost:3000`                                                                                     |
+| `--out DIR`            | The run directory. Default `./out/<run-id>/`                                                                                                          |
+| `--preset NAME`        | `desktop` (default), `phone`, `post` or `story`, below                                                                                                |
+| `--viewport WxH`       | CSS pixels instead of a preset: desktop layout, no touch, scale 1. Not with `--preset`                                                                |
+| `--scale N`            | Device pixel ratio. Multiplies the shots and the video alike                                                                                          |
+| `--video`              | Records `video.mp4`: H.264, yuv420p, 30 fps, faststart                                                                                                |
+| `--frame-by-frame`     | Records every frame of the page's animations on a virtual clock, however slowly the page paints. Slower to record. Needs `--video`, not with `--slow` |
+| `--pointer`            | Glides a pointer to each element before the scenario acts on it, and logs its path and clicks for `polish`. Needs `--video`                           |
+| `--cursor`             | The older pointer, drawn by the page itself from mouse events. It jumps rather than glides. Not with `--pointer`                                      |
+| `--slow MS`            | A pause between browser actions, so the video can be followed                                                                                         |
+| `--storage-state FILE` | A Playwright storage state, to start signed in                                                                                                        |
+| `--mask`               | Blurs email, phone and password fields, and every email address and `+`-prefixed phone number on the page, in the video and the shots alike           |
+| `--mask-selector CSS`  | Also blurs what the selector matches, e.g. `input[name=name]`. Repeatable, implies `--mask`                                                           |
+| `--locale xx`          | The browser's locale, e.g. `sk`                                                                                                                       |
+| `--dark`               | The dark colour scheme                                                                                                                                |
+
+| Preset    | CSS viewport | Scale | Shots and video | Layout                        |
+| --------- | ------------ | ----- | --------------- | ----------------------------- |
+| `desktop` | 1280x800     | 1     | 1280x800        | desktop                       |
+| `phone`   | 390x844      | 1     | 390x844         | phone: touch, mobile viewport |
+| `post`    | 360x450      | 3     | 1080x1350       | phone                         |
+| `story`   | 360x640      | 3     | 1080x1920       | phone                         |
+
+A site picks its layout by CSS width, so `post` and `story` are a phone 360 wide, multiplied up to the 1080 a feed wants. For a desktop page in a tall frame, use `--viewport 1080x1920`. `--preset phone --scale 3` is 1170x2532, and `--scale 2` on `desktop` is 2560x1600.
+
+The run directory is `./out/<run-id>/` unless `--out`, where a run id is `YYYYMMDD-HHMMSS-<scenario>` in UTC. The command prints each file with its size and dimensions, then `run.json`; stderr gets the video's numbers and the peak memory:
+
+```txt
+/home/you/acme/out/20261009-092845-counter/01-empty.png  9 KB 1280x800
+/home/you/acme/out/20261009-092845-counter/02-three.png  8 KB 1280x800
+/home/you/acme/out/20261009-092845-counter/video.mp4  9 KB 1280x800 2.27s
+/home/you/acme/out/20261009-092845-counter/run.json
+shipcut: video 30 fps, 2.26s from 6 repaints (2.7/s), encoded in 1.3s
+shipcut: peak memory 407 MB of the 1500 MB cap
+```
+
+`run.json` holds the steps, the shots' times, the pointer's clicks and moves, the viewport, and the commit and branch when the run starts inside a git repository. A scenario that throws leaves `failed.png` and exits 1.
+
+### How the video is recorded
+
+The video is the page's own repaints, taken from Chromium at device pixels. During the run shipcut stores each repaint as a JPEG under `<out>/.frames/`, and nothing else runs beside the browser. When the browser has closed, one ffmpeg pass encodes them at a constant 30 fps, so a step's offset is its place in the video. The encode takes about as long again as the recording for a page in constant motion, and `.frames/` holds a few hundred KB per repaint until then: a minute of motion is several hundred MB. The folder goes when the encode succeeds and stays, named in the error, when it fails.
+
+Headless Chromium paints in software. A 1080x1920 page that changes on every frame comes out at about 26 repaints a second on a 4-vCPU machine with no GPU, and a heavy page at 2 to 4. `shipcut measure` prints the number for a run.
+
+`--frame-by-frame` takes the page's time away from the wall clock. Chromium draws a frame only when asked, and before each one the page's clock moves on by exactly 1/30 s, standing still while a request is pending. Every frame of every animation is in the video, the page's timers keep video time, and a request looks instant. Recording takes about 3 times the video's length at 1280x800 and 4 times at 1080x1920 on that machine.
+
+`requestAnimationFrame` runs twice a frame, so an animation that counts its callbacks instead of reading their time runs twice as fast. A request that never ends, such as a stream or a long poll, would hold the clock, so after 5 s the clock runs past pending requests for the rest of the run and says which request it was. It needs Chromium's headless shell, so Linux.
+
+## polish
+
+```sh
+shipcut polish out/20261009-092845-counter
+```
+
+Builds `video-polished.mp4` from the run's video and the pointer's log, and adds it to `run.json` so `publish` uploads it. It needs a run recorded with `--video --pointer`, and it can be run again with other flags without a new run.
+
+| Video              | Pointer and labels | Zoom | Frame |
+| ------------------ | ------------------ | ---- | ----- |
+| landscape          | yes                | yes  | yes   |
+| `story`            | yes                | no   | yes   |
+| any other portrait | yes                | no   | no    |
+
+On a phone's width a zoom crops the page at the sides, so it is off there unless you ask.
+
+Each part has a flag that turns it on and one that turns it off. Left out, the table above decides.
+
+| Flag                | What it does                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------- |
+| `--[no-]labels`     | Each step's title in a label beside the pointer                                                         |
+| `--[no-]zoom`       | The zoom on the clicks                                                                                  |
+| `--zoom-factor N`   | How far the zoom closes in, above 1. Default 1.5                                                        |
+| `--[no-]frame`      | The window and the background around the video                                                          |
+| `--background SPEC` | One colour for a fill (`#0b0b0f`) or two for a diagonal gradient (`#e4ddff,#c9dcff`). Implies `--frame` |
+| `--out FILE`        | Default `<run-dir>/video-polished.mp4`                                                                  |
+
+```txt
+shipcut: 1 labels in Inter SemiBold
+shipcut: framed at 1100x688 in 1280x800, background #E4DDFF to #C9DCFF
+shipcut: 1 zooms at 1.5x, 0.078-2.27s
+out/20261009-092845-counter/video-polished.mp4  36 KB 1280x800 2.27s
+added to run.json
+shipcut: peak memory 480 MB of the 1500 MB cap
+```
+
+- **The pointer** is an arrow. On each press a violet wave spreads from it while the arrow gives for a few frames and springs back. It moves at the video's 30 fps however slowly the page repaints.
+- **The labels** put each step's title in a violet pill below and to the right of the arrow's tip, from the step until the next one, for 4 s at most, fading in and out. A label does not show before the pointer's first move, flips to the left near the right edge, and stays out of a story's safe zones.
+- **The zoom** closes in on a click by `--zoom-factor`, finishing just before the click. Clicks less than about 3.4 s apart share one zoom, and the camera pans to a click outside the middle of the view. It pulls back 1.2 s after the last click of a run of them. On a 1280x800 video the render takes about as long as the video plays.
+- **The frame** sets the video in a window with rounded corners and a soft shadow on a still background, lavender into pale blue unless `--background` says otherwise. The window leaves a margin of 7% of the short side, so a framed desktop video shows its page at 86%.
+
+For a video to post, record at twice the size and scale the result back:
+
+```sh
+shipcut run flows/booking.ts --scale 2 --video --frame-by-frame --pointer --mask
+shipcut polish out/<run-id>
+shipcut clip out/<run-id>/video-polished.mp4 --width 1920
+```
+
+At 2560x1600 `polish` peaks near 1.35 GB of memory.
+
+## caption
+
+```sh
+shipcut caption out/20261009-092845-counter
+```
+
+Burns each step's title into `video.mp4`, from the step's offset until the next step, the last one to the end. Writes `video-captioned.mp4` in the run directory unless `--out FILE`, and adds it to `run.json`, so `publish` uploads it beside the plain video.
+
+```txt
+shipcut: captions in Inter Bold
+out/20261009-092845-counter/video-captioned.mp4  15 KB 1280x800 2.27s
+added to run.json
+```
+
+The caption is white on an opaque black band across the frame, with a white rule above and below, so the band shows on a black page too. The text is a 22nd of the frame's short side, 49 px in a story. A title too long for one line wraps. A wide frame has the band on its bottom edge; a tall one ends it at 88% of the height, above a story's own controls. The font is Inter Bold, which ships with shipcut, so a caption looks the same on any machine. `--font FILE` picks another.
+
+Caption first, then clip the captioned file if it needs trimming.
+
+## clip
+
+```sh
+shipcut clip out/<run-id>/video.mp4 --from 2 --to 9 --speed 1.5
+shipcut clip out/20261009-092845-counter/video-polished.mp4 --gif --width 480
+```
+
+| Flag         | What it does                                                        |
+| ------------ | ------------------------------------------------------------------- |
+| `--from S`   | Starts here, in seconds of the source                               |
+| `--to S`     | Ends here, in seconds of the source                                 |
+| `--speed X`  | Speeds up by this factor                                            |
+| `--width W`  | Scales to this width                                                |
+| `--gif`      | A GIF with its own palette, at 12 fps and 640 wide unless `--width` |
+| `--out FILE` | Default `<name>-clip.mp4`, or `<name>.gif`, next to the source      |
+
+```txt
+out/20261009-092845-counter/video-polished.gif  64 KB 480x300 2.25s
+added to run.json
+```
+
+`clip` adds a result inside a run directory to its `run.json`, so `publish` uploads it. Make clips before you publish.
+
+## measure
+
+```sh
+shipcut measure out/20261009-092845-counter
+```
+
+Prints how the run's video came out, one fact a line: distinct frames a second (ffmpeg's `mpdecimate` drops a frame that repeats the one before it), the video's length and its drift against the seconds recorded, Chromium's repaints a second, and the steps. The run's peak memory is on `run`'s own stderr.
+
+```txt
+2.2 distinct frames/s (5 of 68 at 30 fps)
+2.27s video
++10 ms against the 2.26s recorded
+2.7 repaints/s from Chromium (6)
+2 steps, last at 0.19s
+```
+
+This counter page changes only when clicked, so few frames differ. A page in constant motion is where the number tells you something.
+
+## publish
+
+```sh
+shipcut publish out/20261009-092845-counter --project acme --title "Counter, three clicks"
+```
+
+Uploads the run's files to your R2 bucket with a manifest, updates the project's index, and prints Markdown on stdout: images embedded, videos linked. `--project` is required, in lowercase letters, digits and dashes. `--title` is optional. Publishing the same run again replaces it. [Publishing](/docs/publishing) covers the bucket, the variables and the output.
+
+## list
+
+```sh
+shipcut list --project acme --limit 5
+```
+
+The published runs, newest first, 20 unless `--limit`. Without `--project`, every project's. Each run is a line with its id, time, file count and title, and its manifest's URL below.
+
+## rm
+
+```sh
+shipcut rm acme/20261009-092845-counter
+```
+
+Deletes the run's files and its index entry. It asks first unless `--yes`. Cloudflare's cache and any browser that already fetched a file can keep serving it until it expires, a year for a run's files. When one must be gone now, purge its URL in the Cloudflare dashboard.
