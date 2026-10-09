@@ -1,0 +1,124 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* The page is black. Violet is the one action colour, the pointer and the
+   step labels, as in a polished video. Lavender and sky are the stage those
+   videos are framed on. */
+:root {
+  --ink: #000000;
+  --paper: #ffffff;
+  --violet: #6c5ce7;
+  --lavender: #e4ddff;
+  --sky: #c9dcff;
+  /* Secondary text and hairlines on black, both drawn from lavender. */
+  --haze: #a49fc0;
+  --line: #24203a;
+  /* The flow board's blocks: a top face and the edge under it. */
+  --slab: #14111f;
+  --slab-edge: #2a2440;
+
+  --background: var(--ink);
+  --foreground: var(--paper);
+  --card: var(--ink);
+  --card-foreground: var(--paper);
+  --popover: var(--ink);
+  --popover-foreground: var(--paper);
+  --primary: var(--violet);
+  --primary-foreground: var(--paper);
+  --secondary: var(--line);
+  --secondary-foreground: var(--paper);
+  --muted: var(--line);
+  --muted-foreground: var(--haze);
+  --accent: var(--line);
+  --accent-foreground: var(--paper);
+  --destructive: #ff6b81;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--violet);
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-violet: var(--violet);
+  --color-lavender: var(--lavender);
+  --color-sky: var(--sky);
+  --color-haze: var(--haze);
+  --color-line: var(--line);
+  --color-slab: var(--slab);
+
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-code), ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* The flow board, tilted back on a phone and isometric from md up. A block's
+   thickness is a stack of hard shadows towards the screen's bottom, which on
+   the rotated plane is a different direction at each angle. */
+.iso-plane {
+  transform: perspective(1400px) rotateX(24deg);
+  --down-x: 0;
+  --down-y: 1;
+}
+@media (min-width: 48rem) {
+  .iso-plane {
+    transform: scale(0.82) rotateX(55deg) rotateZ(-45deg);
+    --down-x: -0.7071;
+    --down-y: 0.7071;
+  }
+}
+@media (min-width: 64rem) {
+  .iso-plane {
+    transform: rotateX(55deg) rotateZ(-45deg);
+  }
+}
+.iso-block {
+  box-shadow:
+    calc(var(--down-x) * 2px) calc(var(--down-y) * 2px) 0 var(--slab-edge),
+    calc(var(--down-x) * 4px) calc(var(--down-y) * 4px) 0 var(--slab-edge),
+    calc(var(--down-x) * 6px) calc(var(--down-y) * 6px) 0 var(--slab-edge);
+}
+.iso-card {
+  box-shadow:
+    calc(var(--down-x) * 2px) calc(var(--down-y) * 2px) 0 var(--violet),
+    calc(var(--down-x) * 4px) calc(var(--down-y) * 4px) 0 var(--violet),
+    calc(var(--down-x) * 6px) calc(var(--down-y) * 6px) 0 var(--violet),
+    calc(var(--down-x) * 8px) calc(var(--down-y) * 8px) 0 var(--violet),
+    calc(var(--down-x) * 26px) calc(var(--down-y) * 26px) 18px
+      rgb(108 92 231 / 0.35);
+}
