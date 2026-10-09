@@ -22,6 +22,12 @@
     https://media.shipcut.dev/heystol/20261008-121515-booking/video-polished-clip.mp4
 - Последняя строка каждого поста, кроме вопроса в r/SaaS, это
   `want to run it on your app? reply`. Сигнал считается по ответам на нее.
+  Где ссылка допустима в теле поста, за ней идет `or clone it:` со ссылкой
+  на репозиторий: клоны видны в GitHub Insights и тоже считаются.
+- X режет охват постам со ссылкой в теле (разведка рынка, 2026-10-09),
+  поэтому в постах X ссылок нет: лендинг и репозиторий идут первым ответом к
+  каждому посту, см. "Первый ответ". В Threads те же две строки можно
+  оставить в теле поста.
 - Посты от первого лица Романа, с личных X и Threads.
 
 ## Проверить один раз, до первого поста
@@ -68,21 +74,20 @@
 
 - Принимает ли X H.264 level 5.0 для 1920x1200. Если нет,
   `shipcut clip --width 1728` (1728x1080, level 4).
-- Как X сейчас показывает посты со ссылкой. Если такие посты прячет, ссылку
-  перенести в первый ответ к посту, а пост закончить вопросом.
+- Ссылки в X только в первом ответе, см. ниже. Первый ответ публикуется
+  сразу за постом, пока он не набрал показов.
 - Threads получает тот же текст в тот же день, со `utm_source=threads`.
   Ролик загружается без звука и играет.
 - Прочитать последние посты в ленте, чтобы попасть в тон.
 
-Пост 1 запускает проект. К нему хорошо встает первый ответ с картинкой
-фрагмента `booking.ts`, тем же, что на лендинге: сценарий в кадре и есть
+Пост 1 запускает проект. К его первому ответу хорошо встает картинка
+фрагмента `booking.ts`, того же, что на лендинге: сценарий в кадре и есть
 отличие от агента по промпту.
 
 ### Пост 1, запуск, booking
 
 ```
-Launching shipcut. This demo of my booking app is a Playwright script in the repo. My coding agent wrote it, I reviewed it like any PR, and when the UI changes I re-run it. A re-render on every deploy is next.
-{LANDING_URL}?utm_source=x
+shipcut is open source today. This demo of my booking app is a Playwright script in the repo. My coding agent wrote it, I reviewed it like any PR, and when the UI changes I re-run it. A re-render on every deploy is next.
 want to run it on your app? reply
 ```
 
@@ -90,7 +95,6 @@ want to run it on your app? reply
 
 ```
 The owner's side of my booking app. Drag a booking to an earlier slot, mark the guests arrived. shipcut draws the pointer, clicks and zoom after capture, so they stay smooth however slowly the page paints.
-{LANDING_URL}?utm_source=x
 want to run it on your app? reply
 ```
 
@@ -98,7 +102,6 @@ want to run it on your app? reply
 
 ```
 Two people in one demo. The owner creates an event and copies its link, a guest opens it and books a seat. shipcut records it from one Playwright script in one browser window. When the UI changes, I re-run it.
-{LANDING_URL}?utm_source=x
 want to run it on your app? reply
 ```
 
@@ -106,8 +109,17 @@ want to run it on your app? reply
 
 ```
 A venue's first launch, from setup to its booking page. On my 4-vCPU server with no GPU, a screencast of this app got 2-4 fps. shipcut renders it frame by frame on a virtual clock and keeps every animation frame.
-{LANDING_URL}?utm_source=x
 want to run it on your app? reply
+```
+
+### Первый ответ, под каждым постом в X
+
+Та же пара строк под каждым из четырех постов, под постом 1 с картинкой
+`booking.ts`. В Threads эти две строки идут в теле поста перед последней.
+
+```
+The script and the CLI: {LANDING_URL}?utm_source=x
+or clone it: https://github.com/shipcut/shipcut
 ```
 
 ## Indie Hackers
@@ -141,11 +153,11 @@ Some numbers from that work.
 - Two runs of the same booking script come out the same length, with chapters and clicks within a frame of each other.
 - It costs time. A 17 s video takes 54 s to record at 1280x800.
 
-What doesn't exist yet: a re-render on every deploy from CI, a stable link and a player that update with it, run history. That's what I'm deciding whether to build. The CLI is open source: https://github.com/shipcut/shipcut
+What doesn't exist yet: a re-render on every deploy from CI, a stable link and a player that update with it, run history. That's what I'm deciding whether to build. The CLI is open source: https://github.com/shipcut/shipcut. Linux, so a CI runner; on a Mac it records in real time.
 
 The video above is a guest booking a table. The script that made it is on the landing page: {LANDING_URL}?utm_source=ih
 
-want to run it on your app? reply
+want to run it on your app? reply, or clone it: https://github.com/shipcut/shipcut
 ```
 
 ## r/SaaS
@@ -182,7 +194,7 @@ It's called shipcut: {LANDING_URL}?utm_source=reddit
 
 Today it's an open-source CLI. The script lives in your repo. shipcut renders every frame on a virtual clock, so the video is smooth even on a slow machine, then draws the pointer and zoom on top. A re-render on every deploy and a stable link are next.
 
-want to run it on your app? reply
+want to run it on your app? reply, or clone it: https://github.com/shipcut/shipcut
 ```
 
 ## Сообщество Playwright
@@ -204,7 +216,7 @@ Frame-by-frame video of a Playwright page with HeadlessExperimental.beginFrame
 ### Полная версия
 
 ```
-I record demo videos of a web app with Playwright, and on a 4-vCPU VPS with no GPU they stuttered. A screencast gets a frame only when Chromium paints. That's CDP `Page.startScreencast`, and Playwright's `recordVideo` uses it too in Chromium. With software rasterization my app painted 2-4 times a second, and a 0.4 s pointer glide drawn by the page came out as 2 frames. A CI runner is about the same kind of machine.
+I record demo videos of a web app with Playwright, and on a 4-vCPU VPS with no GPU they stuttered. A screencast gets a frame only when Chromium paints. That's CDP `Page.startScreencast`, and Playwright's `recordVideo` uses it too in Chromium, as does the newer `page.screencast`, whatever `fps` you ask for. With software rasterization my app painted 2-4 times a second, and a 0.4 s pointer glide drawn by the page came out as 2 frames. A CI runner is about the same kind of machine.
 
 So I stopped recording in real time and render frame by frame on a virtual clock:
 
@@ -212,7 +224,7 @@ So I stopped recording in real time and render frame by frame on a virtual clock
 2. `Emulation.setVirtualTimePolicy({ policy: "pause" })` returns `virtualTimeTicksBase`. Before each frame: policy `pauseIfNetworkFetchesPending` with a budget of 1000/30 ms, wait for `Emulation.virtualTimeBudgetExpired`, then `beginFrame` with `frameTimeTicks = base + n * 1000/30` and a `screenshot`. When I stamped frames from my own clock instead, animations froze, and a popup stayed half-transparent.
 3. The script's waits have to count frames. With the stock `waitForTimeout`, 6.9 s of script gave 2.5 s of video.
 
-On a test page that animates every frame, 10 s of video now has all 300 `requestAnimationFrame` ticks; the screencast got 215. The cost is time: a 1280x800 frame takes 80-90 ms here, so recording runs about 2.6 times longer than the video.
+On a test page that animates every frame, 10 s of video now has all 300 `requestAnimationFrame` ticks; the screencast got 215. The cost is time: a 1280x800 frame takes 80-90 ms here, so recording runs about 3 times longer than the video.
 
 Then the part I didn't expect. After a `beginFrame` that takes a screenshot, Chromium delivers no network response to the page until the next `beginFrame`. With `pauseIfNetworkFetchesPending` that's a deadlock. The next frame waits for the clock, the clock waits for the response, the response waits for a frame. Every `fetch()` held the clock until my 5 s timeout, though the server answered in 0.3 s. In my first recording of the video above, the event form came back empty after saving because of it.
 
@@ -232,7 +244,7 @@ want to run it on your app? reply
 ```
 Frame-by-frame video of a Playwright page, on a virtual clock.
 
-On a 4-vCPU VPS with no GPU, a screencast of my app got 2-4 frames a second, and a 0.4 s pointer glide came out as 2 frames. So I render instead. I create the page with `Target.createTarget({ enableBeginFrameControl: true })` and let Playwright adopt it, `Emulation.setVirtualTimePolicy` moves the clock 1/30 s per frame, and `HeadlessExperimental.beginFrame` takes each screenshot. 10 s of video gets all 300 rAF ticks, and recording takes about 2.6x real time. It needs the headless shell, on Linux or Windows.
+On a 4-vCPU VPS with no GPU, a screencast of my app got 2-4 frames a second, and a 0.4 s pointer glide came out as 2 frames. So I render instead. I create the page with `Target.createTarget({ enableBeginFrameControl: true })` and let Playwright adopt it, `Emulation.setVirtualTimePolicy` moves the clock 1/30 s per frame, and `HeadlessExperimental.beginFrame` takes each screenshot. 10 s of video gets all 300 rAF ticks, and recording takes about 3x real time. It needs the headless shell, on Linux or Windows.
 
 One thing I didn't expect. After a `beginFrame` with a screenshot, Chromium delivers no network response until the next `beginFrame`. With `pauseIfNetworkFetchesPending` that deadlocks, and every `fetch()` held the clock 5 s though the server answered in 0.3 s. The fix is a second `beginFrame` after each screenshot frame, with `noDisplayUpdates: true` and stamped 0.001 ms later. Now a request costs 10 ms of page time. The price is that rAF runs twice per frame.
 
@@ -250,7 +262,7 @@ want to run it on your app? reply
 **Как поставить.**
 
 ```
-It's a CLI for now: https://github.com/shipcut/shipcut. Clone it, pnpm install, link bin/shipcut into your PATH. You also need ffmpeg built with librsvg and Playwright's Chromium. Frame-by-frame needs Linux, so a CI runner works. Point your coding agent at skills/shipcut/SKILL.md and it writes the first script from your app's source. Stuck? Reply here or write to hello@shipcut.dev.
+Linux or a CI runner. It's a CLI for now: https://github.com/shipcut/shipcut. Clone it, pnpm install, link bin/shipcut into your PATH. You also need ffmpeg built with librsvg and Playwright's Chromium. Point your coding agent at skills/shipcut/SKILL.md and it writes the first script from your app's source. Stuck? Reply here or write to hello@shipcut.dev. No account, no bucket needed for a local video.
 ```
 
 Windows здесь не назван: `PRODUCT.md` говорит, что покадровый рендер на нем
@@ -276,6 +288,36 @@ Recording works, frame-by-frame doesn't. Chrome on macOS doesn't let you drive f
 
 ```
 Longer than the video. A 17 s video takes 54 s to record at 1280x800 on 4 vCPUs, and 2 min 25 s at 2x for 1920x1200 output.
+```
+
+**"Why not Playwright's own video? It has 60 fps and a cursor now."**
+
+```
+It's still a screencast: a frame lands when Chromium paints, and on a slow runner the encoder repeats the last one, at 60 fps as much as at 30. On my 4 vCPUs with no GPU that's 2-4 real frames a second on a heavy page. shipcut asks Chromium for each frame on a virtual clock that moves 1/30 s a frame, so every animation frame is a real paint, and Playwright's waits keep working. If your runner paints fast enough, Playwright's video is fine. The pointer, zoom and labels are drawn after capture from the event log, so changing them is a flag, not a re-run.
+```
+
+**"No voice-over? Everyone else has TTS."**
+
+```
+No voice-over and no music, on purpose. These videos play where sound is off by default: a feed, a PR, a changelog. The step labels say what a voice would. If a voice track is the thing you need, say so; it isn't on the list yet.
+```
+
+**"How is this different from ScreenCI / Argo / Screenwright?"**
+
+```
+Same shape: a script in the repo, a video out. Two differences I can back. As far as I can tell they capture in real time, so on a slow runner the video is as choppy as the page painted; shipcut renders each frame on a virtual clock and gets every animation frame on 4 vCPUs with no GPU. And the pointer, zoom and labels are drawn after capture from the event log, so changing them is a flag, not a re-run. ScreenCI hosts the result with a stable link and re-records from CI; shipcut puts the files in your own R2 bucket, and the hosted link and the CI step are what I'm deciding whether to build. If you want hosting today, ScreenCI has it.
+```
+
+**"What happens when a selector breaks?"**
+
+```
+The run fails: exit 1 and a failed.png of the page at the moment the selector didn't match. Nothing gets published from a broken run. The scenario lives next to the code, so it changes in the same PR as the UI, by the same agent, and getByRole locators survive most markup changes.
+```
+
+**"R2 lock-in?"**
+
+```
+Only publish touches R2. run, polish and clip write plain mp4 and png to a folder on disk, and you can put those anywhere. publish signs its own S3 requests to your bucket, no SDK, no account with me, and the files stay yours. A hosted link is coming for people who don't want a bucket at all.
 ```
 
 ## Что изменили решения Романа
