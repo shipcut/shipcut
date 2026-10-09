@@ -179,8 +179,8 @@ shipcut polish out/20261002-134501-booking
 On a landscape video it draws the pointer with its labels, zooms on the
 clicks and sets the result in a frame. A story gets the pointer, its labels
 and the frame, a post or a phone the pointer and its labels: on a phone's
-width a zoom crops the page at the sides. `--no-labels`, `--no-zoom` and `--no-frame` turn a part off, `--zoom` and
-`--frame` turn one on. For a video to post:
+width a zoom crops the page at the sides. `--no-labels`, `--no-zoom` and `--no-frame` turn a part off, `--labels`,
+`--zoom` and `--frame` turn one on. For a video to post:
 
 ```sh
 shipcut run flows/booking.ts --scale 2 --video --frame-by-frame --pointer --mask
@@ -264,7 +264,7 @@ first. Publishing the same run again replaces it.
 shipcut list --project heystol --limit 5
 ```
 
-Without `--project`, every project.
+Without `--project`, every project. `--limit` defaults to 20 runs.
 
 ### rm
 

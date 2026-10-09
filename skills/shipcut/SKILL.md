@@ -94,11 +94,11 @@ means the machine is busy. Retry later.
 shipcut polish out/<run-id>
 ```
 
-Writes `video-polished.mp4`: the run's video with the pointer and a press
-wave on each click, a frame on a landscape video and a story, and a zoom on a
-landscape video; turn a
-part off with `--no-labels`, `--no-zoom` or `--no-frame`. `--labels` shows each step's title in a pill beside the pointer,
-so write titles as two to four words of what happens next. `--zoom` closes
+Writes `video-polished.mp4`: the run's video with the pointer, a press wave
+on each click and each step's title in a pill beside the pointer, a frame on a
+landscape video and a story, and a zoom on a landscape video; turn a part off
+with `--no-labels`, `--no-zoom` or `--no-frame`. The labels are on by
+default, so write titles as two to four words of what happens next. `--zoom` closes
 the camera in on the clicks and pans between them, and `--frame` sets the
 video in a rounded window on a gradient (`--background '#000'` for another);
 `--zoom-factor 2` for a closer view. Look at a frame from inside a move before

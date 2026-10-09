@@ -89,8 +89,11 @@ true when a flag or a stored shape changes.
   the same stack as Heystol. The Vercel project `shipcut` has its root there,
   so a push to `main` deploys it and a branch gets a preview. Nothing outside
   `web/` is served. `pnpm -F @shipcut/web dev` serves it on port 3005.
-- Satoshi, the landing's font, loads from Fontshare's API. Its licence
-  forbids the font file in a public repository, so it never goes in `web/`.
+- Satoshi, the site's font, is fetched from Fontshare by
+  `web/scripts/satoshi.ts` before `dev`, `build` and `check-types`, into the
+  gitignored `web/src/fonts/`, and served from shipcut.dev. Its licence
+  allows self-hosting but forbids the font file in a public repository, so it
+  is never committed.
 
 ## Words
 
