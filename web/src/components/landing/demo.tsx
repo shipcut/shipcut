@@ -1,7 +1,9 @@
 "use client";
 
 import { cn } from "cn";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+
+import { Clip } from "./clip";
 
 // One real shipcut video beside the six step() lines of the scenario that made
 // it. The line of the chapter on screen is lit, and clicking a line seeks
@@ -67,22 +69,36 @@ export function Demo() {
   return (
     <section
       aria-labelledby="demo"
-      className="mx-auto grid max-w-6xl gap-6 px-4 py-16 sm:px-8 lg:grid-cols-5 lg:items-start lg:gap-12 lg:py-24"
+      className="mx-auto grid max-w-6xl gap-6 px-4 pt-6 pb-16 sm:px-8 lg:grid-cols-5 lg:items-start lg:gap-12 lg:pt-6 lg:pb-24"
     >
       <h2 id="demo" className="sr-only">
         A video shipcut made
       </h2>
       <div className="lg:col-span-3">
-        {CUT_NAMES.map((cut) => (
-          <Clip
-            key={cut}
-            cut={cut}
-            ref={(el) => {
-              videos.current[cut] = el;
-            }}
-            onChapter={setCurrent}
-          />
-        ))}
+        {CUT_NAMES.map((cut) => {
+          const { src, poster, chapters, className } = CUTS[cut];
+          return (
+            <Clip
+              key={cut}
+              src={src}
+              poster={poster}
+              className={className}
+              ref={(el) => {
+                videos.current[cut] = el;
+              }}
+              onTimeUpdate={(e) => {
+                // A seek lands a hair early, hence the 0.05.
+                const t = e.currentTarget.currentTime + 0.05;
+                setCurrent(
+                  Math.max(
+                    0,
+                    chapters.findLastIndex((start) => t >= start)
+                  )
+                );
+              }}
+            />
+          );
+        })}
       </div>
       <div className="flex flex-col gap-4 lg:col-span-2">
         <div className="border-line rounded-xl border px-2 py-3 font-mono text-[13px] leading-6">
@@ -127,79 +143,4 @@ export function Demo() {
 /** Seconds as `0:07`. */
 function clock(seconds: number) {
   return `0:${String(Math.floor(seconds)).padStart(2, "0")}`;
-}
-
-/**
- * One cut of the video: muted and looping, loaded once it is near the screen
- * and playing only while on it. With reduced motion it waits for its controls.
- * Reports the chapter on screen as the time moves.
- */
-function Clip({
-  cut,
-  ref,
-  onChapter,
-}: {
-  cut: Cut;
-  ref: (el: HTMLVideoElement | null) => void;
-  onChapter: (i: number) => void;
-}) {
-  const own = useRef<HTMLVideoElement>(null);
-  const { src, poster, chapters, className } = CUTS[cut];
-
-  useEffect(() => {
-    const el = own.current;
-    if (!el) return;
-    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (still) el.controls = true;
-    const near = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting) return;
-        el.poster = poster;
-        el.src = src;
-        near.disconnect();
-      },
-      { rootMargin: "50%" }
-    );
-    const seen = new IntersectionObserver(
-      ([entry]) => {
-        if (still) return;
-        if (entry?.isIntersecting) {
-          el.play().catch(() => {
-            // Autoplay refused, as in a low-power mode: the poster stays.
-          });
-        } else el.pause();
-      },
-      { threshold: 0.4 }
-    );
-    near.observe(el);
-    seen.observe(el);
-    return () => {
-      near.disconnect();
-      seen.disconnect();
-    };
-  }, [src, poster]);
-
-  return (
-    <video
-      ref={(el) => {
-        own.current = el;
-        ref(el);
-      }}
-      muted
-      playsInline
-      loop
-      preload="none"
-      onTimeUpdate={(e) => {
-        // A seek lands a hair early, hence the 0.05.
-        const t = e.currentTarget.currentTime + 0.05;
-        onChapter(
-          Math.max(
-            0,
-            chapters.findLastIndex((start) => t >= start)
-          )
-        );
-      }}
-      className={cn("bg-slab w-full rounded-xl", className)}
-    />
-  );
 }

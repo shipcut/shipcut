@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://shipcut.dev"),
   title: { default: "shipcut", template: "%s, shipcut" },
   description:
-    "Every frame of your app, even on a CI runner. An open-source CLI: your coding agent writes the Playwright script, shipcut renders every real frame on a virtual clock and draws the pointer, zoom and labels on top.",
+    "Demo videos of your app, every frame, even on CI. Your UI changed, your demo didn't. Your coding agent writes a Playwright script, and shipcut records it.",
   openGraph: { siteName: "shipcut", type: "website" },
   twitter: { card: "summary_large_image" },
 };

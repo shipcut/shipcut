@@ -1,9 +1,11 @@
 import Link from "next/link";
 
+import { Compare } from "@/components/landing/compare";
 import { Demo } from "@/components/landing/demo";
 import { Features } from "@/components/landing/features";
 import { FlowBoard } from "@/components/landing/flow-board";
 import { HeroStage } from "@/components/landing/hero-stage";
+import { TwoParts } from "@/components/landing/two-parts";
 import { Waitlist } from "@/components/landing/waitlist";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -23,23 +25,21 @@ export default function Home() {
       <SiteHeader />
 
       <main>
-        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-8 pb-16 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:pt-20 lg:pb-24">
+        <section className="mx-auto grid max-w-6xl items-center gap-8 px-4 pt-6 pb-8 sm:px-8 lg:grid-cols-2 lg:gap-16 lg:pt-8 lg:pb-8">
           <div className="flex flex-col items-start gap-7">
-            <h1 className="text-[clamp(2.75rem,5.4vw,4.5rem)] leading-[0.98] font-black tracking-[-0.035em] text-balance lg:text-wrap">
-              Every frame of your app, even on a CI runner.
+            <h1 className="text-[clamp(2.75rem,5.4vw,4.5rem)] leading-[0.98] font-black tracking-[-0.035em] text-balance">
+              Demo videos of your app, every frame, even on CI.
             </h1>
             <p className="text-haze max-w-[36ch] text-xl leading-relaxed text-pretty">
-              An open-source CLI: your coding agent writes the Playwright
-              script. shipcut renders every real frame on a virtual clock and
-              draws the pointer, zoom and labels on top. A re-render on every
-              deploy from CI is coming.
+              Your UI changed, your demo didn&apos;t. Your coding agent writes a
+              Playwright script, and shipcut records it.
             </p>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <Link href="/docs" className={INSTALL}>
                 Run it on your app
               </Link>
               <Waitlist variant="link" className={LATER}>
-                Get the re-render on deploy
+                Get it hosted
               </Waitlist>
             </div>
           </div>
@@ -47,6 +47,8 @@ export default function Home() {
         </section>
 
         <Demo />
+
+        <Compare />
 
         <Features />
 
@@ -65,28 +67,7 @@ export default function Home() {
         </section>
       </main>
 
-      <section className="border-line mx-auto flex max-w-6xl flex-col gap-8 border-t px-4 py-12 sm:px-8 lg:py-16">
-        <p className="text-3xl font-bold tracking-tight">
-          Want it on your app?
-        </p>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <Link href="/docs" className={INSTALL}>
-            Install it today
-          </Link>
-          <Waitlist variant="link" className={LATER}>
-            One email when it runs from CI
-          </Waitlist>
-          <p className="text-haze basis-full lg:ml-auto lg:basis-auto">
-            Or write to{" "}
-            <a
-              href="mailto:hello@shipcut.dev"
-              className="text-paper underline-offset-4 hover:underline"
-            >
-              hello@shipcut.dev
-            </a>
-          </p>
-        </div>
-      </section>
+      <TwoParts />
       <SiteFooter />
     </>
   );

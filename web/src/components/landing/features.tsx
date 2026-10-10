@@ -3,7 +3,7 @@
 const FEATURES = [
   {
     title: "Every frame, on a virtual clock",
-    text: "The page's clock moves 1/30 s per frame and Chromium draws each one when asked, so a 4-vCPU runner with no GPU records every frame of every animation, none repeated. Linux, as CI is.",
+    text: "Chromium draws each frame on a clock that moves 1/30 s at a time, so none is skipped or repeated. Linux, as CI is.",
     picture: <Frames />,
   },
   {
@@ -83,7 +83,7 @@ function Polish() {
           />
         </svg>
         <span className="bg-violet absolute top-6 left-3 rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap text-white">
-          Upgrade
+          Create project
         </span>
       </div>
     </div>
@@ -96,13 +96,13 @@ function Script() {
     <pre className="border-line flex h-full flex-col justify-center overflow-hidden rounded-xl border px-4 font-mono text-[13px] leading-6 md:text-xs lg:text-[13px]">
       <code>
         <span className="text-lavender">step</span>(
-        <span className="text-sky">&quot;Add two seats&quot;</span>);
+        <span className="text-sky">&quot;Pick a region&quot;</span>);
         {"\n"}
         <span className="text-haze">await</span> page.
         <span className="text-lavender">getByRole</span>({"\n"}
         {"  "}
         <span className="text-sky">&quot;button&quot;</span>, {"{ "}name:{" "}
-        <span className="text-sky">&quot;+&quot;</span>
+        <span className="text-sky">&quot;Frankfurt&quot;</span>
         {" }"}
         {"\n"}).<span className="text-lavender">click</span>();
       </code>

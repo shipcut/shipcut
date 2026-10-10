@@ -1,33 +1,41 @@
 "use client";
 
-import { IconCheck, IconMinus, IconPlus } from "@tabler/icons-react";
+import { IconCheck } from "@tabler/icons-react";
 import { cn } from "cn";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
 // One card of an app and the pointer working through it, the way a shipcut
 // video shows a flow: a glide on an arc, a wave on each click, and the
 // scenario's step() title beside the pointer.
-const STEPS = ["Switch to yearly", "Add two seats", "Upgrade"] as const;
-const PRICE = { monthly: 24, yearly: 19 };
+const STEPS = [
+  "Name the project",
+  "Pick a region",
+  "Turn on previews",
+  "Create project",
+] as const;
+const LAST = STEPS.length - 1;
+const NAME = "acme-web";
 
-interface Plan {
-  yearly: boolean;
-  seats: number;
-  upgraded: boolean;
+interface Project {
+  name: string;
+  eu: boolean;
+  previews: boolean;
+  created: boolean;
 }
-const START: Plan = { yearly: false, seats: 3, upgraded: false };
-const END: Plan = { yearly: true, seats: 5, upgraded: false };
+const START: Project = { name: "", eu: false, previews: false, created: false };
+const END: Project = { name: NAME, eu: true, previews: true, created: false };
 
 export function HeroStage() {
-  const [plan, setPlan] = useState<Plan>(START);
+  const [project, setProject] = useState<Project>(START);
   const [step, setStep] = useState(-1);
   const [still, setStill] = useState(false);
   const area = useRef<HTMLDivElement>(null);
   const pointer = useRef<HTMLDivElement>(null);
   const wave = useRef<HTMLSpanElement>(null);
-  const yearly = useRef<HTMLButtonElement>(null);
-  const plus = useRef<HTMLButtonElement>(null);
-  const upgrade = useRef<HTMLButtonElement>(null);
+  const name = useRef<HTMLDivElement>(null);
+  const region = useRef<HTMLButtonElement>(null);
+  const previews = useRef<HTMLButtonElement>(null);
+  const create = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const parts = { area, pointer, wave };
@@ -35,41 +43,48 @@ export function HeroStage() {
       // Reduced motion is known only in the browser, so the still frame waits for the effect.
       // oxlint-disable-next-line react/set-state-in-effect
       setStill(true);
-      setPlan(END);
-      setStep(2);
-      requestAnimationFrame(() => park(parts, upgrade));
+      setProject(END);
+      setStep(LAST);
+      requestAnimationFrame(() => park(parts, create));
       return;
     }
     const run = new Run(area);
     async function loop() {
       while (run.alive) {
-        setPlan(START);
+        setProject(START);
         setStep(-1);
         park(parts, undefined);
         await run.wait(900);
 
         setStep(0);
-        await glide(run, parts, yearly);
+        await glide(run, parts, name);
         await press(run, parts);
-        setPlan((p) => ({ ...p, yearly: true }));
-        await run.wait(700);
+        for (let i = 1; i <= NAME.length; i++) {
+          const typed = NAME.slice(0, i);
+          setProject((p) => ({ ...p, name: typed }));
+          await run.wait(75);
+        }
+        await run.wait(600);
 
         setStep(1);
-        await glide(run, parts, plus);
+        await glide(run, parts, region);
         await press(run, parts);
-        setPlan((p) => ({ ...p, seats: 4 }));
-        await run.wait(380);
-        await press(run, parts);
-        setPlan((p) => ({ ...p, seats: 5 }));
+        setProject((p) => ({ ...p, eu: true }));
         await run.wait(700);
 
         setStep(2);
-        await glide(run, parts, upgrade);
+        await glide(run, parts, previews);
         await press(run, parts);
-        setPlan((p) => ({ ...p, upgraded: true }));
-        await run.wait(1300);
+        setProject((p) => ({ ...p, previews: true }));
+        await run.wait(700);
 
         setStep(3);
+        await glide(run, parts, create);
+        await press(run, parts);
+        setProject((p) => ({ ...p, created: true }));
+        await run.wait(1300);
+
+        setStep(LAST + 1);
         await run.wait(2200);
       }
     }
@@ -83,18 +98,18 @@ export function HeroStage() {
     return () => run.stop();
   }, []);
 
-  const price = plan.yearly ? PRICE.yearly : PRICE.monthly;
   const label = STEPS[step];
 
   return (
     <figure className="mx-auto w-full max-w-md lg:max-w-none">
       <div ref={area} className="relative py-6">
         <Card
-          plan={plan}
-          price={price}
-          yearlyRef={yearly}
-          plusRef={plus}
-          upgradeRef={upgrade}
+          project={project}
+          typing={step === 0 && project.name !== ""}
+          nameRef={name}
+          regionRef={region}
+          previewsRef={previews}
+          createRef={create}
         />
         <div
           ref={pointer}
@@ -122,7 +137,7 @@ export function HeroStage() {
               label ? "opacity-100" : "opacity-0"
             )}
           >
-            {label ?? STEPS[2]}
+            {label ?? STEPS[LAST]}
           </span>
         </div>
       </div>
@@ -141,88 +156,103 @@ export function HeroStage() {
           ))}
         </ol>
         <code className="text-haze min-w-0 shrink truncate font-mono text-sm">
-          step(&quot;{STEPS[Math.min(Math.max(step, 0), 2)]}&quot;)
+          step(&quot;{STEPS[Math.min(Math.max(step, 0), LAST)]}&quot;)
         </code>
       </figcaption>
     </figure>
   );
 }
 
-/** The app being recorded: a plan upgrade, in its own light colours. */
+/** The app being recorded: a new project form, in its own light colours. */
 function Card({
-  plan,
-  price,
-  yearlyRef,
-  plusRef,
-  upgradeRef,
+  project,
+  typing,
+  nameRef,
+  regionRef,
+  previewsRef,
+  createRef,
 }: {
-  plan: Plan;
-  price: number;
-  yearlyRef: RefObject<HTMLButtonElement | null>;
-  plusRef: RefObject<HTMLButtonElement | null>;
-  upgradeRef: RefObject<HTMLButtonElement | null>;
+  project: Project;
+  typing: boolean;
+  nameRef: RefObject<HTMLDivElement | null>;
+  regionRef: RefObject<HTMLButtonElement | null>;
+  previewsRef: RefObject<HTMLButtonElement | null>;
+  createRef: RefObject<HTMLButtonElement | null>;
 }) {
   return (
     <div className="bg-paper rounded-3xl p-6 text-base text-[#16131f] shadow-[0_30px_80px_-30px_rgb(108_92_231/0.55)] sm:p-8">
-      <div className="flex items-baseline justify-between gap-4">
-        <span className="text-2xl font-bold tracking-tight">Team plan</span>
-        <span className="text-[#77738a] tabular-nums">${price}/seat/mo</span>
+      <span className="text-2xl font-bold tracking-tight">New project</span>
+      <p className="mt-6 text-sm text-[#77738a]">Name</p>
+      <div
+        ref={nameRef}
+        className="mt-1.5 flex h-11 items-center rounded-xl border border-[#e7e4f2] px-3.5 font-medium"
+      >
+        {project.name ? (
+          <span className={cn(typing && "border-r-2 border-[#16131f] pr-px")}>
+            {project.name}
+          </span>
+        ) : (
+          <span className="font-normal text-[#77738a]">my-app</span>
+        )}
       </div>
-      <div className="mt-6 grid grid-cols-2 rounded-xl bg-[#f0eef7] p-1">
+      <p className="mt-5 text-sm text-[#77738a]">Region</p>
+      <div className="mt-1.5 grid grid-cols-2 rounded-xl bg-[#f0eef7] p-1">
         <span
           className={cn(
             "rounded-lg py-2 text-center transition-colors",
-            !plan.yearly && "bg-paper font-medium shadow-sm"
+            !project.eu && "bg-paper font-medium shadow-sm"
           )}
         >
-          Monthly
+          Virginia
         </span>
         <button
-          ref={yearlyRef}
+          ref={regionRef}
           type="button"
           tabIndex={-1}
           className={cn(
             "rounded-lg py-2 text-center transition-colors",
-            plan.yearly && "bg-paper font-medium shadow-sm"
+            project.eu && "bg-paper font-medium shadow-sm"
           )}
         >
-          Yearly <span className="text-violet">-20%</span>
+          Frankfurt
         </button>
       </div>
       <div className="mt-6 flex items-center justify-between">
-        <span>Seats</span>
-        <span className="flex items-center gap-4">
-          <span className="grid size-9 place-items-center rounded-full border border-[#e7e4f2]">
-            <IconMinus className="size-4" />
-          </span>
-          <span className="w-5 text-center text-lg font-bold tabular-nums">
-            {plan.seats}
-          </span>
-          <button
-            ref={plusRef}
-            type="button"
-            tabIndex={-1}
-            className="grid size-9 place-items-center rounded-full border border-[#e7e4f2]"
-          >
-            <IconPlus className="size-4" />
-          </button>
-        </span>
+        <span>Preview deploys</span>
+        <button
+          ref={previewsRef}
+          type="button"
+          tabIndex={-1}
+          aria-label="Preview deploys"
+          aria-pressed={project.previews}
+          className={cn(
+            "relative h-7 w-12 rounded-full transition-colors duration-300",
+            project.previews ? "bg-violet" : "bg-[#e7e4f2]"
+          )}
+        >
+          <span
+            className={cn(
+              "bg-paper absolute top-1 size-5 rounded-full shadow-sm transition-[left] duration-300",
+              project.previews ? "left-6" : "left-1"
+            )}
+          />
+        </button>
       </div>
       <button
-        ref={upgradeRef}
+        ref={createRef}
         type="button"
         tabIndex={-1}
         className={cn(
           "text-paper mt-7 flex h-12 w-full items-center justify-center gap-2 rounded-xl font-bold transition-colors duration-300",
-          plan.upgraded ? "bg-[#16131f]" : "bg-violet"
+          project.created ? "bg-[#16131f]" : "bg-violet"
         )}
       >
-        {plan.upgraded ? (
+        {project.created ? (
           <>
-            <IconCheck className="size-5" /> On Team, {plan.seats} seats
+            <IconCheck className="size-5" /> Project created
           </>
         ) : (
-          <>Upgrade for ${price * plan.seats}/mo</>
+          <>Create project</>
         )}
       </button>
     </div>

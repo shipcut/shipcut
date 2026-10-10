@@ -19,7 +19,7 @@ import { utmSource } from "./visit-source";
 
 const IDLE: WaitlistState = { status: "idle", message: "" };
 
-/** A button that opens the waitlist form in a dialog. The trigger's text is its children. */
+/** A button that opens the waitlist for hosted shipcut in a dialog. The trigger's text is its children. */
 export function Waitlist({
   className,
   size = "lg",
@@ -28,7 +28,7 @@ export function Waitlist({
 }: {
   className?: string;
   size?: "default" | "lg";
-  variant?: "default" | "link";
+  variant?: "default" | "outline" | "link";
   children?: React.ReactNode;
 }) {
   return (
@@ -41,10 +41,11 @@ export function Waitlist({
       <DialogContent className="border-line gap-5 border p-6 sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold tracking-tight">
-            Join the waitlist
+            shipcut hosted
           </DialogTitle>
           <DialogDescription className="text-base">
-            One email when the CI step and the stable link ship. Nothing else.
+            One email when it opens: a re-render on every deploy from CI, a
+            stable link and a player for every video. Nothing else.
           </DialogDescription>
         </DialogHeader>
         <WaitlistForm />

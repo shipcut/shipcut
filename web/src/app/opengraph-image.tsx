@@ -5,11 +5,11 @@ import { ImageResponse } from "next/og";
 
 // The picture a shared link to shipcut.dev shows: the wordmark with what
 // shipcut is in one line, the headline, and the hero's last step, a pointer
-// clicking Upgrade with its step label.
+// clicking Create project with its step label.
 // Satori reads no woff2, so it takes the static Satoshi TTFs that
 // scripts/satoshi.ts fetches next to the site's variable font.
 
-export const alt = "shipcut: every frame of your app, even on a CI runner.";
+export const alt = "shipcut: demo videos of your app, every frame, even on CI.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -25,6 +25,8 @@ const APP_TRACK = "#f0eef7";
 const APP_EDGE = "#e7e4f2";
 
 const POINTER = "M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z";
+// The h1, broken where the hero breaks it: Satori has no text-wrap: balance.
+const HEADLINE = ["Demo videos", "of your app,", "every frame,", "even on CI."];
 
 const fonts = await Promise.all(
   (
@@ -83,13 +85,17 @@ export default function OpengraphImage() {
         </div>
         <div
           style={{
+            display: "flex",
+            flexDirection: "column",
             fontSize: 78,
             fontWeight: 900,
             lineHeight: 1,
             letterSpacing: -2.7,
           }}
         >
-          Every frame of your app, even on a CI runner.
+          {HEADLINE.map((line) => (
+            <span key={line}>{line}</span>
+          ))}
         </div>
         <div style={{ fontSize: 26, fontWeight: 500, color: HAZE }}>
           shipcut.dev
@@ -101,14 +107,14 @@ export default function OpengraphImage() {
   );
 }
 
-/** The hero's plan card at its last step, with the pointer on Upgrade. */
+/** The hero's new project card at its last step, with the pointer on Create project. */
 function Card() {
   return (
     <div
       style={{
         position: "absolute",
         left: 760,
-        top: 118,
+        top: 96,
         width: 420,
         display: "flex",
         flexDirection: "column",
@@ -121,43 +127,60 @@ function Card() {
         boxShadow: "0 30px 80px -20px rgba(108, 92, 231, 0.6)",
       }}
     >
+      <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: -0.6 }}>
+        New project
+      </span>
+      <span style={{ marginTop: 22, fontSize: 18, color: APP_MUTED }}>
+        Name
+      </span>
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
+          alignItems: "center",
+          marginTop: 8,
+          height: 54,
+          padding: "0 18px",
+          borderRadius: 14,
+          border: `1.5px solid ${APP_EDGE}`,
+          fontWeight: 700,
         }}
       >
-        <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: -0.6 }}>
-          Team plan
-        </span>
-        <span style={{ color: APP_MUTED }}>$19/seat/mo</span>
+        acme-web
       </div>
+      <span style={{ marginTop: 18, fontSize: 18, color: APP_MUTED }}>
+        Region
+      </span>
       <div
         style={{
           display: "flex",
-          marginTop: 26,
+          marginTop: 8,
           padding: 5,
           borderRadius: 14,
           background: APP_TRACK,
         }}
       >
-        <span style={{ flex: 1, textAlign: "center", padding: "9px 0" }}>
-          Monthly
+        <span
+          style={{
+            flex: 1,
+            display: "flex",
+            justifyContent: "center",
+            padding: "9px 0",
+          }}
+        >
+          Virginia
         </span>
         <span
           style={{
             flex: 1,
             display: "flex",
             justifyContent: "center",
-            gap: 6,
             padding: "9px 0",
             borderRadius: 10,
             background: PAPER,
             fontWeight: 700,
           }}
         >
-          Yearly <span style={{ color: VIOLET }}>-20%</span>
+          Frankfurt
         </span>
       </div>
       <div
@@ -165,14 +188,29 @@ function Card() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginTop: 24,
+          marginTop: 22,
         }}
       >
-        <span>Seats</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <Round>−</Round>
-          <span style={{ fontSize: 24, fontWeight: 700 }}>5</span>
-          <Round>+</Round>
+        <span>Preview deploys</span>
+        <span
+          style={{
+            display: "flex",
+            width: 58,
+            height: 34,
+            padding: 4,
+            borderRadius: 17,
+            background: VIOLET,
+            justifyContent: "flex-end",
+          }}
+        >
+          <span
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 13,
+              background: PAPER,
+            }}
+          />
         </span>
       </div>
       <div
@@ -180,7 +218,7 @@ function Card() {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          marginTop: 28,
+          marginTop: 26,
           height: 58,
           borderRadius: 14,
           background: VIOLET,
@@ -188,28 +226,10 @@ function Card() {
           fontWeight: 700,
         }}
       >
-        Upgrade for $95/mo
+        Create project
       </div>
       <Pointer />
     </div>
-  );
-}
-
-function Round({ children }: { children: string }) {
-  return (
-    <span
-      style={{
-        width: 40,
-        height: 40,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 20,
-        border: `1.5px solid ${APP_EDGE}`,
-      }}
-    >
-      {children}
-    </span>
   );
 }
 
@@ -220,7 +240,7 @@ function Pointer() {
       style={{
         position: "absolute",
         left: 356,
-        top: 274,
+        top: 380,
         display: "flex",
       }}
     >
@@ -250,7 +270,7 @@ function Pointer() {
         style={{
           position: "absolute",
           right: 10,
-          top: 40,
+          top: 34,
           padding: "8px 18px",
           borderRadius: 999,
           background: VIOLET,
@@ -260,7 +280,7 @@ function Pointer() {
           whiteSpace: "nowrap",
         }}
       >
-        Upgrade
+        Create project
       </span>
     </div>
   );
