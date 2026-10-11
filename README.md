@@ -310,7 +310,10 @@ Two things a reader should know:
 project root, so a push to `main` goes live. The waitlist is a server action,
 `web/src/app/waitlist.ts`, that mails each address through Resend; it needs
 `RESEND_API_KEY`, `WAITLIST_FROM` and `WAITLIST_TO` in the project's
-environment.
+environment. The pricing section's "Reserve founding price" sends the same
+mail with the plan in its subject. `POLAR_CHECKOUT_SOLO` and
+`POLAR_CHECKOUT_TEAM`, each an https checkout link, are optional: when one is
+set, a reservation of that plan offers it to pay the first month.
 
 ```sh
 pnpm -F @shipcut/web dev   # http://localhost:3005

@@ -1,7 +1,11 @@
 "use server";
 
 // The waitlist: one email address in, one mail to Roman through Resend out.
-// No cookie, no database, no mail to the person who signed up.
+// No cookie, no database, no mail to the person who signed up. With a `plan`
+// it is a reservation of that plan's founding price, which phase 2 counts
+// apart from a plain sign-up.
+
+import { PLANS, type Plan } from "./plans.ts";
 
 const RESEND = "https://api.resend.com/emails";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -10,9 +14,11 @@ const SOURCE = /^[\w-]{1,32}$/;
 export interface WaitlistState {
   status: "idle" | "ok" | "error";
   message: string;
+  /** After a reservation: the plan's checkout link, when one is set. */
+  checkout?: string;
 }
 
-/** For `useActionState`: the form's `email`, and `source`, the visit's utm_source if it had one. */
+/** For `useActionState`: the form's `email`, `source`, the visit's utm_source if it had one, and `plan` for a reservation. */
 export async function joinWaitlist(
   _: WaitlistState,
   form: FormData
@@ -23,6 +29,7 @@ export async function joinWaitlist(
   const source = form.get("source");
   const from =
     typeof source === "string" && SOURCE.test(source) ? source : undefined;
+  const plan = readPlan(form.get("plan"));
 
   const {
     RESEND_API_KEY: key,
@@ -50,8 +57,10 @@ export async function joinWaitlist(
         from: sender,
         to,
         reply_to: email,
-        subject: `Waitlist: ${email}`,
-        text: `${email} joined the shipcut waitlist${from ? ` from ${from}` : ""}.`,
+        subject: plan
+          ? `Founding ${PLANS[plan].name}: ${email}`
+          : `Waitlist: ${email}`,
+        text: `${email} ${plan ? `reserved the founding ${PLANS[plan].name} price, ${PLANS[plan].price} EUR a month,` : "joined the shipcut waitlist"}${from ? ` from ${from}` : ""}.`,
       }),
       signal: AbortSignal.timeout(10_000),
     });
@@ -71,7 +80,27 @@ export async function joinWaitlist(
       message: "Could not add you. Try again in a minute.",
     };
   }
-  return { status: "ok", message: "You're on the list." };
+  if (!plan) return { status: "ok", message: "You're on the list." };
+  const checkout = readCheckout(process.env[PLANS[plan].checkout]);
+  return {
+    status: "ok",
+    message: `Reserved: ${PLANS[plan].name} at ${PLANS[plan].price} EUR a month. Roman will write to you.`,
+    ...(checkout && { checkout }),
+  };
+}
+
+function readPlan(value: FormDataEntryValue | null): Plan | undefined {
+  return value === "solo" || value === "team" ? value : undefined;
+}
+
+/** A checkout link only if it is https, so a typo in the env never becomes a link on the page. */
+function readCheckout(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    return new URL(value).protocol === "https:" ? value : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function readEmail(value: FormDataEntryValue | null): string | undefined {

@@ -5,6 +5,7 @@ import { Demo } from "@/components/landing/demo";
 import { Features } from "@/components/landing/features";
 import { FlowBoard } from "@/components/landing/flow-board";
 import { HeroStage } from "@/components/landing/hero-stage";
+import { Pricing } from "@/components/landing/pricing";
 import { TwoParts } from "@/components/landing/two-parts";
 import { Waitlist } from "@/components/landing/waitlist";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -65,6 +66,8 @@ export default function Home() {
           </h2>
           <FlowBoard />
         </section>
+
+        <Pricing />
       </main>
 
       <TwoParts />

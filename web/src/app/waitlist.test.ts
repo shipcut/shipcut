@@ -83,3 +83,48 @@ test("missing configuration sends nothing", async () => {
   assert.equal((await join({ email: "ada@example.com" })).status, "error");
   assert.equal(resend.mock.callCount(), 0);
 });
+
+test("a plan makes it a reservation, with the plan in the mail", async () => {
+  const resend = stubResend();
+  delete process.env.POLAR_CHECKOUT_SOLO;
+  assert.deepEqual(
+    await join({ email: "ada@example.com", source: "ih", plan: "solo" }),
+    {
+      status: "ok",
+      message: "Reserved: Solo at 29 EUR a month. Roman will write to you.",
+    }
+  );
+  const body = JSON.parse(
+    resend.mock.calls[0]?.arguments[1]?.body as string
+  ) as { subject: string; text: string };
+  assert.equal(body.subject, "Founding Solo: ada@example.com");
+  assert.equal(
+    body.text,
+    "ada@example.com reserved the founding Solo price, 29 EUR a month, from ih."
+  );
+});
+
+test("a reservation hands back the plan's checkout link only when it is https", async () => {
+  stubResend();
+  process.env.POLAR_CHECKOUT_TEAM = "https://buy.polar.sh/polar_cl_team";
+  assert.equal(
+    (await join({ email: "ada@example.com", plan: "team" })).checkout,
+    "https://buy.polar.sh/polar_cl_team"
+  );
+  process.env.POLAR_CHECKOUT_TEAM = "http://buy.polar.sh/polar_cl_team";
+  assert.equal(
+    (await join({ email: "ada@example.com", plan: "team" })).checkout,
+    undefined
+  );
+  delete process.env.POLAR_CHECKOUT_TEAM;
+});
+
+test("an unknown plan is a plain sign-up", async () => {
+  const resend = stubResend();
+  const state = await join({ email: "ada@example.com", plan: "enterprise" });
+  assert.deepEqual(state, { status: "ok", message: "You're on the list." });
+  const body = JSON.parse(
+    resend.mock.calls[0]?.arguments[1]?.body as string
+  ) as { subject: string };
+  assert.equal(body.subject, "Waitlist: ada@example.com");
+});
