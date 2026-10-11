@@ -4,9 +4,6 @@ import { REPO } from "@/components/site/links";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 
-// What shipcut.dev collects and why. A page a person reads, so it stays
-// short and in plain words.
-
 export const metadata: Metadata = {
   title: "Privacy",
   description:

@@ -1,7 +1,5 @@
 "use client";
 
-// The docs' table of contents (a sidebar, a disclosure on phones) and the
-// previous and next links under each page, both from one ordered list.
 import { IconChevronDown } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -33,7 +31,6 @@ function Pages({ current }: { current: string }) {
   );
 }
 
-/** The list of pages: a sidebar from lg up, a disclosure above the article below that. */
 export function DocsNav() {
   const pathname = usePathname();
   const current = PAGES.find((p) => p.href === pathname) ?? PAGES[0];
@@ -65,7 +62,6 @@ export function DocsNav() {
   );
 }
 
-/** Links to the pages before and after this one, at the end of the article. */
 export function DocsPager() {
   const pathname = usePathname();
   const i = PAGES.findIndex((p) => p.href === pathname);

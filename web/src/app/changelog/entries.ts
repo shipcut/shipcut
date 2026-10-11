@@ -1,8 +1,6 @@
-// The changelog's entries, newest first. Each one shows a video shipcut
-// recorded and published, because the changelog is the product showing itself.
+// The changelog's entries, newest first.
 
 export interface Entry {
-  /** The anchor, so an entry can be linked to. */
   id: string;
   /** ISO date the change landed on `main`. */
   date: string;
@@ -12,7 +10,6 @@ export interface Entry {
     src: string;
     /** A frame of the video itself, small, in web/public/changelog/. */
     poster: string;
-    /** What happens in the video, its caption. */
     label: string;
   };
 }

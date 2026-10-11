@@ -5,9 +5,6 @@ import { useRef, useState } from "react";
 
 import { Clip } from "./clip";
 
-// One real shipcut video beside the six step() lines of the scenario that made
-// it. The line of the chapter on screen is lit, and clicking a line seeks
-// there. Phones get the story cut of the same scenario.
 const STEPS = [
   "A guest opens Kávomat",
   "Book a table",
@@ -140,7 +137,6 @@ export function Demo() {
   );
 }
 
-/** Seconds as `0:07`. */
 function clock(seconds: number) {
   return `0:${String(Math.floor(seconds)).padStart(2, "0")}`;
 }

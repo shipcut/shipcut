@@ -1,5 +1,3 @@
-// How Markdown in the docs renders: the landing's type on black, hairline
-// tables, Geist Mono for code. rehype-pretty-code colours the code blocks.
 // Props are typed by hand: @types/mdx reads the global JSX namespace, which
 // React 19's types no longer declare.
 import type { MDXComponents } from "mdx/types";

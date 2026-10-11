@@ -4,7 +4,6 @@ import { buttonVariants } from "@/components/ui/button";
 
 import { REPO } from "./links";
 
-/** The bar on every page: the wordmark home, the docs, the changelog, the repo and one way in, the docs again as the primary action. */
 export function SiteHeader() {
   return (
     <header className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-5 sm:px-8">

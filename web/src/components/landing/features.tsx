@@ -1,5 +1,3 @@
-// The three things shipcut does today, each with a small picture of itself.
-
 const FEATURES = [
   {
     title: "Every frame, on a virtual clock",
@@ -45,7 +43,6 @@ export function Features() {
   );
 }
 
-/** Five consecutive frames of one ball, numbered. */
 function Frames() {
   return (
     <div className="flex h-full items-end gap-2">
@@ -67,7 +64,6 @@ function Frames() {
   );
 }
 
-/** A pointer mid-click, with its wave and its step label. */
 function Polish() {
   return (
     <div className="from-lavender to-sky relative h-full rounded-xl bg-linear-to-br p-4">

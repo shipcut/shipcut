@@ -11,8 +11,6 @@ import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { buttonVariants } from "@/components/ui/button";
 
-// Installing is the one thing to do here, so the docs are the primary action
-// everywhere and the code is the second.
 const INSTALL = buttonVariants({
   size: "lg",
   className: "h-12 px-6 text-base",

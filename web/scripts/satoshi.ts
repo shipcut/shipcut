@@ -1,5 +1,4 @@
-// Downloads Satoshi from Fontshare into src/fonts/ before dev, build and
-// check-types. Its licence (ITF Free Font License 2.0) allows self-hosting
+// Its licence (ITF Free Font License 2.0) allows self-hosting
 // but forbids the font file in a public repository, so the files are
 // gitignored and fetched here. The variable woff2 is the site's text face;
 // the static TTFs are for the social image, since satori reads no woff2.
@@ -11,7 +10,6 @@ const CSS =
   "https://api.fontshare.com/v2/css?f[]=satoshi@1,500,700,900&display=swap";
 const DIR = new URL("../src/fonts/", import.meta.url);
 
-/** Fontshare's `font-weight` for each file, and the format to take from its `src`. */
 const FILES = [
   { name: "Satoshi-Variable.woff2", weight: "300 900", format: "woff2" },
   { name: "Satoshi-Medium.ttf", weight: "500", format: "truetype" },

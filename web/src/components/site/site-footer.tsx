@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { REPO } from "./links";
 
-/** The line at the bottom of every page. */
 export function SiteFooter() {
   return (
     <footer className="border-line text-haze mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 border-t px-4 py-8 text-sm sm:px-8">

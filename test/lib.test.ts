@@ -121,7 +121,6 @@ test("the concat list shows each frame until the next arrived, the first from th
     "ffconcat version 1.0\nfile 000001.jpg\nduration 0.400\nfile 000002.jpg\nduration 0.600\nfile 000003.jpg\nduration 1.000\nfile 000003.jpg\n"
   );
   assert.throws(() => concatList([], 1000));
-  // A frame every thirtieth of a second for ten seconds lists exactly ten seconds.
   const steady = concatList(
     Array.from({ length: 300 }, (_, k) => (k * 1000) / 30),
     10_000
@@ -201,7 +200,6 @@ test("a long caption wraps, and a word too long for a line shrinks the text", ()
   );
   assert.ok(word.size < 49 && word.lines.length === 1);
 
-  // A wide frame keeps the band on its bottom edge.
   const desktop = captionLayout("Pricing", { width: 1280, height: 800 });
   assert.equal(desktop.top + desktop.height, 800);
 });
@@ -414,7 +412,6 @@ test("the pointer glides on an arc from where it is to the target, longer for fa
     path.some(([, , y]) => y > 20),
     "an arc, not a straight line"
   );
-  // Slow at both ends: the first and the last sixtieth cover less ground than one in the middle.
   const step = (i: number) =>
     Math.hypot(path[i + 1]![1] - path[i]![1], path[i + 1]![2] - path[i]![2]);
   const middle = Math.floor(path.length / 2);
@@ -681,7 +678,6 @@ test("SigV4 signs the S3 documentation's GET Object, PUT Object and List Objects
       "Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41"
   );
 
-  // A body, a key with a character to encode, and headers beside the x-amz ones.
   const body = sha256("Welcome to Amazon S3.");
   assert.equal(
     body,
@@ -748,7 +744,6 @@ test("the query and a key's path are encoded as SigV4 signs them", () => {
   assert.equal(canonicalQuery({ "\u1234": "bar" }), "%E1%88%B4=bar");
   // encodeURIComponent leaves these alone; SigV4 does not.
   assert.equal(uriEncode("!'()*"), "%21%27%28%29%2A");
-  // A key keeps its slashes and is encoded once.
   assert.equal(
     keyPath("heystol/20261002-134501-landing/01 top.png"),
     "heystol/20261002-134501-landing/01%20top.png"

@@ -5,8 +5,7 @@ import { useEffect, useRef } from "react";
 import type { Entry } from "./entries";
 
 /**
- * An entry's video: muted and looping, loaded and played only while it is on
- * screen. With reduced motion it never plays by itself and shows controls.
+ * With reduced motion it never plays by itself and shows controls.
  */
 export function EntryVideo({ video }: { video: Entry["video"] }) {
   const ref = useRef<HTMLVideoElement>(null);

@@ -5,8 +5,7 @@ import react from "ultracite/oxlint/react";
 
 /**
  * Rules the Ultracite presets turn on that fight the style this code is
- * written in. They catch no bugs, so they stay off. Most are Heystol's list,
- * which has the same author.
+ * written in. They catch no bugs, so they stay off.
  */
 const NEVER = {
   "eslint/default-case": "off",
@@ -32,9 +31,9 @@ const NEVER = {
   "unicorn/no-await-expression-member": "off",
   "unicorn/no-useless-undefined": "off",
   "unicorn/prefer-ternary": "off",
-  // Not in Heystol's list. The CLI's one-line guards: `if (!x) return y;`.
+  // The CLI's one-line guards: `if (!x) return y;`.
   "eslint/curly": "off",
-  // Not in Heystol's list. `i++` in a for reads better than `i += 1`.
+  // `i++` in a for reads better than `i += 1`.
   "eslint/no-plusplus": "off",
 } as const;
 
@@ -93,7 +92,6 @@ export default defineConfig({
   extends: [core, react, next],
   options: { typeAware: true },
   ignorePatterns: [...core.ignorePatterns, "out/**"],
-  // @shadcn/lint with the three rules Heystol chose.
   jsPlugins: [{ name: "shadcn", specifier: "@shadcn/lint" }],
   rules: {
     ...NEVER,

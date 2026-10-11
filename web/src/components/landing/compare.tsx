@@ -1,9 +1,6 @@
 import { Clip } from "./clip";
 
-// The evidence for the headline: the booking recorded twice on the same box,
-// a real-time screencast on the left, as Playwright's own video records, and
-// shipcut's frame-by-frame mode on the right. Both slowed down so the
-// dropped frames show.
+// Both slowed down so the dropped frames show.
 export function Compare() {
   return (
     <section
