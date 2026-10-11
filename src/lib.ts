@@ -320,12 +320,13 @@ export function polishOptions(argv: string[]) {
       labels: { type: "boolean" },
       frame: { type: "boolean" },
       background: { type: "string" },
+      "label-font": { type: "string" },
     },
   });
   const [dir, ...rest] = positionals;
   if (!dir || rest.length)
     throw new Error(
-      "usage: shipcut polish <run-dir> [--[no-]labels] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]"
+      "usage: shipcut polish <run-dir> [--[no-]labels] [--label-font FILE] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]"
     );
   const factor = number("zoom-factor", values["zoom-factor"]) ?? ZOOM.factor;
   if (factor <= 1) throw new Error("--zoom-factor wants a number above 1");
@@ -335,6 +336,8 @@ export function polishOptions(argv: string[]) {
     zoom: values.zoom,
     zoomFactor: factor,
     labels: values.labels,
+    /** `--label-font`: a font file for the labels instead of the bundled Inter SemiBold. */
+    labelFont: values["label-font"],
     frame: values.frame,
     /** `--background`: one colour for a fill, two for a gradient. */
     background:
@@ -630,7 +633,9 @@ export const LABEL = {
 /** What a `story`'s feed covers with its own controls, in its 1080x1920 pixels. */
 export const STORY_SAFE = { top: 250, bottom: 340 };
 
-const LABEL_FONT = `font-family="Inter, sans-serif" font-weight="600" font-size="${LABEL.size}"`;
+/** The labels' text attributes: `family` is a fontconfig family, the bundled Inter unless `--label-font`. */
+const labelFace = (family: string) =>
+  `font-family="${xml(family)}, sans-serif" font-weight="600" font-size="${LABEL.size}"`;
 const xml = (text: string) =>
   text.replaceAll(
     /[&<>"]/g,
@@ -661,9 +666,9 @@ export function labelWindows(
 }
 
 /** An SVG of a label's text alone, white on black, starting `LABEL.padX` in: ffmpeg's `bbox` finds its ink, since nothing here knows the font's metrics. */
-export function labelProbe(text: string) {
+export function labelProbe(text: string, family = "Inter") {
   const width = Math.ceil(text.length * LABEL.size * 0.8 + 2 * LABEL.padX);
-  const body = `<rect width="${width}" height="${LABEL.size * 2}"/><text x="${LABEL.padX}" y="${LABEL.size * 1.4}" fill="#fff" ${LABEL_FONT}>${xml(text)}</text>`;
+  const body = `<rect width="${width}" height="${LABEL.size * 2}"/><text x="${LABEL.padX}" y="${LABEL.size * 1.4}" fill="#fff" ${labelFace(family)}>${xml(text)}</text>`;
   return { width, svg: svg(width, LABEL.size * 2, body) };
 }
 
@@ -674,7 +679,8 @@ export function labelProbe(text: string) {
  */
 export function labelSprite(
   text: string,
-  ink: { left: number; width: number }
+  ink: { left: number; width: number },
+  family = "Inter"
 ): Sprite & { pill: { width: number; height: number } } {
   const width = Math.ceil(ink.width + 2 * LABEL.padX);
   const height = LABEL.size + 2 * LABEL.padY;
@@ -689,7 +695,7 @@ export function labelSprite(
       width + 2 * m,
       height + 2 * m,
       `${SHADOW}<rect x="${m}" y="${m}" width="${width}" height="${height}" rx="${LABEL.radius}" fill="${LABEL.color}" filter="url(#s)"/>` +
-        `<text x="${(m + LABEL.padX - ink.left).toFixed(2)}" y="${(m + baseline).toFixed(2)}" fill="#fff" ${LABEL_FONT}>${xml(text)}</text>`
+        `<text x="${(m + LABEL.padX - ink.left).toFixed(2)}" y="${(m + baseline).toFixed(2)}" fill="#fff" ${labelFace(family)}>${xml(text)}</text>`
     ),
   };
 }

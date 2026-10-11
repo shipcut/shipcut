@@ -10,7 +10,7 @@ You rarely need to write a scenario by hand. Your coding agent already reads you
 
 ## The skill
 
-The skill is one file, `skills/shipcut/SKILL.md` in the shipcut checkout. It tells the agent:
+The skill is one file, `skills/shipcut/SKILL.md` in the shipcut package. It tells the agent:
 
 - when to record: a visible change gets a before and an after, a new flow gets one run with `--video --pointer`, and verification is not shipcut's job;
 - how to write the scenario: `page`, `base`, `shot`, `step`, waiting for elements instead of timeouts, never writing to production;
@@ -23,9 +23,9 @@ The skill is one file, `skills/shipcut/SKILL.md` in the shipcut checkout. It tel
 Copy the folder into your project, where your agent looks for skills. Claude Code reads `.claude/skills/`. For another agent, use the folder it reads skills from, often `.agents/skills/`.
 
 ```sh
-mkdir -p .claude/skills && cp -r path/to/shipcut/skills/shipcut .claude/skills/
+mkdir -p .claude/skills && cp -r "$(npm root -g)/shipcut/skills/shipcut" .claude/skills/
 # or
-mkdir -p .agents/skills && cp -r path/to/shipcut/skills/shipcut .agents/skills/
+mkdir -p .agents/skills && cp -r "$(npm root -g)/shipcut/skills/shipcut" .agents/skills/
 ```
 
 The agent also needs `shipcut` on its PATH ([Quick start](/docs)), and the five `R2_*` variables to publish ([Publishing](/docs/publishing)). If they are missing, the skill tells the agent to ask you for them, never to look for them elsewhere or print them.
