@@ -1,19 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* The page is black. Violet is the one action colour, the pointer and the
-   step labels, as in a polished video. Lavender and sky are the stage those
-   videos are framed on. */
 :root {
   --ink: #000000;
   --paper: #ffffff;
   --violet: #6c5ce7;
   --lavender: #e4ddff;
   --sky: #c9dcff;
-  /* Secondary text and hairlines on black, both drawn from lavender. */
   --haze: #a49fc0;
   --line: #24203a;
-  /* The flow board's blocks: a top face and the edge under it. */
   --slab: #14111f;
   --slab-edge: #2a2440;
 
@@ -87,9 +82,9 @@
   }
 }
 
-/* The flow board, tilted back on a phone and isometric from md up. A block's
-   thickness is a stack of hard shadows towards the screen's bottom, which on
-   the rotated plane is a different direction at each angle. */
+/* A block's thickness is a stack of hard shadows towards the screen's
+   bottom, which on the rotated plane is a different direction at each
+   angle. */
 .iso-plane {
   transform: perspective(1400px) rotateX(24deg);
   --down-x: 0;

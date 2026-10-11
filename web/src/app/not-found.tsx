@@ -3,7 +3,6 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 
-/** Any URL the site does not have: one line and the way back. */
 export default function NotFound() {
   return (
     <>

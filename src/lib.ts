@@ -1,5 +1,3 @@
-// The pure parts: ids, flags, ffmpeg arguments, the index, the Markdown, and
-// the S3 signature and listing the store talks to R2 with.
 import { createHash, createHmac } from "node:crypto";
 import { basename, extname } from "node:path";
 import { parseArgs } from "node:util";
@@ -127,7 +125,6 @@ export function runOptions(argv: string[]) {
       height: size.height,
       scale: number("scale", values.scale) || size.scale,
     },
-    /** Touch and the mobile viewport, as a phone reports them. */
     mobile: size.mobile,
     video: values.video,
     cursor: values.cursor,
@@ -258,7 +255,6 @@ export function concatList(offsetsMs: number[], endMs: number): string {
   return `${lines.join("\n")}\n`;
 }
 
-/** The ffmpeg arguments that encode a concat list of JPEG frames into a video `seconds` long. */
 export function recordArgs(
   list: string,
   out: string,
@@ -336,10 +332,8 @@ export function polishOptions(argv: string[]) {
     zoom: values.zoom,
     zoomFactor: factor,
     labels: values.labels,
-    /** `--label-font`: a font file for the labels instead of the bundled Inter SemiBold. */
     labelFont: values["label-font"],
     frame: values.frame,
-    /** `--background`: one colour for a fill, two for a gradient. */
     background:
       values.background === undefined
         ? undefined
@@ -351,8 +345,7 @@ export function polishOptions(argv: string[]) {
  * What `polish` draws on a video of `size` where the flags leave it open:
  * the labels always; the frame on a landscape video and on a story; the zoom
  * on a landscape video only, since on a phone's width it crops the page at
- * the sides. `--background` implies the frame. `zoom` is the factor, `frame`
- * the background's colours.
+ * the sides. `--background` implies the frame.
  */
 export function polishPlan(
   o: PolishOptions,
@@ -399,9 +392,9 @@ export interface Keyframe {
 
 /**
  * The camera's keyframes for a video of `size` pixels and `seconds`, from the
- * pointer's clicks (CSS pixels, times `scale`). Between keyframes it eases;
- * outside them it shows the whole frame. Clicks in a step marked `zoom: false`
- * are left out. `spans` are the stretches in which it is closer than 1.
+ * pointer's clicks (CSS pixels, times `scale`). Clicks in a step marked
+ * `zoom: false` are left out. `spans` are the stretches in which it is closer
+ * than 1.
  */
 export function zoomTrack(
   clicks: Point[],
@@ -463,11 +456,9 @@ export function zoomTrack(
 }
 
 /**
- * The `perspective` filter that plays a camera track: each corner is an
- * expression of the frame's time that eases `z`, `x` and `y` between the
- * keyframes around it and picks the source rectangle the frame shows, in
- * fractions of a pixel, so a slow zoom does not shake. Registers 1 to 3 hold
- * `z`, `x` and `y`, register 0 the eased progress.
+ * Picks the source rectangle in fractions of a pixel, so a slow zoom does not
+ * shake. Registers 1 to 3 hold `z`, `x` and `y`, register 0
+ * the eased progress.
  */
 export function zoomFilter(
   keys: Keyframe[],
@@ -504,7 +495,7 @@ export function zoomFilter(
     .join(":")}:interpolation=cubic:eval=frame`;
 }
 
-/** Something `polish` draws: SVG in CSS pixels, its width, and the point of it that sits on the pointer's position. */
+/** SVG in CSS pixels; `hotspot` is the point that sits on the pointer's position. */
 export interface Sprite {
   svg: string;
   width: number;
@@ -521,14 +512,13 @@ const arrow = (x: number, y: number, size = 1) =>
   `<path transform="translate(${x} ${y}) scale(${(1.2857 * size).toFixed(4)}) translate(-1 -1)" d="M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z" ` +
   'fill="#111" stroke="#fff" stroke-width="1.3" stroke-linejoin="round" filter="url(#s)"/>';
 
-/** The pointer, an arrow on every preset; the tip is the hotspot. */
 export const POINTER: Sprite = {
   width: 24,
   hotspot: { x: 4.3, y: 4.3 },
   svg: svg(24, 33, `${SHADOW}${arrow(4.3, 4.3)}`),
 };
 
-/** How the arrow sizes through a press, one value a frame: it gives under the finger and springs back. */
+/** The arrow's scale through a press, one value a frame. */
 const PRESS = [0.92, 0.86, 0.85, 0.9, 0.96, 1];
 /** The frames of a press in which the click sprite draws the arrow, so the pointer itself is hidden for them. */
 export const PRESS_FRAMES = PRESS.length;
@@ -592,7 +582,7 @@ export function follow(
   return lines;
 }
 
-/** The pointer sprite's track from its first move on: `from` (seconds) and `start` place it, `commands` move it. */
+/** `from` is in seconds; `start` places the sprite, `commands` move it. */
 export function pointerTrack(
   moves: Point[],
   seconds: number,
@@ -642,7 +632,6 @@ const xml = (text: string) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!
   );
 
-/** A step's title as its label shows it: one line, cut with an ellipsis past `LABEL.chars`. */
 export function labelText(title: string): string {
   const text = title.trim().replaceAll(/\s+/g, " ");
   return text.length > LABEL.chars
@@ -650,7 +639,6 @@ export function labelText(title: string): string {
     : text;
 }
 
-/** The label windows: each captioned step's title, from the step (or the pointer's first move) to the next step, `LABEL.seconds` at most. */
 export function labelWindows(
   steps: Step[],
   seconds: number,
@@ -673,9 +661,8 @@ export function labelProbe(text: string, family = "Inter") {
 }
 
 /**
- * The label's sprite: a pill as wide as the text's ink plus padding, with a
- * shadow in the margin around it. `ink` is in CSS pixels, `left` measured
- * from where the text starts. The hotspot is the pill's top-left corner.
+ * `ink` is in CSS pixels, `left` measured from where the text starts. The
+ * hotspot is the pill's top-left corner.
  */
 export function labelSprite(
   text: string,
@@ -700,11 +687,7 @@ export function labelSprite(
   };
 }
 
-/**
- * Where a label's pill goes for a pointer at `p`, all in CSS pixels: below and
- * right of the arrow's tip, on its left where the right edge is near, and
- * never outside the frame or in its `safe` zones.
- */
+/** All in CSS pixels. */
 export function labelPlace(
   p: { x: number; y: number },
   pill: { width: number; height: number },
@@ -736,9 +719,8 @@ export function framesKept(stderr: string): number {
 }
 
 /**
- * What `shipcut measure` prints: distinct frames a second, the video's length
- * against the seconds recorded, and the repaints Chromium sent. One fact a
- * line, the number first, so a before and after can sit side by side.
+ * One fact a line, the number first, so a before and after can sit side by
+ * side.
  */
 export function measureLines(
   run: Run,
@@ -789,9 +771,8 @@ export interface Caption {
 }
 
 /**
- * When each step's title is on screen, in seconds: from its own offset to the
- * next step's, the last one to the end. A step marked `caption: false` shows
- * nothing and still ends the caption before it.
+ * Times in seconds. A step marked `caption: false` shows nothing and still ends
+ * the caption before it.
  */
 export function captionTimeline(steps: Step[], duration: number): Caption[] {
   const sorted = [...steps].sort((a, b) => a.at - b.at);
@@ -804,7 +785,6 @@ export function captionTimeline(steps: Step[], duration: number): Caption[] {
   });
 }
 
-/** Greedy wrap into lines of at most `max` characters; a longer word stays whole. */
 export function wrap(text: string, max: number): string[] {
   const lines: string[] = [];
   for (const word of text.split(/\s+/).filter(Boolean)) {
@@ -830,7 +810,6 @@ export const filterValue = (text: string) =>
 // line; measure with drawtext and the bbox filter if that ever shows.
 const GLYPH = 0.6;
 
-/** Where a caption of these lines sits in a frame: a band across it, low. */
 export function captionLayout(
   title: string,
   frame: { width: number; height: number }
@@ -856,9 +835,8 @@ export function captionLayout(
 }
 
 /**
- * The `-vf` value that burns the captions in: white text on an opaque black
- * band, so the page never shows through, with a white rule above and below,
- * so the band still reads as one on a black page.
+ * White text on an opaque black band, so the page never shows through, with a
+ * white rule above and below, so the band still reads as one on a black page.
  */
 export function captionFilter(
   captions: Caption[],
@@ -887,7 +865,6 @@ export function captionFilter(
     .join(",");
 }
 
-/** The ffmpeg arguments for `shipcut clip`. */
 export function clipArgs(o: ClipOptions): string[] {
   // Seeking before -i is fast, and exact here because the output is re-encoded.
   const seek = [
@@ -928,9 +905,8 @@ export function indexEntry(m: Manifest, manifestUrl: string): IndexEntry {
 }
 
 /**
- * The index a project should have: an entry for every stored run id, newest
- * first. A later `known` entry wins over an earlier one with the same id; ids
- * nobody knows come back as `missing`.
+ * A later `known` entry wins over an earlier one with the same id; ids nobody
+ * knows come back as `missing`.
  */
 export function buildIndex(ids: string[], known: IndexEntry[]) {
   const byId = new Map(known.map((e) => [e.id, e]));
@@ -942,7 +918,6 @@ export function buildIndex(ids: string[], known: IndexEntry[]) {
   };
 }
 
-/** The block to paste into a changelog or a PR. */
 export function markdown(m: Manifest): string {
   const lines = m.title ? [`**${m.title}**`, ""] : [];
   const videos = m.files.filter((f) => f.contentType.startsWith("video/"));
@@ -1063,7 +1038,6 @@ export function parseListing(xml: string) {
   };
 }
 
-/** The background `--frame` paints unless `--background` says otherwise: lavender into pale blue. */
 export const BACKGROUND = ["#E4DDFF", "#C9DCFF"];
 
 /** `--background`: one `#rgb` or `#rrggbb` colour for a fill, two joined by a comma for a diagonal gradient. */
@@ -1085,7 +1059,7 @@ export function backgroundColors(spec: string | undefined): string[] {
  * down to leave a margin of 7% of the short side, centred. The window keeps
  * the recording's shape and even dimensions; its corners round by 2.5% of the
  * short side. A story's window reaches into the zones its feed covers, top
- * and bottom: kept clear of them, it was a small card (Roman, 2026-10-07).
+ * and bottom: kept clear of them, it was a small card.
  */
 export function frameLayout(size: { width: number; height: number }) {
   const short = Math.min(size.width, size.height);
@@ -1107,7 +1081,6 @@ export function frameLayout(size: { width: number; height: number }) {
   };
 }
 
-/** The still behind the window: the background and the window's soft shadow, at the video's size. */
 export function backgroundSvg(
   size: { width: number; height: number },
   window: ReturnType<typeof frameLayout>,
@@ -1129,7 +1102,6 @@ export function backgroundSvg(
   );
 }
 
-/** The window's alpha: white where the recording shows, a rounded rectangle on black. */
 export const windowMask = (window: ReturnType<typeof frameLayout>) =>
   svg(
     window.width,

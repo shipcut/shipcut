@@ -1,5 +1,4 @@
-// A self-contained scenario: it serves its own page, so it needs no --base and
-// no network. `shipcut run examples/counter.ts --video --pointer`
+// Serves its own page, so it needs no --base and no network.
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";

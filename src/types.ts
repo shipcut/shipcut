@@ -1,7 +1,6 @@
 // The stored data. A web UI reads these shapes straight from the bucket, so a change
 // here is a change to every manifest already published.
 
-/** One file of a run, as measured on disk. */
 export interface RunFile {
   /** File name inside the run, e.g. `01-landing.png`, `video.mp4`. */
   name: string;
@@ -15,7 +14,7 @@ export interface RunFile {
   at?: number;
 }
 
-/** A chapter a scenario marked with `step(title)`. `caption: false` keeps it out of `shipcut caption`, `zoom: false` out of `polish --zoom`. */
+/** `caption: false` keeps it out of `shipcut caption`, `zoom: false` out of `polish --zoom`. */
 export interface Step {
   title: string;
   at: number;
@@ -26,13 +25,11 @@ export interface Step {
 /** `[ms, x, y]`: milliseconds from the start of the video and CSS pixels of the viewport. */
 export type Point = [number, number, number];
 
-/** What the pointer did under `--pointer`: where it pressed, and every point of its way there. */
 export interface Events {
   clicks: Point[];
   moves: Point[];
 }
 
-/** `run.json`: what `shipcut run` writes next to the files. */
 export interface Run {
   /** `YYYYMMDD-HHMMSS-<scenario>`, UTC, so ids sort by time. */
   id: string;

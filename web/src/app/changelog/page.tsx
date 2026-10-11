@@ -6,8 +6,6 @@ import { SiteHeader } from "@/components/site/site-header";
 import { ENTRIES } from "./entries";
 import { EntryVideo } from "./entry-video";
 
-// What changed in shipcut, newest first, each change with a video shipcut made.
-
 export const metadata: Metadata = {
   title: "Changelog",
   description:

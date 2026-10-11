@@ -4,12 +4,9 @@ import { cn } from "cn";
 import { type ReactEventHandler, useEffect, useRef } from "react";
 
 /**
- * A muted, looping video for the landing: loaded once it is near the screen
- * and playing only while nearly all of it is on screen, so a clip that peeks
- * into the first screen waits for a scroll instead of moving beside the hero.
- * With reduced motion it waits for its controls.
+ * A clip that peeks into the first screen waits for a scroll instead of
+ * moving beside the hero.
  */
-/** The share of the clip that must be on screen before it plays. */
 const PLAY_AT = 0.85;
 
 export function Clip({

@@ -1,7 +1,6 @@
 import { ImageResponse } from "next/og";
 
-// The home-screen icon: the header's pointer, white with a violet edge, on
-// black. Rendered once at build time.
+// Rendered once at build time.
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";

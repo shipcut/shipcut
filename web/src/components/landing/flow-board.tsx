@@ -3,8 +3,6 @@
 import { cn } from "cn";
 import { useEffect, useRef, useState } from "react";
 
-// How a video gets made, as an automation board seen from above at an angle:
-// four lanes, and one job card that travels through them.
 const LANES = [
   { name: "Deploy", station: "Your CI", note: "coming", card: "booking.ts" },
   {
@@ -30,14 +28,12 @@ const FRAMES = 540;
 
 export function FlowBoard() {
   const [lane, setLane] = useState(0);
-  // The lane whose output the card shows: it changes once the card arrives.
   const [shown, setShown] = useState(0);
   const [frame, setFrame] = useState(0);
   const [slot, setSlot] = useState({ x: 0, y: 0, width: 0 });
   const board = useRef<HTMLDivElement>(null);
   const slots = useRef<(HTMLDivElement | null)[]>([]);
 
-  // The card sits over its lane's empty slot, wherever the layout put it.
   useEffect(() => {
     const place = () => {
       const el = slots.current[lane];
@@ -146,7 +142,6 @@ export function FlowBoard() {
           aria-hidden
           className="iso-card bg-lavender text-ink pointer-events-none absolute top-0 left-0 flex h-[72px] items-center rounded-xl px-4 font-mono text-[13px] font-medium transition-transform duration-700 ease-[cubic-bezier(.5,0,.2,1)]"
           style={{
-            // Lifted off its slot towards the screen's top, whatever the angle.
             transform: `translate(${slot.x}px, ${slot.y}px) translate(calc(var(--down-x) * -16px), calc(var(--down-y) * -16px))`,
             width: slot.width,
           }}

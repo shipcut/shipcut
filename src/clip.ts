@@ -1,4 +1,3 @@
-// `shipcut clip`, `caption`, `polish` and `measure`: ffmpeg does the work.
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -38,7 +37,6 @@ import {
 import { measure, recordFile, reportPeak } from "./run.ts";
 import type { Run } from "./types.ts";
 
-/** Runs ffmpeg (in `cwd`, with `env`, when given), reports the result, and adds it to a `run.json` beside it. */
 function produce(
   args: string[],
   path: string,
@@ -66,12 +64,10 @@ export function clip(o: ClipOptions): void {
   produce(clipArgs(o), o.out);
 }
 
-/** The captions' face unless `--font`: Inter Bold, shipped in `fonts/` like the labels' SemiBold. */
 const CAPTION_FONT = fileURLToPath(
   new URL("../fonts/Inter-Bold.ttf", import.meta.url)
 );
 
-/** Burns each step's title into the run's video, from its offset to the next step's. */
 export function caption(o: CaptionOptions): void {
   const run = JSON.parse(readFileSync(join(o.dir, "run.json"), "utf-8")) as Run;
   const source = join(o.dir, "video.mp4");
@@ -99,7 +95,6 @@ export function caption(o: CaptionOptions): void {
   produce(["-y", "-i", source, "-vf", filter, ...MP4, o.out], o.out);
 }
 
-/** Prints how a run's video came out: distinct frames a second and its length against the recording. */
 export function measureRun(dir: string): void {
   const run = JSON.parse(readFileSync(join(dir, "run.json"), "utf-8")) as Run;
   const video = measure(join(dir, "video.mp4"), "video.mp4");
@@ -140,15 +135,9 @@ export function measureRun(dir: string): void {
 }
 
 /**
- * Draws the pointer `run --pointer` logged over the run's video: the arrow
- * moved frame by frame through `sendcmd`, and for each press the same
- * sequence of SVG frames shifted to its moment, a wave with the arrow giving
- * under the finger, while the pointer's own overlay steps aside. The sprites are SVG
- * rendered by ffmpeg's librsvg at the run's scale, so they are as sharp as the
- * page under them. With `zoom`, the camera then closes in on the clicks; the
- * pointer is drawn first, so it grows with the page. With `frame`, the result
- * shrinks into a rounded window with a shadow on a still background, so the
- * camera moves inside the window.
+ * The sprites are SVG rendered by ffmpeg's librsvg at the run's scale, so they
+ * are as sharp as the page under them. With `zoom`, the pointer is drawn first,
+ * so it grows with the page.
  *
  * ponytail: one ffmpeg input per press, fine for tens of clicks. A run with
  * hundreds wants one press track built like the pointer's.
@@ -217,7 +206,6 @@ export function polish(o: PolishOptions): void {
     };
     const pointerStill = still("pointer.svg", px(sprite.width));
     const commands = [...track.commands];
-    // One sendcmd at the head of the chain moves every overlay that follows the pointer.
     const graph = ["[0:v]sendcmd=f=moves.cmd[timed]"];
     let below = "timed";
     run.events.clicks.forEach(([at, x, y], k) => {
@@ -276,7 +264,6 @@ export function polish(o: PolishOptions): void {
       });
     }
     writeFileSync(join(work, "moves.cmd"), `${commands.join("\n")}\n`);
-    // The pointer steps aside while a press sprite draws the arrow for it.
     const pressing = run.events.clicks
       .map(
         ([at]) =>
@@ -348,7 +335,7 @@ export function polish(o: PolishOptions): void {
   reportPeak();
 }
 
-/** The ink of a label's text in CSS pixels, found by rendering it with ffmpeg's librsvg and reading the `bbox` filter. */
+/** The ink of a label's text in CSS pixels. */
 function measureInk(
   text: string,
   scale: number,
@@ -410,7 +397,6 @@ function fontConfig(work: string, labelFont?: string): string {
   return file;
 }
 
-/** The family a font file declares, which the labels' SVG names it by. */
 function fontFamily(path: string): string {
   const done = spawnSync("fc-scan", ["--format", "%{family[0]}", path], {
     encoding: "utf-8",
@@ -421,7 +407,6 @@ function fontFamily(path: string): string {
   return family;
 }
 
-/** The face fontconfig gives a label, named so a run says what it drew with. */
 function labelFont(env: NodeJS.ProcessEnv, family: string): string {
   try {
     return (

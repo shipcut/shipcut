@@ -7,7 +7,6 @@ import { useState } from "react";
 import { REPO } from "@/components/site/links";
 import { Button, buttonVariants } from "@/components/ui/button";
 
-// The CLI is the whole product: free, open source, and installable now.
 const INSTALL = [
   "npm install -g shipcut",
   "npx playwright@1.63 install chromium",
@@ -53,7 +52,7 @@ export function TwoParts() {
   );
 }
 
-/** The install lines from the README, with a button that copies them. */
+/** The install lines from the README. */
 function Install() {
   const [copied, setCopied] = useState(false);
   return (

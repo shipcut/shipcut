@@ -4,9 +4,6 @@ import { IconCheck } from "@tabler/icons-react";
 import { cn } from "cn";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
-// One card of an app and the pointer working through it, the way a shipcut
-// video shows a flow: a glide on an arc, a wave on each click, and the
-// scenario's step() title beside the pointer.
 const STEPS = [
   "Name the project",
   "Pick a region",
@@ -163,7 +160,6 @@ export function HeroStage() {
   );
 }
 
-/** The app being recorded: a new project form, in its own light colours. */
 function Card({
   project,
   typing,
@@ -268,7 +264,6 @@ function chapterColour(i: number, step: number, still: boolean) {
 
 type Parts = Record<"area" | "pointer" | "wave", RefObject<HTMLElement | null>>;
 
-/** Pauses the loop while the card is off screen or the tab is hidden, and ends it on unmount. */
 class Run {
   alive = true;
   private seen = false;
@@ -291,7 +286,6 @@ class Run {
     }
   };
 
-  /** Resolves after `ms` of time the card was visible for, and throws `STOPPED` once the loop is over. */
   async wait(ms: number) {
     await new Promise((resolve) => {
       setTimeout(resolve, ms);
@@ -311,7 +305,6 @@ class Run {
   }
 }
 
-/** Where an element's middle sits in the pointer's area, in pixels. */
 function centre(parts: Parts, target: RefObject<HTMLElement | null>) {
   const area = parts.area.current;
   let el: HTMLElement | null = target.current;
@@ -327,7 +320,6 @@ function centre(parts: Parts, target: RefObject<HTMLElement | null>) {
 
 const at = { x: 0, y: 0 };
 
-/** Moves the pointer. Near the right edge its label flips to the left, as `shipcut polish` does. */
 function place(parts: Parts, x: number, y: number) {
   at.x = x;
   at.y = y;
@@ -340,7 +332,6 @@ function place(parts: Parts, x: number, y: number) {
   );
 }
 
-/** Puts the pointer on `target`, or at rest on the card's bottom right corner when there is none. */
 function park(parts: Parts, target: RefObject<HTMLElement | null> | undefined) {
   const area = parts.area.current;
   if (!area) return;
@@ -350,7 +341,6 @@ function park(parts: Parts, target: RefObject<HTMLElement | null> | undefined) {
   place(parts, point.x, point.y);
 }
 
-/** Glides the pointer to `target` on a shallow arc, as `shipcut run --pointer` does. */
 async function glide(
   run: Run,
   parts: Parts,
@@ -383,7 +373,6 @@ async function glide(
   await run.wait(120);
 }
 
-/** A click: the arrow gives and springs back, and a violet wave spreads from its tip. */
 async function press(run: Run, parts: Parts) {
   parts.wave.current?.animate(
     [

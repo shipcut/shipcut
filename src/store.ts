@@ -1,4 +1,4 @@
-// `publish`, `list`, `rm`: the Cloudflare R2 side, through its S3 API. Layout is in README, "Data layout".
+// Layout is in README, "Data layout".
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -30,7 +30,7 @@ const KEYS = [
   "R2_PUBLIC_URL",
 ] as const;
 
-/** The bucket and its keys: each from the environment, else from `~/.config/shipcut/env`. Never printed. */
+/** Never printed. */
 function credentials() {
   const file = join(homedir(), ".config/shipcut/env");
   const fromFile = existsSync(file)
@@ -55,9 +55,9 @@ function credentials() {
 const publicUrl = (key: string) => `${credentials().publicUrl}/${keyPath(key)}`;
 
 /**
- * One signed request to the bucket, path-style. With `missing`, a 404 comes
- * back as a status; any other failure throws with R2's error code and the
- * key, never the account, the bucket or a credential.
+ * Path-style. With `missing`, a 404 comes back as a status; any other failure
+ * throws with R2's error code and the key, never the account, the bucket or a
+ * credential.
  */
 async function r2(
   method: string,
@@ -129,7 +129,6 @@ async function getJson<T>(
     : { value: JSON.parse(text) as T, url: publicUrl(key) };
 }
 
-/** Every key under `prefix`, or with `folded` the folders one level down, across all pages of the listing. */
 async function listAll(prefix: string, folded = false) {
   const keys: string[] = [];
   const folders: string[] = [];
@@ -156,8 +155,6 @@ function projectName(name: string | undefined): string {
 }
 
 /**
- * A project's index as the store has it now, with one run added or dropped.
- *
  * `index.json` is not its own source. Two publishes a few seconds apart would
  * each start from a copy without the other's run, and a reader of the public
  * URL can get a cached copy up to a minute old. The listing is fresh, so the

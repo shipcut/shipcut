@@ -1,4 +1,3 @@
-// `shipcut run`: drive a scenario in headless Chromium, keep the shots and the video.
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   mkdirSync,
@@ -49,7 +48,7 @@ export type Scenario = (context: ScenarioContext) => Promise<void>;
 const CURSOR_ID = "__shipcut_cursor";
 
 // Runs in the page. Headless Chromium draws no pointer, so a recording would
-// show buttons pressing themselves; this draws one from the mouse events.
+// show buttons pressing themselves.
 function cursor(id: string) {
   if (window !== window.top) return;
   const dot = document.createElement("div");
@@ -139,10 +138,7 @@ const PRESSES = new Set<string>([
 ]);
 
 /**
- * Under `--pointer`, the scenario's pointer travels to an element before
- * acting on it: this waits as long as the glide takes and logs every point of
- * it in `events`, with each press, and `shipcut polish` draws it from them. The
- * page draws nothing, so a glide costs no repaint: a heavy page that manages
+ * The page draws nothing, so a glide costs no repaint: a heavy page that manages
  * three frames a second still gets a pointer at 30. `locator.click()` is
  * `frame.click(selector)` inside Playwright, and so is `page.click()`, so
  * wrapping the Frame methods covers both and no scenario changes.
@@ -226,12 +222,9 @@ function pointer(page: Page, clock: Clock, events: Events): void {
   };
 }
 
-// Runs in every frame of the page under `--mask`. Hides what should not
-// reach a published video or shot: the text in email, phone and password
-// fields, every email address and international phone number in the page's
-// text, and whatever `selectors` match. Text is marked with a CSS highlight,
-// not wrapped in elements, so the page's own DOM is left alone, and the marks
-// are redone in the mutation observer's callback, before the next paint.
+// Runs in every frame of the page under `--mask`. Text is marked with a CSS
+// highlight, not wrapped in elements, so the page's own DOM is left alone, and
+// the marks are redone in the mutation observer's callback, before the next paint.
 function mask(selectors: string[]) {
   // Blur in fractions of the text's own size, so letters run together at any size.
   const HIDE =
@@ -467,7 +460,6 @@ async function frameByFrame(
 
   const cdp = await context.newCDPSession(page);
   const store = frameStore(out);
-  // The requests in flight, to name the one that holds the clock.
   const pending = new Map<string, string>();
   cdp.on("Network.requestWillBeSent", (e) =>
     pending.set(

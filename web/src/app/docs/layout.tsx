@@ -2,7 +2,6 @@ import { DocsNav, DocsPager } from "@/components/docs/docs-nav";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 
-/** Every docs page: the site's header and footer, the page list beside the article, and the way on. */
 export default function DocsLayout({
   children,
 }: {

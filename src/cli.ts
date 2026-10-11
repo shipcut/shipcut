@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// shipcut: record a web app's flows, clip the video, publish to Cloudflare R2.
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
 

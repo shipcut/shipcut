@@ -3,9 +3,6 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
-// The picture a shared link to shipcut.dev shows: the wordmark with what
-// shipcut is in one line, the headline, and the hero's last step, a pointer
-// clicking Create project with its step label.
 // Satori reads no woff2, so it takes the static Satoshi TTFs that
 // scripts/satoshi.ts fetches next to the site's variable font.
 
@@ -25,7 +22,7 @@ const APP_TRACK = "#f0eef7";
 const APP_EDGE = "#e7e4f2";
 
 const POINTER = "M1 1V17L5 13.2L7.8 19.6L10.2 18.6L7.5 12.3H12.8Z";
-// The h1, broken where the hero breaks it: Satori has no text-wrap: balance.
+// Satori has no text-wrap: balance.
 const HEADLINE = ["Demo videos", "of your app,", "every frame,", "even on CI."];
 
 const fonts = await Promise.all(
@@ -107,7 +104,6 @@ export default function OpengraphImage() {
   );
 }
 
-/** The hero's new project card at its last step, with the pointer on Create project. */
 function Card() {
   return (
     <div
@@ -233,7 +229,6 @@ function Card() {
   );
 }
 
-/** The click wave, the arrow and the step label, flipped left as `shipcut polish` does near an edge. */
 function Pointer() {
   return (
     <div

@@ -1,7 +1,5 @@
 import type { MetadataRoute } from "next";
 
-// Every public page of shipcut.dev, for search engines.
-
 const SITE = "https://shipcut.dev";
 const PATHS = [
   "/",
