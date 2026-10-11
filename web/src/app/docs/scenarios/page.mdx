@@ -50,10 +50,10 @@ Write a title as a caption: two to four words of what happens next, with no full
 
 ## Types
 
-Node strips the types and runs the file as it is, so a `.ts` scenario can be plain JavaScript. For your editor's help, type it with `Scenario` from the shipcut checkout:
+Node strips the types and runs the file as it is, so a `.ts` scenario can be plain JavaScript. For your editor's help, add shipcut to the project's dev dependencies and type it with `Scenario`:
 
 ```ts
-import type { Scenario } from "../../shipcut/src/run.ts";
+import type { Scenario } from "shipcut";
 
 const scenario: Scenario = async ({ page, base, shot, step }) => {
   step("The landing");
@@ -64,7 +64,7 @@ const scenario: Scenario = async ({ page, base, shot, step }) => {
 export default scenario;
 ```
 
-The path is wherever your checkout is. Node drops an `import type` before it runs the file, so only your editor reads it.
+Node drops an `import type` before it runs the file, so only your editor reads it.
 
 Since nothing builds the file, a relative import carries its extension (`./helpers.ts`), a path alias such as `@/` does not resolve, and only TypeScript that can be erased works: no `enum`, no `namespace`, no parameter properties.
 

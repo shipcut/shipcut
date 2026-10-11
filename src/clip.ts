@@ -185,7 +185,11 @@ export function polish(o: PolishOptions): void {
   const press = presses[0]!;
 
   const work = mkdtempSync(join(tmpdir(), "shipcut-polish-"));
-  const env = { ...process.env, FONTCONFIG_FILE: fontConfig(work) };
+  const env = {
+    ...process.env,
+    FONTCONFIG_FILE: fontConfig(work, o.labelFont),
+  };
+  const family = o.labelFont ? fontFamily(o.labelFont) : "Inter";
   try {
     writeFileSync(join(work, "pointer.svg"), sprite.svg);
     presses.forEach((p, k) =>
@@ -242,11 +246,14 @@ export function polish(o: PolishOptions): void {
           ? { top: STORY_SAFE.top / scale, bottom: STORY_SAFE.bottom / scale }
           : undefined;
       const windows = labelWindows(run.steps, video.duration, track.from);
-      console.error(`shipcut: ${windows.length} labels in ${labelFont(env)}`);
+      console.error(
+        `shipcut: ${windows.length} labels in ${labelFont(env, family)}`
+      );
       windows.forEach(({ text, from, to }, k) => {
         const label = labelSprite(
           text,
-          measureInk(text, scale, join(work, `probe${k}.svg`), env)
+          measureInk(text, scale, join(work, `probe${k}.svg`), env, family),
+          family
         );
         writeFileSync(join(work, `label${k}.svg`), label.svg);
         const labelStill = still(`label${k}.svg`, px(label.width));
@@ -346,9 +353,10 @@ function measureInk(
   text: string,
   scale: number,
   file: string,
-  env: NodeJS.ProcessEnv
+  env: NodeJS.ProcessEnv,
+  family: string
 ): { left: number; width: number } {
-  const probe = labelProbe(text);
+  const probe = labelProbe(text, family);
   writeFileSync(file, probe.svg);
   const width = String(Math.round(probe.width * scale));
   const done = spawnSync(
@@ -387,25 +395,38 @@ function measureInk(
 /**
  * A fontconfig file that adds the package's own `fonts/` to the system's, so
  * librsvg sets the labels in the bundled Inter on any machine, and still
- * finds the system's fonts for a glyph Inter lacks.
+ * finds the system's fonts for a glyph Inter lacks. A `--label-font` adds its
+ * own directory too.
  */
-function fontConfig(work: string): string {
-  const fonts = fileURLToPath(new URL("../fonts/", import.meta.url));
+function fontConfig(work: string, labelFont?: string): string {
+  const dirs = [fileURLToPath(new URL("../fonts/", import.meta.url))];
+  if (labelFont) dirs.push(dirname(resolve(labelFont)));
   const file = join(work, "fonts.conf");
   writeFileSync(
     file,
     `<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">\n<fontconfig>\n` +
-      `  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>\n  <dir>${fonts}</dir>\n</fontconfig>\n`
+      `  <include ignore_missing="yes">/etc/fonts/fonts.conf</include>\n${dirs.map((d) => `  <dir>${d}</dir>\n`).join("")}</fontconfig>\n`
   );
   return file;
 }
 
+/** The family a font file declares, which the labels' SVG names it by. */
+function fontFamily(path: string): string {
+  const done = spawnSync("fc-scan", ["--format", "%{family[0]}", path], {
+    encoding: "utf-8",
+  });
+  const family = done.stdout?.trim();
+  if (done.status !== 0 || !family)
+    throw new Error(`--label-font: ${path} is not a font fontconfig reads`);
+  return family;
+}
+
 /** The face fontconfig gives a label, named so a run says what it drew with. */
-function labelFont(env: NodeJS.ProcessEnv): string {
+function labelFont(env: NodeJS.ProcessEnv, family: string): string {
   try {
     return (
       // "semibold", not "weight=600": fontconfig's weights are not CSS's, and 600 reads as past bold.
-      execFileSync("fc-match", ["-f", "%{fullname}", "Inter:semibold"], {
+      execFileSync("fc-match", ["-f", "%{fullname}", `${family}:semibold`], {
         encoding: "utf-8",
         env,
         stdio: ["ignore", "pipe", "ignore"],

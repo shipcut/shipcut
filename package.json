@@ -1,20 +1,32 @@
 {
   "name": "shipcut",
   "version": "0.1.0",
-  "private": true,
   "description": "Record screenshots and short videos of a web app's flows and publish them to Cloudflare R2.",
+  "homepage": "https://shipcut.dev",
   "license": "MIT",
-  "bin": {
-    "shipcut": "bin/shipcut"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shipcut/shipcut.git"
   },
+  "bin": {
+    "shipcut": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "fonts",
+    "skills"
+  ],
   "type": "module",
+  "exports": "./dist/run.js",
   "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "check": "tsc --noEmit && pnpm -F @shipcut/web check-types && oxlint && oxfmt --check && node --test",
     "fix": "oxlint --fix && oxfmt",
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "playwright": "^1.63.0"
+    "playwright": "~1.63.0"
   },
   "devDependencies": {
     "@shadcn/lint": "^0.2.0",

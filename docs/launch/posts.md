@@ -195,8 +195,6 @@ It's free and open source, MIT. Install it with `npm install -g shipcut`; it nee
 npm install -g shipcut, then npx playwright@1.63 install chromium. You also need ffmpeg built with librsvg (Ubuntu's is). Point your coding agent at skills/shipcut/SKILL.md in the repo and it writes the first script from your app's source. No account, and no bucket needed for a local video. Stuck? Open an issue: https://github.com/shipcut/shipcut/issues
 ```
 
-Минор Playwright в команде сверить с README из PR #1 в день публикации.
-
 **"AutoDemo (demowright) already does this."**
 
 ```

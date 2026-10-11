@@ -9,9 +9,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 
 // The CLI is the whole product: free, open source, and installable now.
 const INSTALL = [
-  "git clone https://github.com/shipcut/shipcut && cd shipcut",
-  "pnpm install",
-  'ln -s "$PWD/bin/shipcut" ~/.local/bin/shipcut',
+  "npm install -g shipcut",
+  "npx playwright@1.63 install chromium",
 ] as const;
 
 export function TwoParts() {
@@ -54,7 +53,7 @@ export function TwoParts() {
   );
 }
 
-/** The three install lines from the README, with a button that copies them. */
+/** The install lines from the README, with a button that copies them. */
 function Install() {
   const [copied, setCopied] = useState(false);
   return (

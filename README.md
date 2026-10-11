@@ -9,7 +9,16 @@ publishes.
 
 ## Install
 
-Node 24 runs the TypeScript as is, so there is no build.
+```sh
+npm install -g shipcut
+npx playwright@1.63 install chromium
+```
+
+It needs Node 24, `ffmpeg` built with librsvg (Ubuntu's is) and `ffprobe` on
+PATH, and the Chromium of the Playwright minor shipcut pins, which the second
+line fetches.
+
+From a checkout instead, where Node 24 runs the TypeScript as is:
 
 ```sh
 git clone https://github.com/shipcut/shipcut && cd shipcut
@@ -17,14 +26,12 @@ pnpm install
 ln -s "$PWD/bin/shipcut" ~/.local/bin/shipcut   # or any directory on your PATH
 ```
 
-It needs `ffmpeg` built with librsvg (Ubuntu's is) and `ffprobe` on PATH, and
-Playwright's Chromium
-(`pnpm exec playwright install chromium` where it is missing).
+The package is the same code, compiled to `dist/` by `pnpm build` before it is
+published, since Node does not strip types under `node_modules`.
 
 Linux is where it is built and tested, and a CI runner is Linux. On macOS it
 records, but `--frame-by-frame` does not run, because Chrome there cannot be
-driven frame by frame. Windows is untested, and `bin/shipcut` is a bash
-script.
+driven frame by frame. Windows is untested.
 
 Publishing needs a Cloudflare R2 bucket whose files are served publicly, and
 five variables. Each comes from the environment or else from
@@ -168,7 +175,8 @@ has the band on its bottom edge. A tall one has it end at 88% of the height,
 because a story's own controls cover what is below.
 
 The font is Inter Bold, which ships in `fonts/` with the labels' SemiBold, so
-a caption looks the same on any machine; `--font FILE` picks another.
+a caption looks the same on any machine; `--font FILE` picks another, any
+TrueType or OpenType file.
 
 ### polish
 
@@ -204,7 +212,8 @@ one out. A label flips to the pointer's left near the right edge and stays out
 of a story's safe zones. A title longer than 32 characters is cut with an
 ellipsis. The text is set in Inter SemiBold, which ships in `fonts/` under the
 SIL Open Font License, so a label looks the same on any machine; a glyph Inter
-lacks comes from the system's fonts.
+lacks comes from the system's fonts. `--label-font FILE` sets the labels in
+another font file instead, and the pill fits its width.
 
 The frame shrinks the result into a window with rounded corners and a soft
 shadow on a still background, so the video keeps its size and the camera
