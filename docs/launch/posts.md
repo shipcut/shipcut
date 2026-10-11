@@ -262,12 +262,12 @@ want to run it on your app? reply
 **Как поставить.**
 
 ```
-Linux or a CI runner. It's a CLI for now: https://github.com/shipcut/shipcut. Clone it, pnpm install, link bin/shipcut into your PATH. You also need ffmpeg built with librsvg and Playwright's Chromium. Point your coding agent at skills/shipcut/SKILL.md and it writes the first script from your app's source. Stuck? Reply here or write to hello@shipcut.dev. No account, no bucket needed for a local video.
+Linux or a CI runner. It's a CLI for now: npm install -g shipcut, then npx playwright@1.63 install chromium. You also need ffmpeg built with librsvg. Point your coding agent at the skill in the package (skills/shipcut/SKILL.md) and it writes the first script from your app's source. Stuck? Reply here or write to hello@shipcut.dev. No account, no bucket needed for a local video.
 ```
 
 Windows здесь не назван: `PRODUCT.md` говорит, что покадровый рендер на нем
-работает, но `bin/shipcut` это bash-скрипт, и CLI целиком на Windows не
-проверялся. Добавить, если README к запуску скажет иначе.
+работает, но CLI целиком на Windows не проверялся. Добавить, если README к
+запуску скажет иначе.
 
 **"AutoDemo (demowright) already does this."**
 

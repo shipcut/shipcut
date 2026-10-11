@@ -8,7 +8,7 @@ export const metadata = {
 
 ## Which platforms does it run on?
 
-Linux is where shipcut is built and tested. On macOS it records, but `--frame-by-frame` does not run, because Chrome there cannot be driven frame by frame. Windows is untested, and `bin/shipcut` is a bash script.
+Linux is where shipcut is built and tested. On macOS it records, but `--frame-by-frame` does not run, because Chrome there cannot be driven frame by frame. Windows is untested.
 
 ## Does it run on a CI runner?
 
@@ -52,7 +52,6 @@ Anything outside the one page the scenario is given: a popup or a second tab is 
 - A step for your CI that records your scenarios on every deploy and publishes the result, so the video follows the app.
 - One stable URL per scenario that always shows its latest run.
 - A player you can embed on your own site.
-- An npm package. Today it installs from the checkout.
 
 ## Where do I ask?
 

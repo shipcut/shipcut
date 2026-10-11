@@ -10,20 +10,17 @@ shipcut runs a Playwright scenario from your repository in headless Chromium and
 
 ## Install
 
-shipcut installs from GitHub. Node 24 runs its TypeScript as it is, so there is no build step.
-
 ```sh
-git clone https://github.com/shipcut/shipcut && cd shipcut
-pnpm install
-ln -s "$PWD/bin/shipcut" ~/.local/bin/shipcut   # or any directory on your PATH
+npm install -g shipcut
+npx playwright@1.63 install chromium
 ```
 
-It also needs:
+The second line fetches the Chromium that shipcut's Playwright drives. It also needs:
 
+- Node 24.
 - `ffmpeg` built with librsvg, and `ffprobe`, on your PATH. Ubuntu's `ffmpeg` has librsvg, and `ffmpeg -decoders | grep librsvg` prints a line if yours does.
-- Playwright's Chromium. Run `pnpm exec playwright install chromium` in the checkout if it is missing.
 
-Linux is where shipcut is built and tested. On macOS it records, but without `--frame-by-frame`. Windows is untested, and `bin/shipcut` is a bash script.
+Linux is where shipcut is built and tested. On macOS it records, but without `--frame-by-frame`. Windows is untested.
 
 ## Write a scenario
 

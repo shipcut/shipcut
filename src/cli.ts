@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // shipcut: record a web app's flows, clip the video, publish to Cloudflare R2.
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
@@ -15,7 +16,7 @@ const USAGE = `shipcut run <scenario> [--base URL] [--out DIR] [--preset desktop
           [--mask] [--mask-selector CSS]...
 shipcut clip <video> [--from S] [--to S] [--speed X] [--width W] [--gif] [--out FILE]
 shipcut caption <run-dir> [--out FILE] [--font FILE]
-shipcut polish <run-dir> [--[no-]labels] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]
+shipcut polish <run-dir> [--[no-]labels] [--label-font FILE] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]
 shipcut measure <run-dir>
 shipcut publish <run-dir> --project NAME [--title TEXT]
 shipcut list [--project NAME] [--limit N]
