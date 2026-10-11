@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
 
+import { REPO } from "@/components/site/links";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 
-// What shipcut.dev collects, why, and how to have it removed. A page a
-// person reads, so it stays short and in plain words.
+// What shipcut.dev collects and why. A page a person reads, so it stays
+// short and in plain words.
 
 export const metadata: Metadata = {
   title: "Privacy",
   description:
-    "What shipcut.dev collects, why, and how to have it removed. No cookies, no ads, nothing sold.",
+    "What shipcut.dev collects and why. No cookies, no ads, nothing sold.",
 };
 
-const MAIL = "hello@shipcut.dev";
+const ISSUES = `${REPO}/issues`;
 
 export default function Privacy() {
   return (
@@ -24,40 +25,22 @@ export default function Privacy() {
             Privacy
           </h1>
           <p className="text-base">
-            Updated <time dateTime="2026-10-09">9 October 2026</time>
+            Updated <time dateTime="2026-10-11">11 October 2026</time>
           </p>
           <p>
             shipcut.dev is run by Roman Denysov, who is responsible for the
-            personal data described here. Write to <Mail /> about any of it.
+            personal data described here. Ask about any of it in a <Issues />.
           </p>
           <p className="text-paper font-bold">
-            No cookies, no ads, and nothing is sold.
+            No cookies, no ads, no forms, and nothing is sold.
           </p>
-
-          <Section title="The waitlist">
-            <p>
-              When you join the waitlist, you give us your email address. If
-              your visit came from a link with a <code>utm_source</code>, that
-              source goes with it. The site sends both as one email to
-              Roman&apos;s Gmail inbox, through Resend, an email service in the
-              United States that works for us. Resend and Google keep copies as
-              part of delivering and storing mail. Nothing else goes into a
-              database, and the form sends you no email.
-            </p>
-            <p>
-              We use your address for one thing: telling you when shipcut can
-              run on your app. The legal basis is your consent. We keep the
-              address until you ask us to remove it or the waitlist ends. To be
-              removed, write to <Mail />.
-            </p>
-          </Section>
 
           <Section title="Analytics">
             <p>
               Vercel Web Analytics counts visits without cookies and stores no
-              personal data. We see totals: page views, and two events,{" "}
-              <code>Visit</code> and <code>Waitlist</code>, with the
-              visit&apos;s <code>utm_source</code> when there is one.
+              personal data. We see totals: page views, and one event,{" "}
+              <code>Visit</code>, with the visit&apos;s <code>utm_source</code>{" "}
+              when there is one.
             </p>
           </Section>
 
@@ -74,8 +57,7 @@ export default function Privacy() {
           <Section title="Your rights">
             <p>
               Under the GDPR you can ask what we hold about you, have it
-              corrected or erased, object to its use, and withdraw your consent
-              at any time. Write to <Mail />.
+              corrected or erased, and object to its use. Ask in a <Issues />.
             </p>
             <p>
               You can also complain to a data protection authority, in your own
@@ -114,13 +96,10 @@ function Section({
   );
 }
 
-function Mail() {
+function Issues() {
   return (
-    <a
-      href={`mailto:${MAIL}`}
-      className="text-paper underline underline-offset-4"
-    >
-      {MAIL}
+    <a href={ISSUES} className="text-paper underline underline-offset-4">
+      GitHub issue
     </a>
   );
 }

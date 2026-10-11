@@ -19,9 +19,6 @@ export function SiteFooter() {
       <Link href="/privacy" className="hover:text-paper">
         Privacy
       </Link>
-      <a href="mailto:hello@shipcut.dev" className="hover:text-paper">
-        hello@shipcut.dev
-      </a>
     </footer>
   );
 }

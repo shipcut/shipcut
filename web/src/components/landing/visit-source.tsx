@@ -4,7 +4,7 @@ import { track } from "@vercel/analytics";
 import { useEffect } from "react";
 
 /** The visit's utm_source, which every link in a launch post carries. */
-export function utmSource(): string | undefined {
+function utmSource(): string | undefined {
   return (
     new URLSearchParams(window.location.search).get("utm_source") ?? undefined
   );
@@ -23,7 +23,7 @@ function ensureQueue() {
 
 /**
  * Vercel's Pro plan shows no utm_source, so a tagged visit reports it as a
- * custom event, and the waitlist does the same on a sign-up.
+ * custom event.
  */
 export function VisitSource() {
   useEffect(() => {

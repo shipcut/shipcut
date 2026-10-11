@@ -41,7 +41,7 @@ Under `--frame-by-frame` shipcut asks Chromium for each frame on a virtual clock
 - Playwright's screencast: built in, real time, and now with a cursor. Fine when the machine paints fast enough; shipcut is for when it does not, and for the editing on top.
 - playwright-recast: a video from a Playwright trace, with voice-over and subtitles. shipcut has no sound and renders frame by frame from a scenario instead of a trace.
 - Screen Studio and other recorders: you record once, by hand, and the result looks good. shipcut re-records from a script with nobody at the keyboard.
-- Hosted tools such as ScreenCI or Arcade: they host the demo and give you a stable link, and ScreenCI re-records from CI. shipcut runs on your machine or your runner and publishes to your own bucket; the hosted link and the CI step are what is coming.
+- Hosted tools such as ScreenCI or Arcade: they host the demo and give you a stable link, and ScreenCI re-records from CI. shipcut runs on your machine or your runner and publishes to your own bucket. There is no hosted version.
 
 ## What does it not record?
 
@@ -50,9 +50,7 @@ Anything outside the one page the scenario is given: a popup or a second tab is 
 ## What is coming?
 
 - A step for your CI that records your scenarios on every deploy and publishes the result, so the video follows the app.
-- One stable URL per scenario that always shows its latest run.
-- A player you can embed on your own site.
 
 ## Where do I ask?
 
-Write to [hello@shipcut.dev](mailto:hello@shipcut.dev). Once the repository is public, [GitHub issues](https://github.com/shipcut/shipcut/issues) work too.
+Open an issue on [GitHub](https://github.com/shipcut/shipcut/issues).

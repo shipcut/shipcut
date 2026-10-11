@@ -6,18 +6,21 @@ import { Features } from "@/components/landing/features";
 import { FlowBoard } from "@/components/landing/flow-board";
 import { HeroStage } from "@/components/landing/hero-stage";
 import { TwoParts } from "@/components/landing/two-parts";
-import { Waitlist } from "@/components/landing/waitlist";
+import { REPO } from "@/components/site/links";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { buttonVariants } from "@/components/ui/button";
 
-// Installing is the signal the launch counts, so the docs are the primary
-// action everywhere and the waitlist waits for what is not built yet.
+// Installing is the one thing to do here, so the docs are the primary action
+// everywhere and the code is the second.
 const INSTALL = buttonVariants({
   size: "lg",
   className: "h-12 px-6 text-base",
 });
-const LATER = "text-lavender h-12 px-0 text-base font-medium";
+const CODE = buttonVariants({
+  variant: "link",
+  className: "text-lavender h-12 px-0 text-base font-medium",
+});
 
 export default function Home() {
   return (
@@ -38,9 +41,9 @@ export default function Home() {
               <Link href="/docs" className={INSTALL}>
                 Run it on your app
               </Link>
-              <Waitlist variant="link" className={LATER}>
-                Get it hosted
-              </Waitlist>
+              <a href={REPO} className={CODE}>
+                See the code
+              </a>
             </div>
           </div>
           <HeroStage />
