@@ -307,10 +307,7 @@ Two things a reader should know:
 ## The landing
 
 `web/` is shipcut.dev, a Next.js app deployed by Vercel with `web` as the
-project root, so a push to `main` goes live. The waitlist is a server action,
-`web/src/app/waitlist.ts`, that mails each address through Resend; it needs
-`RESEND_API_KEY`, `WAITLIST_FROM` and `WAITLIST_TO` in the project's
-environment.
+project root, so a push to `main` goes live.
 
 ```sh
 pnpm -F @shipcut/web dev   # http://localhost:3005
