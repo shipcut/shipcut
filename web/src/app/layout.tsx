@@ -4,6 +4,7 @@ import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 
 import { VisitSource } from "@/components/landing/visit-source";
+import { Usage } from "@/components/site/usage";
 
 import "./globals.css";
 
@@ -40,6 +41,7 @@ export default function RootLayout({
         {children}
         <Analytics />
         <VisitSource />
+        <Usage />
       </body>
     </html>
   );

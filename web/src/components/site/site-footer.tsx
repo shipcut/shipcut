@@ -12,7 +12,7 @@ export function SiteFooter() {
       <Link href="/changelog" className="hover:text-paper">
         Changelog
       </Link>
-      <a href={REPO} className="hover:text-paper">
+      <a href={REPO} className="hover:text-paper" data-track="footer: github">
         GitHub
       </a>
       <Link href="/privacy" className="hover:text-paper">

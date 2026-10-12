@@ -1,6 +1,7 @@
 "use client";
 
 import { IconCheck, IconCopy } from "@tabler/icons-react";
+import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -31,6 +32,7 @@ export function TwoParts() {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <Link
           href="/docs"
+          data-track="install: docs"
           className={buttonVariants({
             size: "lg",
             className: "h-12 px-6 text-base",
@@ -40,6 +42,7 @@ export function TwoParts() {
         </Link>
         <a
           href={REPO}
+          data-track="install: code"
           className={buttonVariants({
             variant: "link",
             className: "text-lavender h-12 px-0 text-base font-medium",
@@ -70,6 +73,10 @@ function Install() {
           navigator.clipboard
             .writeText(`${INSTALL.join("\n")}\n`)
             .then(() => {
+              track("Copy", {
+                code: "install",
+                page: window.location.pathname,
+              });
               setCopied(true);
               setTimeout(() => setCopied(false), 1500);
             })

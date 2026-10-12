@@ -36,10 +36,10 @@ export default function Home() {
               Playwright script, and shipcut records it.
             </p>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-              <Link href="/docs" className={INSTALL}>
+              <Link href="/docs" className={INSTALL} data-track="hero: run it">
                 Run it on your app
               </Link>
-              <a href={REPO} className={CODE}>
+              <a href={REPO} className={CODE} data-track="hero: code">
                 See the code
               </a>
             </div>
