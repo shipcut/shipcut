@@ -5,7 +5,6 @@ import { Compare } from "@/components/landing/compare";
 import { Demo } from "@/components/landing/demo";
 import { Features } from "@/components/landing/features";
 import { FlowBoard } from "@/components/landing/flow-board";
-import { HeroStage } from "@/components/landing/hero-stage";
 import { INIT, TwoParts } from "@/components/landing/two-parts";
 import { REPO } from "@/components/site/links";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -45,10 +44,8 @@ export default function Home() {
               </a>
             </div>
           </div>
-          <HeroStage />
+          <Demo />
         </section>
-
-        <Demo />
 
         <Compare />
 

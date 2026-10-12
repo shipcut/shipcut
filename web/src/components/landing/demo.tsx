@@ -64,76 +64,67 @@ export function Demo() {
   };
 
   return (
-    <section
-      aria-labelledby="demo"
-      className="mx-auto grid max-w-6xl gap-6 px-4 pt-6 pb-16 sm:px-8 lg:grid-cols-5 lg:items-start lg:gap-12 lg:pt-6 lg:pb-24"
-    >
-      <h2 id="demo" className="sr-only">
-        A video shipcut made
-      </h2>
-      <div className="lg:col-span-3">
-        {CUT_NAMES.map((cut) => {
-          const { src, poster, chapters, className } = CUTS[cut];
-          return (
-            <Clip
-              key={cut}
-              src={src}
-              poster={poster}
-              className={className}
-              ref={(el) => {
-                videos.current[cut] = el;
-              }}
-              onTimeUpdate={(e) => {
-                // A seek lands a hair early, hence the 0.05.
-                const t = e.currentTarget.currentTime + 0.05;
-                setCurrent(
-                  Math.max(
-                    0,
-                    chapters.findLastIndex((start) => t >= start)
-                  )
-                );
-              }}
-            />
-          );
-        })}
-      </div>
-      <div className="flex flex-col gap-4 lg:col-span-2">
-        <div className="border-line rounded-xl border px-2 py-3 font-mono text-[13px] leading-6">
-          <p className="text-haze px-3 pb-2 text-xs">booking.ts</p>
-          <ol aria-label="Chapters, click one to jump there">
+    <figure className="mx-auto w-full max-w-md sm:max-w-none">
+      {CUT_NAMES.map((cut) => {
+        const { src, poster, chapters, className } = CUTS[cut];
+        return (
+          <Clip
+            key={cut}
+            src={src}
+            poster={poster}
+            className={className}
+            ref={(el) => {
+              videos.current[cut] = el;
+            }}
+            onTimeUpdate={(e) => {
+              // A seek lands a hair early, hence the 0.05.
+              const t = e.currentTarget.currentTime + 0.05;
+              setCurrent(
+                Math.max(
+                  0,
+                  chapters.findLastIndex((start) => t >= start)
+                )
+              );
+            }}
+          />
+        );
+      })}
+      <figcaption className="mt-4 flex flex-col gap-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+          <ol
+            className="flex w-full gap-1.5 sm:w-auto sm:flex-1"
+            aria-label="Chapters, click one to jump there"
+          >
             {STEPS.map((title, i) => (
-              <li key={title}>
+              <li key={title} className="flex-1">
                 <button
                   type="button"
                   onClick={() => seek(i)}
                   aria-current={i === current ? "step" : undefined}
-                  className={cn(
-                    "flex w-full items-baseline gap-3 rounded-md px-3 py-0.5 text-left whitespace-nowrap",
-                    i === current
-                      ? "bg-violet text-paper font-medium"
-                      : "hover:bg-line"
-                  )}
+                  className="group flex w-full py-2"
                 >
                   <span
                     className={cn(
-                      "w-[4ch] shrink-0 tabular-nums",
-                      i === current ? "text-paper" : "text-haze"
+                      "group-hover:bg-lavender h-1 w-full rounded-full transition-colors duration-500",
+                      i <= current ? "bg-violet" : "bg-line"
                     )}
-                  >
-                    {clock(CUTS.desktop.chapters[i] ?? 0)}
-                  </span>
-                  <code className="truncate">step(&quot;{title}&quot;);</code>
+                  />
+                  <span className="sr-only">{title}</span>
                 </button>
               </li>
             ))}
           </ol>
+          <code className="text-haze min-w-0 shrink truncate font-mono text-sm">
+            {clock(CUTS.desktop.chapters[current] ?? 0)} step(&quot;
+            {STEPS[current]}&quot;)
+          </code>
         </div>
-        <p className="text-haze text-base leading-relaxed text-pretty">
+        <p className="text-haze text-sm leading-relaxed text-pretty">
           A guest books a table in Heystol, Roman&apos;s own app. shipcut
-          recorded it from this script on a 4-vCPU server with no GPU.
+          recorded it from a six-step script on a 4-vCPU server with no GPU.
         </p>
-      </div>
-    </section>
+      </figcaption>
+    </figure>
   );
 }
 
