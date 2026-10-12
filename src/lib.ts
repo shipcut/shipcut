@@ -1108,3 +1108,134 @@ export const windowMask = (window: ReturnType<typeof frameLayout>) =>
     window.height,
     `<rect width="${window.width}" height="${window.height}"/><rect width="${window.width}" height="${window.height}" rx="${window.radius}" fill="#fff"/>`
   );
+
+/** Where each coding agent reads a project's skills, and the files that give it away. */
+export const AGENTS = {
+  claude: {
+    name: "Claude Code",
+    dir: ".claude/skills",
+    marks: [".claude", "CLAUDE.md"],
+  },
+  cursor: {
+    name: "Cursor",
+    dir: ".cursor/skills",
+    marks: [".cursor", ".cursorrules"],
+  },
+  agents: {
+    name: "Codex and other agents that read .agents/skills",
+    dir: ".agents/skills",
+    marks: [".agents", ".codex", "AGENTS.md"],
+  },
+} as const;
+
+export type Agent = keyof typeof AGENTS;
+
+const isAgent = (key: string): key is Agent => key in AGENTS;
+
+export type InitOptions = ReturnType<typeof initOptions>;
+
+/** Flags of `shipcut init`. */
+export function initOptions(argv: string[]) {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    allowNegative: true,
+    options: {
+      yes: { type: "boolean", short: "y", default: false },
+      agent: { type: "string", multiple: true },
+      base: { type: "string" },
+      scenario: { type: "boolean", default: true },
+    },
+  });
+  if (positionals.length)
+    throw new Error(
+      "usage: shipcut init [--yes] [--agent claude|cursor|agents|none]... [--base URL] [--no-scenario]"
+    );
+  const named = values.agent?.flatMap((value) => value.split(","));
+  for (const key of named ?? [])
+    if (key !== "none" && !isAgent(key))
+      throw new Error(
+        `--agent is one of ${Object.keys(AGENTS).join(", ")} or none, got "${key}"`
+      );
+  return {
+    yes: values.yes,
+    /** Undefined when not given: the wizard detects them. */
+    agents: named?.filter(isAgent),
+    base: values.base?.replace(/\/$/, ""),
+    scenario: values.scenario,
+  };
+}
+
+/** The agents whose files sit at the project's root. */
+export const detectAgents = (entries: string[]): Agent[] =>
+  (Object.keys(AGENTS) as Agent[]).filter((key) =>
+    AGENTS[key].marks.some((mark) => entries.includes(mark))
+  );
+
+export interface PackageJson {
+  name?: string;
+  version?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  scripts?: Record<string, string>;
+}
+
+const DEV_PORTS: [string, number][] = [
+  ["next", 3000],
+  ["nuxt", 3000],
+  ["react-scripts", 3000],
+  ["astro", 4321],
+  ["@angular/core", 4200],
+  ["gatsby", 8000],
+  ["vite", 5173],
+];
+
+/** Where the project's dev server listens: a port in its `dev` script, else its framework's default. */
+export function devServer(pkg: PackageJson): {
+  url: string;
+  framework?: string;
+} {
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  const framework = DEV_PORTS.find(([name]) => name in deps);
+  const script = pkg.scripts?.dev ?? pkg.scripts?.start ?? "";
+  const port =
+    /(?:--port|-p)[= ](\d{2,5})\b/.exec(script)?.[1] ??
+    /\bPORT=(\d{2,5})\b/.exec(script)?.[1] ??
+    framework?.[1] ??
+    3000;
+  return { url: `http://localhost:${port}`, framework: framework?.[0] };
+}
+
+/**
+ * The command that installs an ffmpeg with librsvg. Homebrew's own formula
+ * leaves librsvg out, so a Mac takes the homebrew-ffmpeg tap's.
+ */
+export function ffmpegInstall(
+  platform: string,
+  osRelease = "",
+  installed = false
+): string {
+  if (platform === "darwin")
+    return `${installed ? "brew uninstall ffmpeg && " : ""}brew tap homebrew-ffmpeg/ffmpeg && brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-librsvg`;
+  if (platform === "win32") return "winget install Gyan.FFmpeg";
+  const ids = [
+    /^ID="?([^"\n]+)/m.exec(osRelease)?.[1],
+    ...(/^ID_LIKE="?([^"\n]+)/m.exec(osRelease)?.[1]?.split(" ") ?? []),
+  ];
+  if (ids.some((id) => id === "debian" || id === "ubuntu"))
+    return "sudo apt-get install -y ffmpeg";
+  if (ids.some((id) => id === "fedora" || id === "rhel"))
+    return "sudo dnf install -y ffmpeg-free";
+  if (ids.includes("arch")) return "sudo pacman -S --needed ffmpeg";
+  if (ids.includes("alpine")) return "sudo apk add ffmpeg";
+  return "install ffmpeg built with librsvg from your package manager";
+}
+
+/** The scenario `shipcut init` writes: the landing, one shot. */
+export const STARTER_SCENARIO = `export default async ({ page, base, shot, step }) => {
+  step("The landing");
+  await page.goto(\`\${base}/\`);
+  await page.locator("body").waitFor();
+  await shot("landing");
+};
+`;

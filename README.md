@@ -9,6 +9,15 @@ publishes.
 
 ## Install
 
+In your app's folder:
+
+```sh
+npx shipcut init
+```
+
+It sets up everything `shipcut` needs and asks before each change; see
+[init](#init). By hand instead:
+
 ```sh
 npm install -g shipcut
 npx playwright@1.63 install chromium
@@ -50,6 +59,38 @@ install. If a variable is missing, `publish`, `list` and `rm` stop and name
 it. They never print a value.
 
 ## Commands
+
+### init
+
+```sh
+npx shipcut init
+```
+
+A setup wizard, run in the folder of the app you will record. In order, it:
+
+- checks Node 24 and installs `shipcut` globally with npm, or updates an older
+  one;
+- downloads the Chromium of the Playwright minor shipcut pins, unless it is
+  already there;
+- checks for `ffmpeg` with librsvg and `ffprobe`, and if one is missing prints
+  the command that installs it on your system (apt, dnf, pacman, apk, the
+  homebrew-ffmpeg tap on a Mac, winget);
+- adds the [skill](skills/shipcut/SKILL.md) for each coding agent it finds:
+  `.claude/skills/` for Claude Code, `.cursor/skills/` for Cursor and
+  `.agents/skills/` for Codex and other agents. Run it again after an update
+  to refresh the skill;
+- writes a first scenario to `shipcut/landing.ts`, unless `shipcut/` exists;
+- says which `R2_*` variables publishing still needs, and the commands to
+  record.
+
+Each step asks first, with the default in capitals. `--yes` takes every
+default without asking, as does a run with no terminal, so it fits a CI step.
+`--agent claude|cursor|agents|none` picks the agents instead of detecting them,
+and takes a comma-separated list or repeats. `--base URL` sets where the app
+runs, which init otherwise reads from `package.json`. `--no-scenario` skips the
+scenario. It exits 1 when Node, shipcut, Chromium or ffmpeg is still missing.
+
+`shipcut --version` prints the version.
 
 ### run
 

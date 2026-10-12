@@ -30,14 +30,24 @@ const KEYS = [
   "R2_PUBLIC_URL",
 ] as const;
 
-/** Never printed. */
-function credentials() {
+function reader() {
   const file = join(homedir(), ".config/shipcut/env");
   const fromFile = existsSync(file)
     ? parseEnv(readFileSync(file, "utf-8"))
     : {};
-  const value = (key: (typeof KEYS)[number]) =>
+  return (key: (typeof KEYS)[number]) =>
     process.env[key] || fromFile[key] || "";
+}
+
+/** The names of the `R2_*` variables that are not set, never a value. */
+export function missingCredentials(): string[] {
+  const value = reader();
+  return KEYS.filter((key) => !value(key));
+}
+
+/** Never printed. */
+function credentials() {
+  const value = reader();
   const missing = KEYS.filter((key) => !value(key));
   if (missing.length)
     throw new Error(

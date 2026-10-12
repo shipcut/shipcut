@@ -18,7 +18,7 @@ that can read and write that one bucket.
 What the product is and is not: `PRODUCT.md`. The order of work: `ROADMAP.md`.
 The current stage in detail: `docs/prd/<nn>-*.md`, the one `ROADMAP.md` names.
 
-`README.md` is the user's view: the eight commands and the data layout. Keep it
+`README.md` is the user's view: the nine commands and the data layout. Keep it
 true when a flag or a stored shape changes.
 
 ## Layout
@@ -32,6 +32,7 @@ true when a flag or a stored shape changes.
   `run.json`.
 - `src/clip.ts` - `clip`, `caption`, `polish` and `measure`, the ffmpeg wrappers.
 - `src/store.ts` - R2: publish, list, rm, the credentials.
+- `src/init.ts` - `init`, the setup wizard: installs, checks, the skill.
 - `src/types.ts` - the stored shapes. Published manifests already have them,
   so add fields, do not rename or remove.
 - `fonts/` - Inter SemiBold for the labels and Inter Bold for the captions,
