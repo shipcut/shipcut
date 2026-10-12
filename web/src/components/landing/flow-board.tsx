@@ -4,23 +4,24 @@ import { cn } from "cn";
 import { useEffect, useRef, useState } from "react";
 
 const LANES = [
-  { name: "Deploy", station: "Your CI", note: "coming", card: "booking.ts" },
+  {
+    name: "Script",
+    station: "Written by your agent",
+    card: "booking.ts",
+  },
   {
     name: "Record",
     station: "Chromium, frame by frame",
-    note: undefined,
     card: "frame",
   },
   {
     name: "Polish",
     station: "Pointer, zoom, frame",
-    note: undefined,
     card: "video-polished.mp4",
   },
   {
     name: "Publish",
     station: "A link for your site, changelog or PR",
-    note: undefined,
     card: "media.shipcut.dev/…",
   },
 ] as const;
@@ -121,11 +122,6 @@ export function FlowBoard() {
             <div className="flex items-baseline gap-2 px-1">
               <span className="text-haze font-mono text-sm">{i + 1}</span>
               <span className="text-lg font-bold">{l.name}</span>
-              {l.note && (
-                <span className="border-haze text-paper ml-auto rounded-full border px-2.5 text-sm font-medium">
-                  {l.note}
-                </span>
-              )}
             </div>
             <div className="iso-block bg-slab text-lavender rounded-xl px-3 py-4 text-base font-medium">
               {l.station}

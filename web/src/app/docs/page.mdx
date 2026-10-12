@@ -10,15 +10,30 @@ shipcut runs a Playwright scenario from your repository in headless Chromium and
 
 ## Install
 
+In your app's folder:
+
+```sh
+npx shipcut init
+```
+
+The wizard asks before each step, with a sensible default:
+
+- it checks Node 24 and installs `shipcut` globally with npm;
+- it downloads the Chromium that shipcut's Playwright drives;
+- it checks for `ffmpeg` built with librsvg and `ffprobe`, and if one is missing prints the command that installs it on your system;
+- it adds the [shipcut skill](/docs/agents) for Claude Code, Cursor or Codex, whichever your project uses;
+- it writes a first scenario to `shipcut/landing.ts`, and prints the commands to record it.
+
+`npx shipcut init --yes` takes every default without asking, for a CI step. It exits 1 while something it needs is still missing, so run it again after a fix.
+
+By hand instead:
+
 ```sh
 npm install -g shipcut
 npx playwright@1.63 install chromium
 ```
 
-The second line fetches the Chromium that shipcut's Playwright drives. It also needs:
-
-- Node 24.
-- `ffmpeg` built with librsvg, and `ffprobe`, on your PATH. Ubuntu's `ffmpeg` has librsvg, and `ffmpeg -decoders | grep librsvg` prints a line if yours does.
+The second line fetches the Chromium that shipcut's Playwright drives. It also needs Node 24, and `ffmpeg` built with librsvg and `ffprobe` on your PATH. Ubuntu's `ffmpeg` has librsvg, and `ffmpeg -decoders | grep librsvg` prints a line if yours does.
 
 Linux is where shipcut is built and tested. On macOS it records, but without `--frame-by-frame`. Windows is untested.
 

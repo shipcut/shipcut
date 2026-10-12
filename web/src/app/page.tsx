@@ -1,24 +1,18 @@
 import Link from "next/link";
 
+import { Command } from "@/components/landing/command";
 import { Compare } from "@/components/landing/compare";
 import { Demo } from "@/components/landing/demo";
 import { Features } from "@/components/landing/features";
 import { FlowBoard } from "@/components/landing/flow-board";
 import { HeroStage } from "@/components/landing/hero-stage";
-import { TwoParts } from "@/components/landing/two-parts";
+import { INIT, TwoParts } from "@/components/landing/two-parts";
 import { REPO } from "@/components/site/links";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
-import { buttonVariants } from "@/components/ui/button";
 
-const INSTALL = buttonVariants({
-  size: "lg",
-  className: "h-12 px-6 text-base",
-});
-const CODE = buttonVariants({
-  variant: "link",
-  className: "text-lavender h-12 px-0 text-base font-medium",
-});
+const LINK =
+  "text-lavender decoration-violet font-medium underline decoration-2 underline-offset-4 hover:decoration-lavender";
 
 export default function Home() {
   return (
@@ -35,11 +29,18 @@ export default function Home() {
               Your UI changed, your demo didn&apos;t. Your coding agent writes a
               Playwright script, and shipcut records it.
             </p>
+            <div className="flex w-full max-w-md flex-col gap-3">
+              <Command lines={INIT} name="hero install" />
+              <p className="text-haze text-sm leading-relaxed text-pretty">
+                Installs the CLI and Chromium, checks ffmpeg and adds the skill
+                for Claude Code, Cursor or Codex.
+              </p>
+            </div>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-              <Link href="/docs" className={INSTALL} data-track="hero: run it">
-                Run it on your app
+              <Link href="/docs" className={LINK} data-track="hero: run it">
+                Read the docs
               </Link>
-              <a href={REPO} className={CODE} data-track="hero: code">
+              <a href={REPO} className={LINK} data-track="hero: code">
                 See the code
               </a>
             </div>

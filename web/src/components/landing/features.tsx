@@ -11,7 +11,7 @@ const FEATURES = [
   },
   {
     title: "Your agent writes the script",
-    text: "A Playwright file in your repo, written by Claude Code or another agent from our skill. You review it like any PR, and the next run picks up the new UI.",
+    text: "A Playwright file in your repo, written by Claude Code, Cursor or Codex from the skill that init adds. You review it like any PR, and the next run picks up the new UI.",
     picture: <Script />,
   },
 ];

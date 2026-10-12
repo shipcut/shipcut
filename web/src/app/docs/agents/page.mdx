@@ -20,7 +20,13 @@ The skill is one file, `skills/shipcut/SKILL.md` in the shipcut package. It tell
 
 ## Install it
 
-Copy the folder into your project, where your agent looks for skills. Claude Code reads `.claude/skills/`. For another agent, use the folder it reads skills from, often `.agents/skills/`.
+`npx shipcut init` adds it: to `.claude/skills/` for Claude Code, `.cursor/skills/` for Cursor and `.agents/skills/` for Codex and other agents, for each one it finds in the project. Pick them yourself with `--agent`, and run it again after updating shipcut to refresh the skill:
+
+```sh
+npx shipcut init --agent claude,cursor
+```
+
+Commit the folder, so everyone's agent has it. To copy it by hand instead:
 
 ```sh
 mkdir -p .claude/skills && cp -r "$(npm root -g)/shipcut/skills/shipcut" .claude/skills/
