@@ -5,12 +5,14 @@ import { parseArgs } from "node:util";
 import {
   captionOptions,
   clipOptions,
+  initOptions,
   measureOptions,
   polishOptions,
   runOptions,
 } from "./lib.ts";
 
-const USAGE = `shipcut run <scenario> [--base URL] [--out DIR] [--preset desktop|phone|post|story | --viewport WxH]
+const USAGE = `shipcut init [--yes] [--agent claude|cursor|agents|none]... [--base URL] [--no-scenario]
+shipcut run <scenario> [--base URL] [--out DIR] [--preset desktop|phone|post|story | --viewport WxH]
           [--scale N] [--video] [--frame-by-frame] [--pointer | --cursor] [--slow MS] [--storage-state FILE] [--locale xx] [--dark]
           [--mask] [--mask-selector CSS]...
 shipcut clip <video> [--from S] [--to S] [--speed X] [--width W] [--gif] [--out FILE]
@@ -50,7 +52,11 @@ function underHeavy(): number | undefined {
 }
 
 try {
-  if (command === "run") {
+  if (command === "init") {
+    await (await import("./init.ts")).init(initOptions(args));
+  } else if (command === "--version" || command === "-v") {
+    console.log((await import("./init.ts")).VERSION);
+  } else if (command === "run") {
     const options = runOptions(args);
     const code = underHeavy();
     if (code !== undefined) process.exit(code);

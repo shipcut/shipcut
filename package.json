@@ -1,6 +1,6 @@
 {
   "name": "shipcut",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Record screenshots and short videos of a web app's flows and publish them to Cloudflare R2.",
   "homepage": "https://shipcut.dev",
   "license": "MIT",

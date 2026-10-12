@@ -46,6 +46,11 @@ export default async ({ page, base, shot, step }) => {
 shipcut run shipcut/landing.ts --base http://localhost:3000 --video --pointer
 ```
 
+If `shipcut` is not found, or a run fails for a missing Chromium or ffmpeg,
+run `npx shipcut init --yes --agent none` and follow the lines it marks with
+✗. Installing ffmpeg needs the user's package manager, often with sudo: show
+them the command init printed rather than running it.
+
 | Preset              | Layout                        | Shots and video |
 | ------------------- | ----------------------------- | --------------- |
 | `desktop` (default) | desktop, 1280x800 CSS         | 1280x800        |

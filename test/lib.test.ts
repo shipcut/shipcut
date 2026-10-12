@@ -39,6 +39,10 @@ import {
   runId,
   runOptions,
   wrap,
+  detectAgents,
+  devServer,
+  ffmpegInstall,
+  initOptions,
 } from "../src/lib.ts";
 import type { IndexEntry, Manifest, Run } from "../src/types.ts";
 
@@ -798,4 +802,85 @@ test("a ListObjectsV2 page gives its keys, its folders and the token for the nex
     prefixes: [],
     next: undefined,
   });
+});
+
+test("init flags: defaults, agents by comma or repeat, none", () => {
+  assert.deepEqual(initOptions([]), {
+    yes: false,
+    agents: undefined,
+    base: undefined,
+    scenario: true,
+  });
+  const o = initOptions([
+    "-y",
+    "--agent",
+    "claude,cursor",
+    "--agent",
+    "agents",
+    "--base",
+    "http://localhost:4000/",
+    "--no-scenario",
+  ]);
+  assert.deepEqual(o, {
+    yes: true,
+    agents: ["claude", "cursor", "agents"],
+    base: "http://localhost:4000",
+    scenario: false,
+  });
+  assert.deepEqual(initOptions(["--agent", "none"]).agents, []);
+  assert.throws(() => initOptions(["--agent", "copilot"]), /--agent is one of/);
+  assert.throws(() => initOptions(["extra"]), /usage/);
+});
+
+test("init detects agents by the files at the root", () => {
+  assert.deepEqual(detectAgents(["CLAUDE.md", "AGENTS.md", "src"]), [
+    "claude",
+    "agents",
+  ]);
+  assert.deepEqual(detectAgents([".cursor"]), ["cursor"]);
+  assert.deepEqual(detectAgents(["package.json"]), []);
+});
+
+test("init finds the dev server's port", () => {
+  assert.deepEqual(devServer({}), {
+    url: "http://localhost:3000",
+    framework: undefined,
+  });
+  assert.deepEqual(devServer({ devDependencies: { vite: "7" } }), {
+    url: "http://localhost:5173",
+    framework: "vite",
+  });
+  assert.equal(
+    devServer({
+      dependencies: { next: "16" },
+      scripts: { dev: "next dev --port 3005" },
+    }).url,
+    "http://localhost:3005"
+  );
+  assert.equal(
+    devServer({ scripts: { dev: "PORT=8080 node server.js" } }).url,
+    "http://localhost:8080"
+  );
+  assert.equal(
+    devServer({ dependencies: { astro: "5" } }).url,
+    "http://localhost:4321"
+  );
+});
+
+test("init names an ffmpeg with librsvg for each system", () => {
+  assert.equal(
+    ffmpegInstall("linux", "ID=ubuntu\nID_LIKE=debian\n"),
+    "sudo apt-get install -y ffmpeg"
+  );
+  assert.equal(
+    ffmpegInstall("linux", 'ID="linuxmint"\nID_LIKE="ubuntu debian"\n'),
+    "sudo apt-get install -y ffmpeg"
+  );
+  assert.equal(
+    ffmpegInstall("linux", "ID=arch\n"),
+    "sudo pacman -S --needed ffmpeg"
+  );
+  assert.match(ffmpegInstall("darwin"), /^brew tap homebrew-ffmpeg/);
+  assert.match(ffmpegInstall("darwin", "", true), /^brew uninstall ffmpeg && /);
+  assert.match(ffmpegInstall("linux", "ID=nixos\n"), /package manager/);
 });
