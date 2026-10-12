@@ -28,11 +28,19 @@ export function SiteHeader() {
         <Link href="/changelog" className="hover:text-paper hidden sm:block">
           Changelog
         </Link>
-        <a href={REPO} className="hover:text-paper hidden sm:block">
+        <a
+          href={REPO}
+          className="hover:text-paper hidden sm:block"
+          data-track="header: github"
+        >
           GitHub
         </a>
       </nav>
-      <Link href="/docs" className={buttonVariants({ className: "h-10 px-4" })}>
+      <Link
+        href="/docs"
+        className={buttonVariants({ className: "h-10 px-4" })}
+        data-track="header: get started"
+      >
         Get started
       </Link>
     </header>

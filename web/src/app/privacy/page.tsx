@@ -22,7 +22,7 @@ export default function Privacy() {
             Privacy
           </h1>
           <p className="text-base">
-            Updated <time dateTime="2026-10-11">11 October 2026</time>
+            Updated <time dateTime="2026-10-12">12 October 2026</time>
           </p>
           <p>
             shipcut.dev is run by Roman Denysov, who is responsible for the
@@ -35,9 +35,12 @@ export default function Privacy() {
           <Section title="Analytics">
             <p>
               Vercel Web Analytics counts visits without cookies and stores no
-              personal data. We see totals: page views, and one event,{" "}
-              <code>Visit</code>, with the visit&apos;s <code>utm_source</code>{" "}
-              when there is one.
+              personal data. We see totals: page views and three events.{" "}
+              <code>Visit</code> carries the visit&apos;s{" "}
+              <code>utm_source</code> when there is one. <code>Click</code>{" "}
+              names the button or the outside address a link leads to, and the
+              page it was on. <code>Copy</code> carries the first line of code
+              copied from a code block, and the page.
             </p>
           </Section>
 

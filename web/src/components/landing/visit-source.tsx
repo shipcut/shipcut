@@ -15,7 +15,7 @@ function utmSource(): string | undefined {
  * queue track() writes to, can run after a sibling's, and track() drops an
  * event that finds no queue. This is the same queue it would set up.
  */
-function ensureQueue() {
+export function ensureQueue() {
   window.va ??= (event, properties) => {
     (window.vaq ??= []).push([event, properties]);
   };
