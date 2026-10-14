@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { Command } from "@/components/landing/command";
-import { Compare } from "@/components/landing/compare";
 import { Demo } from "@/components/landing/demo";
 import { Features } from "@/components/landing/features";
 import { FlowBoard } from "@/components/landing/flow-board";
@@ -46,8 +45,6 @@ export default function Home() {
           </div>
           <Demo />
         </section>
-
-        <Compare />
 
         <Features />
 
