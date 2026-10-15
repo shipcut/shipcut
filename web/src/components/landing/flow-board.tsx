@@ -115,22 +115,22 @@ export function FlowBoard() {
             className={cn(
               "flex flex-col gap-3 rounded-2xl border p-3 transition-colors duration-500 md:min-h-[300px]",
               i === lane
-                ? "border-violet/70 bg-violet/10"
-                : "border-line bg-ink"
+                ? "border-violet bg-violet/20"
+                : "border-haze/40 bg-slab"
             )}
           >
             <div className="flex items-baseline gap-2 px-1">
-              <span className="text-haze font-mono text-sm">{i + 1}</span>
-              <span className="text-lg font-bold">{l.name}</span>
+              <span className="text-lavender font-mono text-base">{i + 1}</span>
+              <span className="text-xl font-bold">{l.name}</span>
             </div>
-            <div className="iso-block bg-slab text-lavender rounded-xl px-3 py-4 text-base font-medium">
+            <div className="iso-block border-violet/50 text-paper bg-violet/25 rounded-xl border px-3 py-4 text-lg font-semibold">
               {l.station}
             </div>
             <div
               ref={(el) => {
                 slots.current[i] = el;
               }}
-              className="border-line h-[72px] rounded-xl border border-dashed"
+              className="border-haze/60 h-[72px] rounded-xl border-2 border-dashed"
             />
           </div>
         ))}
