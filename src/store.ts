@@ -35,9 +35,11 @@ function reader() {
   const fromFile = existsSync(file)
     ? parseEnv(readFileSync(file, "utf-8"))
     : {};
-  return (key: (typeof KEYS)[number]) =>
-    process.env[key] || fromFile[key] || "";
+  return (key: string) => process.env[key] || fromFile[key] || "";
 }
+
+/** A variable from the environment or `~/.config/shipcut/env`, for the voice's keys. Never printed. */
+export const setting = (key: string) => reader()(key);
 
 /** The names of the `R2_*` variables that are not set, never a value. */
 export function missingCredentials(): string[] {

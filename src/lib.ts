@@ -887,7 +887,8 @@ export function clipArgs(o: ClipOptions): string[] {
     o.input,
     "-vf",
     filters.join(","),
-    ...MP4,
+    // A narrated video keeps its voice; a sped-up one would lose sync, so it goes silent.
+    ...(o.speed ? MP4 : [...MP4.filter((a) => a !== "-an"), "-c:a", "aac"]),
     o.out,
   ];
 }
@@ -1239,3 +1240,106 @@ export const STARTER_SCENARIO = `export default async ({ page, base, shot, step 
   await shot("landing");
 };
 `;
+
+export type NarrateOptions = ReturnType<typeof narrateOptions>;
+
+export function narrateOptions(argv: string[]) {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      out: { type: "string" },
+      voice: { type: "string" },
+      subtitles: { type: "boolean", default: false },
+    },
+  });
+  const [dir, ...rest] = positionals;
+  if (!dir || rest.length)
+    throw new Error(
+      "usage: shipcut narrate <run-dir> [--voice azure:NAME | elevenlabs:VOICE_ID | piper:MODEL.onnx] [--subtitles] [--out FILE]"
+    );
+  const voice = values.voice ?? "azure:sk-SK-ViktoriaNeural";
+  const [engine, name] = [
+    voice.slice(0, voice.indexOf(":")),
+    voice.slice(voice.indexOf(":") + 1),
+  ];
+  if (!["azure", "elevenlabs", "piper"].includes(engine) || !name)
+    throw new Error(
+      "--voice wants azure:NAME, elevenlabs:VOICE_ID or piper:MODEL.onnx"
+    );
+  return {
+    dir,
+    out: values.out ?? `${dir.replace(/\/$/, "")}/video-narrated.mp4`,
+    voice: { engine, name },
+    subtitles: values.subtitles,
+  };
+}
+
+/** Seconds of silence before a step's line and after it, inside the step's segment. */
+export const NARRATION = { lead: 0.3, tail: 0.6 };
+
+export interface Segment {
+  from: number;
+  to: number;
+  say?: string;
+}
+
+/**
+ * The video cut at each step, in seconds. A segment carries the line its step
+ * says; the stretch before the first step says nothing.
+ */
+export function narrationSegments(steps: Step[], duration: number): Segment[] {
+  const sorted = [...steps].sort((a, b) => a.at - b.at);
+  const cuts = [
+    0,
+    ...sorted.map((s) => Math.min(s.at / 1000, duration)),
+    duration,
+  ];
+  return cuts.slice(0, -1).flatMap((from, i) => {
+    const to = cuts[i + 1]!;
+    const say = sorted[i - 1]?.say?.trim();
+    return to > from || say ? [{ from, to, ...(say ? { say } : {}) }] : [];
+  });
+}
+
+const srtTime = (s: number) => {
+  const ms = Math.round(s * 1000);
+  const pad = (n: number, w = 2) => String(n).padStart(w, "0");
+  return `${pad(Math.floor(ms / 3_600_000))}:${pad(Math.floor(ms / 60_000) % 60)}:${pad(Math.floor(ms / 1000) % 60)},${pad(ms % 1000, 3)}`;
+};
+
+/**
+ * Lays the lines over the video: a segment whose line runs longer than it is
+ * held on its last frame until the line ends. `seconds` are the lengths of the
+ * spoken segments' audio files, in order. Returns each segment's hold, the
+ * `-filter_complex` audio graph over those files as inputs 0.. ending in
+ * `[a]`, the SRT and the new length.
+ */
+export function narrationPlan(segments: Segment[], seconds: number[]) {
+  const { lead, tail } = NARRATION;
+  const audio: string[] = [];
+  const srt: string[] = [];
+  const holds: number[] = [];
+  let t = 0;
+  let voiced = 0;
+  for (const [i, s] of segments.entries()) {
+    const span = s.to - s.from;
+    const said = s.say ? seconds[voiced]! : 0;
+    const length = s.say ? Math.max(span, lead + said + tail) : span;
+    holds.push(Number((length - span).toFixed(3)));
+    audio.push(
+      s.say
+        ? `[${voiced++}:a]aresample=48000,aformat=channel_layouts=mono,adelay=${lead * 1000}:all=1,apad,atrim=0:${length.toFixed(3)}[a${i}]`
+        : `anullsrc=r=48000:cl=mono,atrim=0:${length.toFixed(3)}[a${i}]`
+    );
+    if (s.say)
+      srt.push(
+        `${srt.length + 1}\n${srtTime(t + lead)} --> ${srtTime(t + lead + said)}\n${s.say}\n`
+      );
+    t += length;
+  }
+  audio.push(
+    `${segments.map((_, i) => `[a${i}]`).join("")}concat=n=${segments.length}:v=0:a=1[a]`
+  );
+  return { holds, audio: audio.join(";"), srt: srt.join("\n"), seconds: t };
+}

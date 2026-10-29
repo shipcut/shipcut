@@ -15,6 +15,8 @@ import {
   captionLayout,
   captionOptions,
   captionTimeline,
+  narrationPlan,
+  narrationSegments,
   clipArgs,
   clipOptions,
   filterValue,
@@ -300,6 +302,8 @@ test("clip builds an mp4 trim and a palette GIF", () => {
   ]);
   assert.equal(args[args.indexOf("-vf") + 1], "setpts=PTS/2,scale=720:-2");
   assert.ok(args.includes("yuv420p") && args.includes("+faststart"));
+  assert.ok(args.includes("-an"));
+  assert.ok(clipArgs(clipOptions(["out/video.mp4"])).includes("aac"));
 
   const gif = clipOptions(["out/video.mp4", "--gif"]);
   assert.equal(gif.out, "out/video.gif");
@@ -883,4 +887,34 @@ test("init names an ffmpeg with librsvg for each system", () => {
   assert.match(ffmpegInstall("darwin"), /^brew tap homebrew-ffmpeg/);
   assert.match(ffmpegInstall("darwin", "", true), /^brew uninstall ffmpeg && /);
   assert.match(ffmpegInstall("linux", "ID=nixos\n"), /package manager/);
+});
+
+test("a line longer than its step holds the step's last frame until the line ends", () => {
+  const segments = narrationSegments(
+    [
+      { title: "a", at: 1000, say: "Prvá" },
+      { title: "b", at: 3000 },
+      { title: "c", at: 4000, say: "Tretia" },
+    ],
+    6
+  );
+  assert.deepEqual(segments, [
+    { from: 0, to: 1 },
+    { from: 1, to: 3, say: "Prvá" },
+    { from: 3, to: 4 },
+    { from: 4, to: 6, say: "Tretia" },
+  ]);
+  // 0.3 lead + 2.5 + 0.6 tail = 3.4 s against a 2 s step: held 1.4 s. 1 s fits in the last.
+  const plan = narrationPlan(segments, [2.5, 1]);
+  assert.equal(plan.seconds, 1 + 3.4 + 1 + 2);
+  assert.deepEqual(plan.holds, [0, 1.4, 0, 0]);
+  assert.match(
+    plan.audio,
+    /^anullsrc[^;]*\[a0\];\[0:a\][^;]*\[a1\];anullsrc[^;]*\[a2\];\[1:a\][^;]*\[a3\];/
+  );
+  assert.match(plan.audio, /concat=n=4:v=0:a=1\[a\]$/);
+  assert.equal(
+    plan.srt,
+    "1\n00:00:01,300 --> 00:00:03,800\nPrvá\n\n2\n00:00:05,700 --> 00:00:06,700\nTretia\n"
+  );
 });

@@ -35,6 +35,8 @@ export default async ({ page, base, shot, step }) => {
   video until the next step. Write it as a caption: a few words, no full stop.
   `step(title, { caption: false })` marks a chapter that shows none, and
   `{ zoom: false }` one that `polish --zoom` does not close in on.
+  `{ say: "..." }` is the line `shipcut narrate` speaks over the step: a
+  full sentence, as it is said aloud.
 - Wait for the thing you are about to shoot (`waitFor`, `waitForLoadState`),
   not for a timeout. A fixed pause is right only to let a video breathe.
 - Node runs the file directly: plain imports only, no path aliases, no `enum`.
