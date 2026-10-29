@@ -38,10 +38,13 @@ export interface ScenarioContext {
   shot: (name: string, options?: { fullPage?: boolean }) => Promise<void>;
   /**
    * Marks a chapter; its title and time offset go into the manifest. `shipcut
-   * caption` burns it in unless `caption: false`, and `polish --zoom` zooms on
-   * its clicks unless `zoom: false`.
+   * caption` burns it in unless `caption: false`, `polish --zoom` zooms on
+   * its clicks unless `zoom: false`, and `shipcut narrate` speaks its `say`.
    */
-  step: (title: string, options?: { caption?: false; zoom?: false }) => void;
+  step: (
+    title: string,
+    options?: { caption?: false; zoom?: false; say?: string }
+  ) => void;
 }
 export type Scenario = (context: ScenarioContext) => Promise<void>;
 
@@ -742,6 +745,7 @@ export async function run(o: RunOptions): Promise<void> {
             at: Math.round(clock.now()),
             ...(options?.caption === false ? { caption: false } : {}),
             ...(options?.zoom === false ? { zoom: false } : {}),
+            ...(options?.say ? { say: options.say } : {}),
           }),
       });
     } catch (error) {

@@ -14,12 +14,16 @@ export interface RunFile {
   at?: number;
 }
 
-/** `caption: false` keeps it out of `shipcut caption`, `zoom: false` out of `polish --zoom`. */
+/**
+ * `caption: false` keeps it out of `shipcut caption`, `zoom: false` out of `polish --zoom`.
+ * `say` is the line `shipcut narrate` speaks over the step.
+ */
 export interface Step {
   title: string;
   at: number;
   caption?: false;
   zoom?: false;
+  say?: string;
 }
 
 /** `[ms, x, y]`: milliseconds from the start of the video and CSS pixels of the viewport. */

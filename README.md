@@ -195,7 +195,8 @@ shipcut clip out/20261002-134501-booking/video.mp4 --gif --width 480
 Trims (`--from`, `--to` in seconds of the source), speeds up, scales, or makes
 a palette GIF (12 fps, 640 wide unless `--width`). Writes `<name>-clip.mp4` or
 `<name>.gif` next to the source unless `--out`. A result inside a run
-directory is added to its `run.json`, so `publish` uploads it.
+directory is added to its `run.json`, so `publish` uploads it. A narrated
+video keeps its voice unless `--speed` changes its pace.
 
 ### caption
 
@@ -283,6 +284,33 @@ trip takes 250 ms for a short hop and 900 ms at most. `page.mouse.click` and
 `dblclick` glide too, so a run takes that much longer per action. `run.json` gets
 `events`: `clicks` and `moves`, each `[ms, x, y]` in milliseconds of the video
 and CSS pixels.
+
+### narrate
+
+```sh
+shipcut narrate out/20261002-134501-booking --voice piper:sk_SK-lili-medium.onnx --subtitles
+```
+
+Speaks each step's `say` over the video: `step("Schváliť", { say: "Jedným
+kliknutím ich schváli." })`. A line longer than its step holds the step's last
+frame until the line ends, with 0.3 s before it and 0.6 s after, so the
+picture waits for the voice and never the other way round. Reads
+`video-polished.mp4` when there is one, else `video.mp4`, writes
+`video-narrated.mp4` unless `--out`, and beside it the lines as an `.srt` for
+a platform that shows its own subtitles. `--subtitles` also burns them in, in
+Inter Bold on a dark band.
+
+`--voice` picks who speaks:
+
+- `piper:MODEL.onnx`, a local [Piper](https://github.com/OHF-Voice/piper1-gpl)
+  voice. `piper` must be on `PATH` (`uv tool install piper-tts`); voices are
+  at [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices).
+- `elevenlabs:VOICE_ID`, an [ElevenLabs](https://elevenlabs.io) voice with
+  the `eleven_multilingual_v2` model. It needs `ELEVENLABS_API_KEY`; the free
+  plan does not allow commercial use.
+- `azure:NAME`, the default `azure:sk-SK-ViktoriaNeural`, Azure Speech. It
+  needs `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` in the environment or in
+  `~/.config/shipcut/env`.
 
 ### measure
 

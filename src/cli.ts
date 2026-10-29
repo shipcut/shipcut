@@ -7,6 +7,7 @@ import {
   clipOptions,
   initOptions,
   measureOptions,
+  narrateOptions,
   polishOptions,
   runOptions,
 } from "./lib.ts";
@@ -18,6 +19,7 @@ shipcut run <scenario> [--base URL] [--out DIR] [--preset desktop|phone|post|sto
 shipcut clip <video> [--from S] [--to S] [--speed X] [--width W] [--gif] [--out FILE]
 shipcut caption <run-dir> [--out FILE] [--font FILE]
 shipcut polish <run-dir> [--[no-]labels] [--label-font FILE] [--[no-]zoom] [--zoom-factor N] [--[no-]frame] [--background SPEC] [--out FILE]
+shipcut narrate <run-dir> [--voice azure:NAME | elevenlabs:VOICE_ID | piper:MODEL.onnx] [--subtitles] [--out FILE]
 shipcut measure <run-dir>
 shipcut publish <run-dir> --project NAME [--title TEXT]
 shipcut list [--project NAME] [--limit N]
@@ -74,6 +76,11 @@ try {
     const code = underHeavy();
     if (code !== undefined) process.exit(code);
     (await import("./clip.ts")).polish(options);
+  } else if (command === "narrate") {
+    const options = narrateOptions(args);
+    const code = underHeavy();
+    if (code !== undefined) process.exit(code);
+    await (await import("./clip.ts")).narrate(options);
   } else if (command === "measure") {
     const { dir } = measureOptions(args);
     const code = underHeavy();

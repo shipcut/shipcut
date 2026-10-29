@@ -18,7 +18,7 @@ that can read and write that one bucket.
 What the product is and is not: `PRODUCT.md`. The order of work: `ROADMAP.md`.
 The current stage in detail: `docs/prd/<nn>-*.md`, the one `ROADMAP.md` names.
 
-`README.md` is the user's view: the nine commands and the data layout. Keep it
+`README.md` is the user's view: the ten commands and the data layout. Keep it
 true when a flag or a stored shape changes.
 
 ## Layout
@@ -30,7 +30,7 @@ true when a flag or a stored shape changes.
   signature and the listing parser. This is what the tests cover.
 - `src/run.ts` - the browser: scenario contract, the pointer's glide, the old cursor, the recorder,
   `run.json`.
-- `src/clip.ts` - `clip`, `caption`, `polish` and `measure`, the ffmpeg wrappers.
+- `src/clip.ts` - `clip`, `caption`, `polish`, `narrate` and `measure`, the ffmpeg wrappers.
 - `src/store.ts` - R2: publish, list, rm, the credentials.
 - `src/init.ts` - `init`, the setup wizard: installs, checks, the skill.
 - `src/types.ts` - the stored shapes. Published manifests already have them,
@@ -117,7 +117,7 @@ for identifiers.
 ## Heavy
 
 The box is shared. Anything that starts a browser or ffmpeg goes through
-`heavy`. `shipcut run`, `clip`, `caption`, `polish` and `measure` do that themselves, so call them
+`heavy`. `shipcut run`, `clip`, `caption`, `polish`, `narrate` and `measure` do that themselves, so call them
 plainly; do not wrap them in `heavy` again and do not set `SHIPCUT_HEAVY` to
 skip it. Exit 75 means wait and retry.
 

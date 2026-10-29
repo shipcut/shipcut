@@ -1,5 +1,11 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +15,7 @@ import {
   backgroundSvg,
   type CaptionOptions,
   captionFilter,
+  filterValue,
   captionTimeline,
   clipArgs,
   type ClipOptions,
@@ -23,6 +30,9 @@ import {
   labelWindows,
   MP4,
   measureLines,
+  type NarrateOptions,
+  narrationPlan,
+  narrationSegments,
   POINTER,
   PRESS_FRAMES,
   pointerTrack,
@@ -35,14 +45,10 @@ import {
   zoomTrack,
 } from "./lib.ts";
 import { measure, recordFile, reportPeak } from "./run.ts";
+import { setting } from "./store.ts";
 import type { Run } from "./types.ts";
 
-function produce(
-  args: string[],
-  path: string,
-  cwd?: string,
-  env?: NodeJS.ProcessEnv
-): void {
+function ffmpeg(args: string[], cwd?: string, env?: NodeJS.ProcessEnv): void {
   const done = spawnSync("ffmpeg", ["-v", "error", ...args], {
     cwd,
     env,
@@ -51,6 +57,15 @@ function produce(
   if (done.error) throw done.error;
   if (done.status !== 0)
     throw new Error(`ffmpeg failed: ${done.stderr.toString().trim()}`);
+}
+
+function produce(
+  args: string[],
+  path: string,
+  cwd?: string,
+  env?: NodeJS.ProcessEnv
+): void {
+  ffmpeg(args, cwd, env);
 
   const out = resolve(path);
   const f = measure(out, basename(out));
@@ -421,3 +436,193 @@ function labelFont(env: NodeJS.ProcessEnv, family: string): string {
     return "the default font";
   }
 }
+
+const FONTS = fileURLToPath(new URL("../fonts/", import.meta.url));
+
+/** Writes `text` spoken by `voice` to `path`, a WAV or, from ElevenLabs, an MP3; ffmpeg tells them apart by content. */
+async function speak(
+  voice: NarrateOptions["voice"],
+  text: string,
+  path: string
+): Promise<void> {
+  if (voice.engine === "piper") {
+    const done = spawnSync(
+      "piper",
+      ["--model", voice.name, "--output_file", path],
+      { input: text, stdio: ["pipe", "ignore", "pipe"] }
+    );
+    if (done.error)
+      throw new Error(
+        `piper did not start (${done.error.message}): put it on PATH, e.g. \`uv tool install piper-tts\``
+      );
+    if (done.status !== 0)
+      throw new Error(`piper failed: ${done.stderr.toString().trim()}`);
+    return;
+  }
+  if (voice.engine === "elevenlabs") {
+    const key = setting("ELEVENLABS_API_KEY");
+    if (!key)
+      throw new Error(
+        "no ELEVENLABS_API_KEY in the environment or in ~/.config/shipcut/env"
+      );
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice.name)}?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: { "xi-api-key": key, "Content-Type": "application/json" },
+        body: JSON.stringify({ text, model_id: "eleven_multilingual_v2" }),
+      }
+    );
+    if (!response.ok)
+      throw new Error(
+        `ElevenLabs answered ${response.status} for ${voice.name}: ${(await response.text()).slice(0, 300)}`
+      );
+    writeFileSync(path, Buffer.from(await response.arrayBuffer()));
+    return;
+  }
+  const key = setting("AZURE_SPEECH_KEY");
+  const region = setting("AZURE_SPEECH_REGION");
+  if (!key || !region)
+    throw new Error(
+      `no ${[!key && "AZURE_SPEECH_KEY", !region && "AZURE_SPEECH_REGION"].filter(Boolean).join(", ")} in the environment or in ~/.config/shipcut/env; or --voice piper:MODEL.onnx`
+    );
+  const xml = (t: string) =>
+    t.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const response = await fetch(
+    `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`,
+    {
+      method: "POST",
+      headers: {
+        "Ocp-Apim-Subscription-Key": key,
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "riff-48khz-16bit-mono-pcm",
+        "User-Agent": "shipcut",
+      },
+      // A neural voice's name starts with its locale, `sk-SK-ViktoriaNeural`.
+      body: `<speak version="1.0" xml:lang="${xml(voice.name.split("-").slice(0, 2).join("-"))}"><voice name="${xml(voice.name)}">${xml(text)}</voice></speak>`,
+    }
+  );
+  if (!response.ok)
+    throw new Error(
+      `Azure Speech answered ${response.status} for ${voice.name}`
+    );
+  writeFileSync(path, Buffer.from(await response.arrayBuffer()));
+}
+
+/**
+ * Speaks each step's `say` over the video, holding a step's last frame while
+ * its line runs on, and writes the lines as an SRT beside it.
+ */
+export async function narrate(o: NarrateOptions): Promise<void> {
+  const run = JSON.parse(readFileSync(join(o.dir, "run.json"), "utf-8")) as Run;
+  const name = existsSync(join(o.dir, "video-polished.mp4"))
+    ? "video-polished.mp4"
+    : "video.mp4";
+  const source = join(o.dir, name);
+  if (resolve(o.out) === resolve(source))
+    throw new Error("--out is the source video");
+  const { duration, width = 16, height = 10 } = measure(source, name);
+  if (!duration)
+    throw new Error(
+      `${o.dir} has no video.mp4: record with \`shipcut run --video\``
+    );
+  const segments = narrationSegments(run.steps, duration);
+  const lines = segments.flatMap((s) => (s.say ? [s.say] : []));
+  if (!lines.length)
+    throw new Error(
+      'no step to narrate: the scenario gives one a line with step(title, { say: "..." })'
+    );
+
+  console.error(
+    `shipcut: ${lines.length} lines from ${name} in ${o.voice.name}`
+  );
+  const tmp = mkdtempSync(join(tmpdir(), "shipcut-narrate-"));
+  try {
+    const wavs = lines.map((_, i) => join(tmp, String(i)));
+    for (const [i, line] of lines.entries())
+      await speak(o.voice, line, wavs[i]!);
+    const seconds = wavs.map((w) =>
+      Number(
+        execFileSync(
+          "ffprobe",
+          [
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "csv=p=0",
+            w,
+          ],
+          { encoding: "utf-8" }
+        )
+      )
+    );
+    const srt = `${o.out.replace(/\.mp4$/, "")}.srt`;
+    const plan = narrationPlan(segments, seconds);
+    writeFileSync(srt, plan.srt);
+    console.log(`${srt}  ${lines.length} lines`);
+    // One ffmpeg per segment, then a concat: a single graph over n cuts of a
+    // 2560x1600 video holds n decoders and their queues, past 1.5 GB at nine.
+    const pieces = segments.map((s, i) => {
+      const piece = join(tmp, `piece-${i}.mp4`);
+      ffmpeg([
+        "-y",
+        "-ss",
+        String(s.from),
+        "-t",
+        String(s.to - s.from),
+        "-i",
+        source,
+        "-vf",
+        `setpts=PTS-STARTPTS,tpad=stop_mode=clone:stop_duration=${plan.holds[i]}`,
+        "-c:v",
+        "libx264",
+        "-crf",
+        "14",
+        "-preset",
+        "veryfast",
+        "-an",
+        piece,
+      ]);
+      return piece;
+    });
+    const list = join(tmp, "pieces.txt");
+    writeFileSync(list, pieces.map((p) => `file '${p}'`).join("\n"));
+    const subtitles = `subtitles=filename=${filterValue(resolve(srt))}:fontsdir=${filterValue(FONTS)}:force_style=${filterValue(subtitleStyle(width, height))}`;
+    produce(
+      [
+        "-y",
+        ...wavs.flatMap((w) => ["-i", w]),
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        list,
+        "-filter_complex",
+        `${plan.audio};[${wavs.length}:v]${o.subtitles ? subtitles : "null"}[v]`,
+        "-map",
+        "[v]",
+        "-map",
+        "[a]",
+        ...MP4.filter((a) => a !== "-an"),
+        "-c:a",
+        "aac",
+        "-b:a",
+        "160k",
+        o.out,
+      ],
+      o.out
+    );
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// libass sizes an SRT against a 288-line canvas scaled to the frame, so 13 is a 22nd of the height. A tall frame
+// would get letters a third of its width wide, so there the size follows the width instead.
+const subtitleStyle = (width: number, height: number) => {
+  const size = Math.round(Math.min(13, (13 * width) / height));
+  return `FontName=Inter,Bold=1,FontSize=${size},PrimaryColour=&H00FFFFFF,BackColour=&H99000000,BorderStyle=3,Outline=${Math.max(3, Math.round(size / 2))},Shadow=0,MarginV=22`;
+};
