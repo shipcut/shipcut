@@ -23,7 +23,11 @@
     "check": "tsc --noEmit && pnpm -F @shipcut/web check-types && oxlint && oxfmt --check && node --test",
     "fix": "oxlint --fix && oxfmt",
     "test": "node --test",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm build",
+    "prepare": "lefthook install",
+    "lint": "oxlint && oxfmt --check",
+    "check-types": "tsc --noEmit && pnpm -F @shipcut/web check-types",
+    "verify": "pnpm lint && pnpm check-types && pnpm test"
   },
   "dependencies": {
     "playwright": "~1.63.0"
@@ -31,6 +35,7 @@
   "devDependencies": {
     "@shadcn/lint": "^0.2.0",
     "@types/node": "^24.19.0",
+    "lefthook": "^2.2.2",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
     "oxlint-tsgolint": "^7.0.2003",
