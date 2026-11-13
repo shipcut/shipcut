@@ -123,9 +123,12 @@ skip it. Exit 75 means wait and retry.
 
 ## Check
 
-`pnpm check` before handing over: `tsc --noEmit` for the CLI and the web app,
-oxlint with Ultracite's presets and `@shadcn/lint`, `oxfmt --check`, and
-`node --test`. `pnpm fix` applies oxlint's fixes and formats.
+Hooks (lefthook) run the checks. Pre-commit runs oxlint `--fix` and oxfmt on the
+staged files and restages the fixes. Pre-push runs `pnpm check-types` and
+`pnpm test` in parallel. `pnpm verify` runs everything: lint (no write), types,
+tests. A failing hook is fixed at its cause; `--no-verify` and `LEFTHOOK=0` ask
+Roman first. `pnpm fix` formats the whole repo.
+
 A change to `run.ts` or `clip.ts` also wants a real run:
 
 ```sh
