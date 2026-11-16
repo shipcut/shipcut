@@ -11,9 +11,12 @@ pre-commit:
       stage_fixed: true
 
 pre-push:
+  # lefthook skips a pre-push job when the push changes no file it can list (a push that only deletes files).
+  # A job that names {files} is checked against this list instead, so it always runs.
+  files: git ls-files -- package.json
   parallel: true
   commands:
     types:
-      run: pnpm check-types
+      run: "pnpm check-types  # {files}"
     test:
-      run: pnpm test
+      run: "pnpm test  # {files}"
